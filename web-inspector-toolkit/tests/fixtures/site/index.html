@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Home — Web Inspector Toolkit</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style id="inline-block">
+    .inline-block-rule { color: #025743; }
+  </style>
+</head>
+<body>
+  <header class="site-header" id="top">
+    <a class="header-link" href="about.html">About</a>
+    <div class="header-button primary-button">Buy now</div>
+    <nav aria-label="Primary">
+      <a href="products.html">Products</a>
+      <a href="about.html#team">Team (fragment duplicate)</a>
+      <a href="./about.html?utm_source=newsletter&utm_medium=email">About (tracking duplicate)</a>
+      <a href="contact.html">Contact</a>
+      <a href="blog/">Blog</a>
+    </nav>
+  </header>
+
+  <main class="main-content">
+    <h1>Fixture home</h1>
+
+    <p class="inline-style" style="color: rgb(2, 87, 67)">Inline style colour</p>
+    <p class="inline-block-rule">Rule from a &lt;style&gt; block</p>
+    <p class="alias-user">Variable alias (var → var)</p>
+    <button class="shorthand-var" type="button">Shorthand + var()</button>
+    <div class="card">Shadow card</div>
+    <div class="outlined">Outlined</div>
+    <span class="decorated">Decorated</span>
+    <div class="multi">Several properties</div>
+    <div class="media-rule">Inside @media</div>
+    <div class="print-only">Print only (must not match)</div>
+    <div class="layered">Inside @layer</div>
+    <div style="background: #025743; width: 40px; height: 12px"></div>
+    <div class="hidden-thing">Hidden</div>
+
+    <svg width="120" height="40" viewBox="0 0 120 40" role="img" aria-label="icon">
+      <defs>
+        <linearGradient id="g"><stop offset="0" stop-color="#025743"></stop><stop offset="1" stop-color="#ffffff"></stop></linearGradient>
+      </defs>
+      <circle class="icon-circle" cx="20" cy="20" r="14"></circle>
+      <rect x="50" y="6" width="60" height="28" fill="url(#g)" stroke="rgba(2, 87, 67, 1)" stroke-width="2"></rect>
+    </svg>
+
+    <section id="whites">
+      <span class="w-hex3">a</span>
+      <span class="w-hex6">b</span>
+      <span class="w-rgb">c</span>
+      <span class="w-rgba">d</span>
+      <span class="w-hsl">e</span>
+      <span class="w-name">f</span>
+      <span class="w-half">g</span>
+    </section>
+
+    <h2>Links the crawler must handle</h2>
+    <ul>
+      <li><a href="mailto:hello@example.com">mailto</a></li>
+      <li><a href="tel:+15555550123">tel</a></li>
+      <li><a href="javascript:void(0)">javascript</a></li>
+      <li><a href="https://example.org/">external</a></li>
+      <li><a href="files/report.pdf">pdf</a></li>
+      <li><a href="logout.html">logout (never followed)</a></li>
+      <li><a href="missing.html">missing page (HTTP 404)</a></li>
+      <li><a href="#top">fragment only</a></li>
+    </ul>
+  </main>
+
+  <footer class="site-footer">
+    <a href="contact.html" class="footer-link">Contact</a>
+  </footer>
+</body>
+</html>

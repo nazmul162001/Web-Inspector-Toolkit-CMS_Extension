@@ -1,0 +1,69 @@
+<section class="cf" aria-labelledby="cf-title">
+  <div class="cf-head">
+    <h2 id="cf-title" class="cf-title">Color Find</h2>
+    <p class="cf-lead">Find every element, CSS rule and variable that renders a color.</p>
+  </div>
+
+  <form class="cf-form" id="cf-form" novalidate>
+    <label class="field-label" for="cf-color-text">Color</label>
+
+    <div class="color-row">
+      <input
+        id="cf-color-text"
+        class="input mono"
+        type="text"
+        value="#ffffff"
+        spellcheck="false"
+        autocomplete="off"
+        autocapitalize="off"
+        placeholder="#ffffff, rgb(...), hsl(...), white"
+        aria-describedby="cf-color-error cf-color-help"
+      />
+      <label class="color-picker" title="Pick a color">
+        <input id="cf-color-picker" type="color" value="#ffffff" aria-label="Pick a color" />
+        <span class="color-picker__icon" id="cf-picker-icon" aria-hidden="true"></span>
+      </label>
+      <span class="color-preview" id="cf-color-preview" role="img" aria-label="Color preview"></span>
+    </div>
+
+    <p class="field-error" id="cf-color-error" role="alert" hidden></p>
+    <p class="field-help" id="cf-color-help">
+      Accepts HEX (#fff, #ffffff80), rgb(), rgba(), hsl(), hsla(), hwb(), lab(), oklch() and color names.
+    </p>
+
+    <div class="cf-options">
+      <div class="cf-option">
+        <label for="cf-match-mode">Match</label>
+        <select id="cf-match-mode" class="select">
+          <option value="exact">Exact (identical RGBA)</option>
+          <option value="near">Near (±4 per channel)</option>
+        </select>
+      </div>
+      <label class="cf-check" for="cf-inherited">
+        <input id="cf-inherited" type="checkbox" />
+        <span>Include inherited values</span>
+      </label>
+    </div>
+
+    <div class="cf-site-panel" id="cf-site-panel" hidden>
+      <div class="notice notice--info" id="cf-site-notice"></div>
+      <details class="cf-details">
+        <summary>Crawl options</summary>
+        <div class="crawl-grid">
+          <label>Max pages <input class="input" id="cf-crawl-maxPages" type="number" min="1" max="200" /></label>
+          <label>Concurrent tabs <input class="input" id="cf-crawl-concurrency" type="number" min="1" max="5" /></label>
+          <label>Page timeout (s) <input class="input" id="cf-crawl-pageTimeoutMs" type="number" min="5" max="120" /></label>
+          <label>Retries <input class="input" id="cf-crawl-retries" type="number" min="0" max="3" /></label>
+        </div>
+      </details>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="cf-find" type="submit">Find</button>
+      <button class="btn" id="cf-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="cf-status" aria-live="polite"></div>
+  <div class="cf-results" id="cf-results"></div>
+</section>

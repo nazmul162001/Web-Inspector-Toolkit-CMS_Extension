@@ -1,0 +1,47 @@
+/**
+ * User preferences in chrome.storage.local. Everything stays on this device.
+ * Reads are validated/sanitized so a corrupted value can never break the UI.
+ */
+
+import { DEFAULT_CRAWL_OPTIONS, MATCH_MODE, STORAGE_KEYS } from '../shared/constants.js';
+import { sanitizeCrawlOptions } from '../shared/validators.js';
+
+export const DEFAULT_SETTINGS = Object.freeze({
+  color: '#ffffff',
+  matchMode: MATCH_MODE.EXACT,
+  includeInherited: false,
+  groupMode: 'section',
+  crawl: DEFAULT_CRAWL_OPTIONS,
+});
+
+function sanitize(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  return {
+    color: typeof value.color === 'string' && value.color.length <= 100 ? value.color : DEFAULT_SETTINGS.color,
+    matchMode: Object.values(MATCH_MODE).includes(value.matchMode) ? value.matchMode : DEFAULT_SETTINGS.matchMode,
+    includeInherited: !!value.includeInherited,
+    groupMode: ['section', 'property', 'none'].includes(value.groupMode) ? value.groupMode : DEFAULT_SETTINGS.groupMode,
+    crawl: sanitizeCrawlOptions(value.crawl),
+  };
+}
+
+export async function loadSettings() {
+  try {
+    const stored = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+    return sanitize(stored[STORAGE_KEYS.SETTINGS]);
+  } catch {
+    return sanitize(null);
+  }
+}
+
+/** Merge `patch` into the stored settings. */
+export async function saveSettings(patch) {
+  const current = await loadSettings();
+  const next = sanitize({ ...current, ...patch, crawl: { ...current.crawl, ...(patch.crawl || {}) } });
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });
+  } catch {
+    /* non-fatal: preferences just will not persist */
+  }
+  return next;
+}

@@ -1,0 +1,7 @@
+/* Design tokens, pulled in through @import from style.css */
+:root {
+  --primary-color: #025743;
+  --brand-alias: var(--primary-color);
+  --shadow-color: rgba(2, 87, 67, 0.5);
+  --unrelated: 12px;
+}

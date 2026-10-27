@@ -1,0 +1,98 @@
+@import url("vars.css");
+
+/* ---- layout ---- */
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: #222222;
+  background-color: #f4f4f4;
+}
+
+.site-header {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background-color: #ffffff;
+}
+
+.site-footer {
+  padding: 16px;
+  background-color: #111111;
+  color: white;
+}
+
+/* ---- the colour under test: #025743 ---- */
+.primary-button {
+  background-color: var(--primary-color);
+  color: #fff;
+  border: 2px solid #025743;
+  padding: 8px 14px;
+}
+
+.header-link {
+  color: var(--primary-color);
+}
+
+.alias-user {
+  color: var(--brand-alias);
+}
+
+.shorthand-var {
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.card {
+  padding: 12px;
+  box-shadow: 0 4px 10px var(--shadow-color), 0 0 0 1px #025743;
+}
+
+.outlined {
+  outline: 2px solid #025743;
+}
+
+.decorated {
+  text-decoration: underline wavy #025743;
+}
+
+.multi {
+  color: #025743;
+  background-color: #025743;
+  border: 1px solid #025743;
+}
+
+.icon-circle {
+  fill: #025743;
+}
+
+@media (min-width: 1px) {
+  .media-rule {
+    color: #025743;
+  }
+}
+
+@media print {
+  .print-only {
+    color: #025743;
+  }
+}
+
+@layer base {
+  .layered {
+    color: #025743;
+  }
+}
+
+/* ---- white, written six ways (see index.html) ---- */
+.w-hex3 { color: #fff; }
+.w-hex6 { color: #ffffff; }
+.w-rgb { color: rgb(255, 255, 255); }
+.w-rgba { color: rgba(255, 255, 255, 1); }
+.w-hsl { color: hsl(0, 0%, 100%); }
+.w-name { color: white; }
+.w-half { color: rgba(255, 255, 255, 0.5); }
+
+.hidden-thing {
+  display: none;
+  color: #025743;
+}

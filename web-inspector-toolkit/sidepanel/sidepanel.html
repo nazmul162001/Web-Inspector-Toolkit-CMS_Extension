@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web Inspector Toolkit</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <!--
+      Chrome does not let extensions set or drag-resize the native side panel.
+      This grip is only an indicator that the panel's left edge (owned by the
+      browser) can be dragged. It does not capture pointer events.
+    -->
+    <div class="resize-grip" tabindex="0" role="note" aria-label="Resize hint: drag the left edge of this side panel to change its width.">
+      <span class="resize-grip__dots" aria-hidden="true"></span>
+      <span class="resize-grip__tip" role="tooltip">
+        Drag the browser panel edge to resize.<br />
+        <small>Chrome controls the side panel width natively.</small>
+      </span>
+    </div>
+
+    <div class="app">
+      <header id="app-header" class="app-header"></header>
+
+      <div class="app-scroll" id="app-scroll">
+        <section id="context-bar" class="context-bar" aria-live="polite"></section>
+        <nav id="scope-tabs" class="scope-tabs" aria-label="Scan scope"></nav>
+        <nav id="feature-nav" class="feature-nav" aria-label="Tools"></nav>
+        <main id="feature-root" class="feature-root" tabindex="-1"></main>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>
