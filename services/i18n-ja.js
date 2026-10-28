@@ -33,6 +33,8 @@ export const EXACT_JA = {
   Tools: 'ツール',
   Language: '言語',
   'Switch to English': '英語に切り替え',
+  'Switch to light mode': 'ライトモードに切り替え',
+  'Switch to dark mode': 'ダークモードに切り替え',
   'Switch to Japanese': '日本語に切り替え',
   'Drag the browser panel edge to resize.': 'ブラウザのパネルの端をドラッグするとサイズを変更できます。',
   'Chrome controls the side panel width natively.': 'サイドパネルの幅はChromeが管理しています。',

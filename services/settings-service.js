@@ -6,9 +6,11 @@
 import { DEFAULT_CRAWL_OPTIONS, MATCH_MODE, STORAGE_KEYS } from '../shared/constants.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
 import { normalizeLanguage } from './i18n.js';
+import { normalizeTheme } from './theme.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   language: 'en',
+  theme: 'system',
   color: '',
   matchMode: MATCH_MODE.EXACT,
   includeInherited: false,
@@ -83,6 +85,7 @@ function sanitize(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
   return {
     language: normalizeLanguage(value.language),
+    theme: normalizeTheme(value.theme),
     color: typeof value.color === 'string' && value.color.length <= 100 ? value.color : DEFAULT_SETTINGS.color,
     matchMode: Object.values(MATCH_MODE).includes(value.matchMode) ? value.matchMode : DEFAULT_SETTINGS.matchMode,
     includeInherited: !!value.includeInherited,

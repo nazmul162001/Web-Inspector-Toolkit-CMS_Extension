@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '../../services/settings-service.js';
 import { createDomTranslator } from '../../sidepanel/i18n-dom.js';
 import { renderHeader } from '../../sidepanel/components/header.js';
 import { FEATURES, PROPERTY_GROUP_LABELS, SECTION_LABELS } from '../../shared/constants.js';
+import { DEFAULT_THEME, applyTheme, normalizeTheme, oppositeTheme, resolveTheme } from '../../services/theme.js';
 import { describeScale } from '../../services/image-geometry.js';
 
 const ja = (text) => translate(text, 'ja');
@@ -193,7 +194,7 @@ describe('Language: header switch', () => {
     render('en');
     const buttons = [...box.querySelectorAll('.lang-switch__btn')];
     assert.deepEqual(buttons.map((b) => b.textContent.trim()), ['EN', '日本語']);
-    assert.equal(box.querySelector('[aria-label="Settings"], .icon-btn'), null);
+    assert.equal(box.querySelector('[aria-label="Settings"]'), null);
   });
 
   it('marks the active language and reports a change', () => {
@@ -209,5 +210,62 @@ describe('Language: header switch', () => {
     assert.equal(jaButton.getAttribute('aria-pressed'), 'true');
     en.click();
     assert.deepEqual(changes, ['ja', 'en']);
+  });
+});
+
+describe('Theme: dark / light switch', () => {
+  let box;
+  afterEach(() => {
+    box?.remove();
+    document.documentElement.removeAttribute('data-theme');
+  });
+
+  it('follows the system until the user picks a theme', () => {
+    assert.equal(DEFAULT_THEME, 'system');
+    assert.equal(DEFAULT_SETTINGS.theme, 'system');
+    assert.equal(resolveTheme('system', true), 'dark');
+    assert.equal(resolveTheme('system', false), 'light');
+    assert.equal(resolveTheme('light', true), 'light');
+    assert.equal(resolveTheme('dark', false), 'dark');
+  });
+
+  it('only accepts known themes', () => {
+    for (const ok of ['system', 'dark', 'light']) assert.equal(normalizeTheme(ok), ok);
+    for (const bad of ['blue', '', null, undefined, 3, 'DARK']) assert.equal(normalizeTheme(bad), 'system');
+    assert.equal(oppositeTheme('dark'), 'light');
+    assert.equal(oppositeTheme('light'), 'dark');
+  });
+
+  it('puts the theme on the page and removes it for "system"', () => {
+    const root = document.documentElement;
+    assert.equal(applyTheme(root, 'light', true), 'light');
+    assert.equal(root.getAttribute('data-theme'), 'light');
+    assert.equal(applyTheme(root, 'dark', false), 'dark');
+    assert.equal(root.getAttribute('data-theme'), 'dark');
+    assert.equal(applyTheme(root, 'system', true), 'dark');
+    assert.equal(root.hasAttribute('data-theme'), false);
+  });
+
+  it('has a header button left of the language switch that offers the other mode', () => {
+    const changes = [];
+    box = document.createElement('div');
+    document.body.append(box);
+    const header = renderHeader(box, { version: '1.0.0', language: 'en', onLanguage: () => {}, shownTheme: 'dark', onTheme: (next) => changes.push(next) });
+    const button = box.querySelector('.theme-toggle');
+    const language = box.querySelector('.lang-switch');
+    assert.ok(button && language);
+    assert.ok(button.compareDocumentPosition(language) & Node.DOCUMENT_POSITION_FOLLOWING, 'theme button comes before the language switch');
+    assert.equal(button.getAttribute('aria-label'), 'Switch to light mode');
+    button.click();
+    assert.deepEqual(changes, ['light']);
+    header.setTheme('light');
+    assert.equal(button.getAttribute('aria-label'), 'Switch to dark mode');
+    button.click();
+    assert.deepEqual(changes, ['light', 'dark']);
+  });
+
+  it('translates the button labels', () => {
+    assert.equal(translate('Switch to light mode', 'ja'), 'ライトモードに切り替え');
+    assert.equal(translate('Switch to dark mode', 'ja'), 'ダークモードに切り替え');
   });
 });
