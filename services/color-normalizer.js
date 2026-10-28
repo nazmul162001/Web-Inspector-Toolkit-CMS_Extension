@@ -256,8 +256,12 @@ export function parseColorDetailed(input, { allowBareHex = false } = {}) {
   if (text === 'transparent') return ok(makeColor(0, 0, 0, 0));
   if (text === 'currentcolor') return fail('"currentColor" depends on the element and cannot be searched for.');
 
-  if (Object.prototype.hasOwnProperty.call(NAMED_COLORS, text)) {
-    return ok(parseHex(NAMED_COLORS[text]));
+  // Color names are case-insensitive and forgiving about spacing: "Dark Blue",
+  // "dark-blue" and "darkblue" are the same name.
+  // (Leniency applies to user input only, never to values read from page CSS.)
+  const nameKey = allowBareHex ? text.replace(/[\s_-]+/g, '') : text;
+  if (Object.prototype.hasOwnProperty.call(NAMED_COLORS, nameKey)) {
+    return { ...ok(parseHex(NAMED_COLORS[nameKey])), name: nameKey };
   }
 
   const fn = FUNCTION_RE.exec(text);
@@ -267,8 +271,44 @@ export function parseColorDetailed(input, { allowBareHex = false } = {}) {
     return ok(parseHex(text));
   }
 
-  if (/^[a-z]+$/.test(text)) return fail(`"${input.trim()}" is not a recognised color name.`);
+  if (/^[a-z][a-z\s_-]*$/.test(text)) {
+    const suggestion = suggestColorName(nameKey);
+    return fail(
+      `"${input.trim()}" is not a recognised color name.${suggestion ? ` Did you mean "${suggestion}"?` : ''}`,
+    );
+  }
   return fail('Unrecognised color. Try #rrggbb, rgb(), hsl() or a color name.');
+}
+
+/**
+ * Closest known color name for a misspelling (edit distance <= 2), or null.
+ * @param {string} name lower-case, spacing already removed
+ */
+export function suggestColorName(name) {
+  if (!name || name.length < 3) return null;
+  let best = null;
+  let bestDistance = 3;
+  for (const candidate of Object.keys(NAMED_COLORS)) {
+    if (Math.abs(candidate.length - name.length) >= bestDistance) continue;
+    const distance = editDistance(name, candidate);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function editDistance(a, b) {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    previous = current;
+  }
+  return previous[b.length];
 }
 
 /** @returns {{r:number,g:number,b:number,a:number}|null} */
@@ -313,7 +353,14 @@ export function normalizeColor(input, options) {
   const result = parseColorDetailed(input, options);
   if (!result.color) return { ok: false, error: result.error };
   const { color } = result;
-  return { ok: true, color, hex: toHex(color), rgb: toRgbString(color), alpha: alphaToNumber(color.a) };
+  return {
+    ok: true,
+    color,
+    hex: toHex(color),
+    rgb: toRgbString(color),
+    alpha: alphaToNumber(color.a),
+    ...(result.name ? { name: result.name } : {}),
+  };
 }
 
 /* ------------------------------------------------- Colors inside a value */

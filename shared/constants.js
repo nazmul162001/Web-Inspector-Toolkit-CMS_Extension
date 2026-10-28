@@ -49,6 +49,11 @@ export const MSG = Object.freeze({
   TAB_CONTEXT_CHANGED: 'wit/tab-context-changed',
   SCAN_PROGRESS: 'wit/scan-progress',
 
+  // background -> offscreen document (invisible page renderer for Entire Site)
+  OFFSCREEN_PING: 'wit/offscreen/ping',
+  OFFSCREEN_SCAN_URL: 'wit/offscreen/scan-url',
+  OFFSCREEN_CANCEL: 'wit/offscreen/cancel',
+
   // background -> content script
   CONTENT_PING: 'wit/content/ping',
   CONTENT_SCAN: 'wit/content/scan',
@@ -111,7 +116,21 @@ export const MATCH_MODE = Object.freeze({
 /** Per-channel tolerance (0-255 units) used by the "Near" match mode. */
 export const NEAR_TOLERANCE = 4;
 
+/**
+ * How Entire Site loads the other pages:
+ *  - BACKGROUND: invisible. The HTML is fetched and rendered with its CSS in a
+ *    hidden offscreen document - no tab or window is ever opened. The page's
+ *    JavaScript is NOT run (static HTML + CSS).
+ *  - TABS: each page is opened in a temporary background tab so its
+ *    JavaScript runs too (visible as a short-lived tab).
+ */
+export const CRAWL_MODE = Object.freeze({
+  BACKGROUND: 'background',
+  TABS: 'tabs',
+});
+
 export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
+  mode: CRAWL_MODE.BACKGROUND,
   maxPages: 50,
   concurrency: 3,
   pageTimeoutMs: 20000,

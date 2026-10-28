@@ -244,3 +244,133 @@ describe('Site crawler', () => {
     assert.deepEqual(urls(result), ['/', '/docs/next', '/docs/start']);
   });
 });
+
+/* ------------------------------------------------- Invisible (no tabs) mode */
+
+/** Fake offscreen renderer: scanUrl instead of tabs. Any tab call fails the test. */
+function createInvisibleWorld(site) {
+  const world = { scanned: [], active: 0, maxActive: 0, tabCalls: 0 };
+  const forbidden = async () => {
+    world.tabCalls += 1;
+    throw new Error('a tab was touched in invisible mode');
+  };
+  const pathOf = (url) => new URL(url).pathname + new URL(url).search;
+  world.deps = {
+    openTempTab: forbidden,
+    closeTempTab: forbidden,
+    waitForTabComplete: forbidden,
+    async scanTab() {
+      // the user's own tab (start page only)
+      return { url: `${ORIGIN}/`, title: 'start', httpStatus: 200, contentType: 'text/html', elements: [], matches: [{ elementId: 1 }], links: site['/'].links };
+    },
+    async scanUrl(url, { signal, timeoutMs, origin }) {
+      world.scanned.push(url);
+      world.active += 1;
+      world.maxActive = Math.max(world.maxActive, world.active);
+      try {
+        assert.equal(origin, ORIGIN);
+        assert.ok(timeoutMs >= 5000);
+        const page = site[pathOf(url)] || {};
+        if (page.delay) await sleep(page.delay, signal);
+        if (page.fail) throw createError(page.fail, `fake ${page.fail}`);
+        return {
+          url: page.redirectTo || url,
+          title: pathOf(url),
+          httpStatus: page.status ?? 200,
+          contentType: page.contentType || 'text/html',
+          elements: [],
+          matches: [{ elementId: 1 }],
+          links: page.links || [],
+        };
+      } finally {
+        world.active -= 1;
+      }
+    },
+  };
+  return world;
+}
+
+async function crawlInvisible(site, crawlOptions = {}, signal) {
+  const world = createInvisibleWorld(site);
+  const result = await crawlSite({
+    startTabId: 1,
+    startUrl: `${ORIGIN}/`,
+    scanId: 'inv',
+    target: TARGET,
+    crawl: { mode: 'background', retries: 0, ...crawlOptions },
+    signal: signal || new AbortController().signal,
+    deps: world.deps,
+  });
+  return { world, result };
+}
+
+describe('Site crawler: invisible mode (no tabs)', () => {
+  it('is the default and never opens a tab or window', async () => {
+    const { world, result } = await crawlInvisible({ '/': { links: ['/a', '/b'] }, '/a': { links: ['/c'] }, '/b': {}, '/c': {} });
+    assert.deepEqual(urls(result), ['/', '/a', '/b', '/c']);
+    assert.equal(world.tabCalls, 0);
+    assert.equal(result.coverage.mode, 'background');
+    assert.equal(result.coverage.complete, true);
+  });
+
+  it('de-duplicates, applies the page limit and respects concurrency', async () => {
+    const site = { '/': { links: Array.from({ length: 10 }, (_, i) => `/p${i}`).concat(['/p1/', '/p1#x']) } };
+    for (let i = 0; i < 10; i += 1) site[`/p${i}`] = { delay: 25 };
+    const { world, result } = await crawlInvisible(site, { maxPages: 6, concurrency: 2 });
+    assert.equal(world.scanned.length, 5);
+    assert.equal(world.maxActive, 2);
+    assert.equal(result.coverage.limitReached, true);
+    assert.equal(new Set(world.scanned).size, 5);
+  });
+
+  it('reports failures, off-site redirects and non-HTML honestly', async () => {
+    const { result } = await crawlInvisible({
+      '/': { links: ['/ok', '/missing', '/pdf', '/off', '/boom'] },
+      '/ok': {},
+      '/missing': { status: 404 },
+      '/pdf': { contentType: 'application/pdf' },
+      '/off': { redirectTo: 'https://evil.test/x' },
+      '/boom': { fail: ERR.LOAD_FAILED },
+    });
+    assert.deepEqual(urls(result), ['/', '/ok']);
+    const byPath = Object.fromEntries(result.failures.map((f) => [new URL(f.url).pathname, f.code]));
+    assert.equal(byPath['/missing'], ERR.HTTP_ERROR);
+    assert.equal(byPath['/pdf'], ERR.NOT_HTML);
+    assert.equal(byPath['/off'], ERR.REDIRECTED_OFFSITE);
+    assert.equal(byPath['/boom'], ERR.LOAD_FAILED);
+    assert.equal(result.coverage.complete, false);
+  });
+
+  it('cancels quickly without failures', async () => {
+    const site = { '/': { links: Array.from({ length: 8 }, (_, i) => `/s${i}`) } };
+    for (let i = 0; i < 8; i += 1) site[`/s${i}`] = { delay: 3000 };
+    const controller = new AbortController();
+    const started = Date.now();
+    const promise = crawlInvisible(site, { concurrency: 3 }, controller.signal);
+    await sleep(120);
+    controller.abort();
+    const { result, world } = await promise;
+    assert.ok(Date.now() - started < 1500);
+    assert.equal(result.coverage.cancelled, true);
+    assert.equal(result.failures.length, 0);
+    assert.equal(world.active, 0);
+    assert.equal(world.tabCalls, 0);
+  });
+
+  it('uses tabs only when explicitly requested', async () => {
+    const world = createWorld({ '/': { links: ['/a'] }, '/a': {} });
+    world.startUrl = `${ORIGIN}/`;
+    let scanUrlCalls = 0;
+    world.deps.scanUrl = async () => {
+      scanUrlCalls += 1;
+      throw new Error('should not be used');
+    };
+    const result = await crawlSite({
+      startTabId: 1, startUrl: world.startUrl, scanId: 'tabs', target: TARGET,
+      crawl: { mode: 'tabs', renderDelayMs: 0 }, signal: new AbortController().signal, deps: world.deps,
+    });
+    assert.equal(scanUrlCalls, 0);
+    assert.equal(world.opened.length, 1);
+    assert.equal(result.coverage.mode, 'tabs');
+  });
+});

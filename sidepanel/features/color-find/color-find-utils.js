@@ -186,5 +186,9 @@ export function describeCoverage(coverage) {
     state = 'partial';
     detail = 'Some pages could not be inspected, so results may be incomplete.';
   }
-  return { state, headline, detail };
+  const note =
+    coverage.mode === 'background'
+      ? 'Other pages were read invisibly as HTML + CSS without running their scripts, so colors added by JavaScript are not included. Choose "Temporary background tabs" in Crawl options to include them.'
+      : null;
+  return { state, headline, detail, note };
 }

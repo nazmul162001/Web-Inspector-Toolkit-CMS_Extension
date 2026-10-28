@@ -69,6 +69,7 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       { class: `notice notice--${tone}` },
       el('div', { class: 'notice__row' }, icon(tone === 'success' ? 'check' : 'alert', { size: 15 }), el('strong', {}, info.headline)),
       el('div', { class: 'notice__text' }, info.detail),
+      info.note ? el('div', { class: 'notice__text' }, info.note) : null,
       failures.length
         ? el(
             'details',

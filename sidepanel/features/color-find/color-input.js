@@ -7,10 +7,26 @@
 
 import { debounce } from '../../../shared/helpers.js';
 import { toColorPickerValue, toHex } from '../../../services/color-normalizer.js';
+import { NAMED_COLORS } from '../../../shared/named-colors.js';
 import { validateColorInput } from '../../../shared/validators.js';
 import { icon } from '../../components/icons.js';
 
 const hex2 = (n) => n.toString(16).padStart(2, '0');
+
+/** Offer the CSS color names (red, green, darkblue ...) as autocomplete suggestions. */
+function fillNameSuggestions(textInput) {
+  const listId = textInput.getAttribute('list');
+  const datalist = listId ? document.getElementById(listId) : null;
+  if (!datalist || datalist.childElementCount > 0) return;
+  datalist.replaceChildren(
+    ...Object.entries(NAMED_COLORS).map(([name, hex]) => {
+      const option = document.createElement('option');
+      option.value = name;
+      option.label = `${name}  ${hex}`;
+      return option;
+    }),
+  );
+}
 
 /**
  * @param {object} config
@@ -27,6 +43,7 @@ export function createColorInput({ textInput, picker, preview, errorEl, helpEl, 
   const defaultHelp = helpEl.textContent.trim();
   let result = validateColorInput(textInput.value);
   pickerIcon.append(icon('eyedropper', { size: 15 }));
+  fillNameSuggestions(textInput);
 
   const showErrorSoon = debounce(() => showValidity(true), 350);
 
@@ -40,7 +57,7 @@ export function createColorInput({ textInput, picker, preview, errorEl, helpEl, 
       preview.style.setProperty('--swatch', `rgba(${r}, ${g}, ${b}, ${a / 255})`);
       picker.value = toColorPickerValue(result.color);
       errorEl.hidden = true;
-      helpEl.textContent = `${result.hex}  ·  ${result.rgb}  ·  alpha ${result.alpha}`;
+      helpEl.textContent = `${result.name ? `${result.name}  ·  ` : ''}${result.hex}  ·  ${result.rgb}  ·  alpha ${result.alpha}`;
       helpEl.classList.add('field-help--normalized');
     } else {
       preview.style.removeProperty('--swatch');

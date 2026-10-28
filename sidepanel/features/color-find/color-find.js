@@ -4,7 +4,7 @@
  * and performs result actions (copy, highlight, scroll).
  */
 
-import { ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
+import { CRAWL_MODE, ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
 import { copyToClipboard, el, pluralize, uid } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
@@ -93,7 +93,7 @@ export function createFeature(ctx) {
   /* ------------------------------------------------------------- Helpers */
 
   function readCrawlOptions() {
-    const crawl = {};
+    const crawl = { mode: refs.crawlMode.value };
     for (const key of CRAWL_FIELDS) {
       const value = Number(refs.crawl[key].value);
       if (Number.isFinite(value)) crawl[key] = key === 'pageTimeoutMs' ? value * 1000 : value;
@@ -102,6 +102,7 @@ export function createFeature(ctx) {
   }
 
   function writeCrawlOptions(crawl) {
+    refs.crawlMode.value = crawl.mode;
     for (const key of CRAWL_FIELDS) {
       refs.crawl[key].value = key === 'pageTimeoutMs' ? Math.round(crawl[key] / 1000) : crawl[key];
     }
@@ -125,13 +126,17 @@ export function createFeature(ctx) {
       box.textContent = 'Open a website in the active tab to scan its pages.';
       return;
     }
-    const { maxPages } = readCrawlOptions();
+    const { maxPages, mode } = readCrawlOptions();
+    const how =
+      mode === CRAWL_MODE.TABS
+        ? 'are opened one by one in short-lived background tabs (your active tab is never switched) and inspected as rendered, with their scripts running.'
+        : 'are checked invisibly in the background - no tabs or windows are opened. They are read as HTML + CSS; scripts are not run.';
     box.replaceChildren(
       el('strong', {}, tabContext.hasHostAccess ? `Access to ${tabContext.origin} is granted. ` : `Permission needed for ${tabContext.origin}. `),
       tabContext.hasHostAccess
         ? ''
         : 'Chrome will ask once when you click Find. Only this website is requested, and nothing leaves your device. ',
-      `Up to ${maxPages ?? 50} internal pages are opened in background tabs (your active tab is never switched) and inspected as rendered.`,
+      `Up to ${maxPages ?? 50} internal pages ${how}`,
     );
   }
 
@@ -354,6 +359,7 @@ export function createFeature(ctx) {
         inherited: $('cf-inherited'),
         sitePanel: $('cf-site-panel'),
         siteNotice: $('cf-site-notice'),
+        crawlMode: $('cf-crawl-mode'),
         crawl: Object.fromEntries(CRAWL_FIELDS.map((key) => [key, $(`cf-crawl-${key}`)])),
         find: $('cf-find'),
         cancel: $('cf-cancel'),
@@ -389,6 +395,7 @@ export function createFeature(ctx) {
       });
       refs.cancel.addEventListener('click', cancel);
       refs.crawl.maxPages.addEventListener('input', renderSiteNotice);
+      refs.crawlMode.addEventListener('change', renderSiteNotice);
 
       disposers.push(onEvent(MSG.SCAN_PROGRESS, handleProgress));
       applyScope();

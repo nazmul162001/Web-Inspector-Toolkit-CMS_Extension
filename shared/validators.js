@@ -4,7 +4,7 @@
  */
 
 import { normalizeColor } from '../services/color-normalizer.js';
-import { CRAWL_LIMITS, DEFAULT_CRAWL_OPTIONS, ERR, NEAR_TOLERANCE, SCOPE } from './constants.js';
+import { CRAWL_LIMITS, CRAWL_MODE, DEFAULT_CRAWL_OPTIONS, ERR, NEAR_TOLERANCE, SCOPE } from './constants.js';
 import { clamp, createError } from './helpers.js';
 
 /** Validate the Color Find text input. */
@@ -27,8 +27,11 @@ export const isValidScope = (scope) => scope === SCOPE.PAGE || scope === SCOPE.S
 
 /** Clamp every crawl option into its allowed range, filling defaults. */
 export function sanitizeCrawlOptions(raw = {}) {
-  const out = {};
+  const out = {
+    mode: Object.values(CRAWL_MODE).includes(raw?.mode) ? raw.mode : DEFAULT_CRAWL_OPTIONS.mode,
+  };
   for (const [key, fallback] of Object.entries(DEFAULT_CRAWL_OPTIONS)) {
+    if (key === 'mode') continue;
     const { min, max } = CRAWL_LIMITS[key];
     const value = Number(raw?.[key]);
     out[key] = Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback;

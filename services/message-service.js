@@ -85,6 +85,15 @@ export function sendToBackground(type, payload, { timeoutMs = MESSAGE_TIMEOUT_MS
   return dispatch(() => chrome.runtime.sendMessage(request), request, timeoutMs);
 }
 
+/**
+ * Service worker -> offscreen document. Extension pages share one message bus,
+ * so only the context that registered a handler for `type` answers.
+ */
+export function sendToOffscreen(type, payload, { timeoutMs = MESSAGE_TIMEOUT_MS } = {}) {
+  const request = createRequest(type, payload);
+  return dispatch(() => chrome.runtime.sendMessage(request), request, timeoutMs);
+}
+
 /** Service worker -> content script in one tab (top frame by default). */
 export function sendToTab(tabId, type, payload, { timeoutMs = MESSAGE_TIMEOUT_MS, frameId = 0 } = {}) {
   const request = createRequest(type, payload);

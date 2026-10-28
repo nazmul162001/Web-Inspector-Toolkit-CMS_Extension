@@ -14,6 +14,7 @@ import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/v
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
 import { highlightInTab, probeAccess, scanTab } from '../services/page-scan-service.js';
 import { crawlSite } from '../services/site-crawler.js';
+import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
 import {
   cleanupOrphanedTempTabs,
@@ -32,6 +33,7 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error
 
 // A previous service-worker instance may have been killed mid-crawl.
 cleanupOrphanedTempTabs();
+closeOffscreen(); // a renderer left over from a previous worker instance
 
 /* ----------------------------------------------------------- Scan state */
 
@@ -195,12 +197,15 @@ async function handleScanSite(payload) {
       crawl: request.crawl,
       signal: controller.signal,
       onProgress: (progress) => broadcast(MSG.SCAN_PROGRESS, progress),
-      deps: { scanTab, openTempTab, closeTempTab, waitForTabComplete },
+      deps: { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete },
     });
     return { scanId: request.scanId, scope: 'site', target: request.target, tabId: request.tabId, ...result };
   } finally {
     endScan(request.scanId);
-    if (activeScans.size === 0) await closeAllTempTabs(); // belt and braces
+    if (activeScans.size === 0) {
+      await closeAllTempTabs(); // belt and braces
+      await closeOffscreen(); // the invisible renderer only lives for the duration of a crawl
+    }
   }
 }
 

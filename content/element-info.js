@@ -108,7 +108,7 @@ function shortHref(element) {
   if (!raw) return '';
   try {
     const url = new URL(raw, element.ownerDocument.baseURI);
-    const sameOrigin = url.origin === element.ownerDocument.location.origin;
+    const sameOrigin = url.origin === new URL(element.ownerDocument.baseURI).origin;
     return truncate(sameOrigin ? url.pathname : `${url.host}${url.pathname}`, 48);
   } catch {
     return '';

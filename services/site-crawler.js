@@ -15,17 +15,18 @@
  *   because of the limit, and cancellation are all reported.
  */
 
-import { ERR } from '../shared/constants.js';
+import { CRAWL_MODE, ERR } from '../shared/constants.js';
 import { createError, isCancelled, sleep, throttle } from '../shared/helpers.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
 import { extractInternalLinks, isSameOrigin, normalizeUrl } from './url-normalizer.js';
 import { scanTab } from './page-scan-service.js';
+import { scanUrl } from './offscreen-scanner.js';
 import { closeTempTab, openTempTab, waitForTabComplete } from './temp-tab-manager.js';
 
 const MAX_DISCOVERED_URLS = 5000;
 const RETRYABLE = new Set([ERR.TIMEOUT, ERR.LOAD_FAILED, ERR.NO_RECEIVER, ERR.PORT_CLOSED, ERR.INJECTION_FAILED]);
 
-const defaultDeps = { scanTab, openTempTab, closeTempTab, waitForTabComplete };
+const defaultDeps = { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete };
 
 /**
  * @param {object} params
@@ -53,6 +54,7 @@ export async function crawlSite({
   deps = defaultDeps,
 }) {
   const options = sanitizeCrawlOptions(crawl);
+  const useBackground = options.mode === CRAWL_MODE.BACKGROUND && typeof deps.scanUrl === 'function';
   const origin = new URL(startUrl).origin;
   const startedAt = Date.now();
 
@@ -193,11 +195,37 @@ export async function crawlSite({
     }
   }
 
+  /** Invisible mode: no tab, no window - the page is rendered in the hidden offscreen document. */
+  async function scanInBackground(item) {
+    const result = await deps.scanUrl(item.url, {
+      scanId,
+      origin,
+      target,
+      options: { ...scanOptions, collectLinks: true },
+      signal,
+      timeoutMs: options.pageTimeoutMs,
+    });
+
+    const final = normalizeUrl(result.url);
+    if (!final || !isSameOrigin(final.url, origin)) {
+      throw createError(ERR.REDIRECTED_OFFSITE, 'Redirected away from the site.');
+    }
+    if (result.httpStatus && result.httpStatus >= 400) {
+      throw createError(ERR.HTTP_ERROR, `The server answered HTTP ${result.httpStatus}.`);
+    }
+    if (result.contentType && !/html/i.test(result.contentType)) {
+      throw createError(ERR.NOT_HTML, `Not an HTML page (${result.contentType}).`);
+    }
+    return { result, finalKey: final.key };
+  }
+
+  const scanOne = useBackground ? scanInBackground : scanInTempTab;
+
   async function processItem(item) {
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
       item.attempts = attempt + 1;
       try {
-        const { result, finalKey } = await scanInTempTab(item);
+        const { result, finalKey } = await scanOne(item);
         recordPage(result, finalKey);
         return;
       } catch (error) {
@@ -250,6 +278,7 @@ export async function crawlSite({
       coverage: {
         scope: 'site',
         origin,
+        mode: useBackground ? CRAWL_MODE.BACKGROUND : CRAWL_MODE.TABS,
         maxPages: options.maxPages,
         discovered: seen.size,
         scanned: pages.length,

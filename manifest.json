@@ -31,7 +31,7 @@
     "type": "module"
   },
 
-  "permissions": ["sidePanel", "activeTab", "scripting", "tabs", "storage"],
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs", "storage", "offscreen"],
 
   "optional_host_permissions": ["http://*/*", "https://*/*"],
 

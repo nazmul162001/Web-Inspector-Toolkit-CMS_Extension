@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scripted fixture</title>
+  <!-- Must be ignored by the invisible renderer: it would navigate away -->
+  <meta http-equiv="refresh" content="0;url=https://example.org/">
+  <link rel="stylesheet" href="assets/css/missing-sheet.css">
+</head>
+<body>
+  <p class="static-one" style="color: #025743">Static, in the served HTML</p>
+  <noscript><p class="in-noscript" style="color: #025743">Only without JavaScript</p></noscript>
+  <script>
+    const p = document.createElement('p');
+    p.className = 'from-script';
+    p.style.color = '#025743';
+    document.body.append(p);
+  </script>
+</body>
+</html>

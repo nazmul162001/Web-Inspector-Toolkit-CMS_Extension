@@ -15,7 +15,7 @@ Everything runs locally; no page content ever leaves your device.
 
 Finds every element that renders a given color, on **This Page** or across the **Entire Site**.
 
-- Input: HEX (3/4/6/8 digits), `rgb()`/`rgba()`, `hsl()`/`hsla()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and named colors, plus a native color picker. Equivalent notations match each other: `#ffffff` = `rgb(255,255,255)` = `rgba(255,255,255,1)` = `hsl(0,0%,100%)` = `white`, but **not** `rgba(255,255,255,0.5)`.
+- Input: HEX (3/4/6/8 digits), `rgb()`/`rgba()`, `hsl()`/`hsla()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and all 148 CSS color names (`red`, `green`, `blue`, `white`, `black`, `dark blue` ... case-insensitive, with autocomplete and "did you mean" hints; note CSS `green` is `#008000`, `lime` is `#00ff00`), plus a native color picker. Equivalent notations match each other: `#ffffff` = `rgb(255,255,255)` = `rgba(255,255,255,1)` = `hsl(0,0%,100%)` = `white`, but **not** `rgba(255,255,255,0.5)`.
 - Scanned properties (computed from the rendered DOM): `color`, `background-color`, the four `border-*-color`, `outline-color`, `text-decoration-color`, `text-emphasis-color`, `caret-color`, `column-rule-color`, `fill`, `stroke`, `stop-color`, `flood-color`, `lighting-color`, and the individual colors inside `box-shadow` and `text-shadow`.
 - Per result: element (tag, id, classes, selector, unique path), color (computed + normalized), location (page URL/title, nearest meaningful parent, section, ancestors) and CSS source (stylesheet URL, selector, property, original value, inline, CSS variable, line number).
 - Actions: highlight in page, scroll to, copy HEX / selector / class names / stylesheet URL.
@@ -48,8 +48,11 @@ The side panel never touches the page DOM; it only exchanges messages with the s
 A real same-origin crawl of the **rendered** DOM (not downloaded HTML):
 
 - Starts from the page you are on (scanned in your own tab) and follows internal links breadth-first.
-- Other pages are opened in temporary, inactive, muted background tabs - your active tab is never switched - and are always closed afterwards (also after errors, cancel, or a service-worker restart).
-- Defaults: max 50 pages, 3 concurrent tabs, 20 s page timeout, 1 retry for transient failures. All configurable under *Crawl options*.
+- **Page loading** (Crawl options) has two modes:
+  - **Invisible - no tabs (default).** No tab or window is ever opened. Each page is downloaded (with your session cookies) and rendered in a hidden offscreen document: scripts, `<noscript>`, frames and meta refresh are removed, every linked stylesheet (including `@import`) is downloaded and inlined with its original URL, and the result is loaded into a sandboxed iframe (no `allow-scripts`, CSP blocking images, fonts, media and frames). The same scanner as for live pages then runs on it. The HTML and CSS are exactly what the server sent; **JavaScript is not executed**, so content or styles added by scripts are not seen.
+  - **Temporary background tabs.** Pages open in short-lived, inactive, muted tabs - your active tab is never switched - so their scripts run; the tabs are always closed afterwards (also after errors, cancel, or a service-worker restart).
+- The page you are on is always scanned live in your own tab (its exact current state).
+- Defaults: max 50 pages, 3 concurrent pages, 20 s page timeout, 1 retry for transient failures. All configurable under *Crawl options*.
 - URLs are normalized and de-duplicated: fragments, credentials and tracking parameters (`utm_*`, `gclid`, `fbclid` ...) are removed, query parameters are sorted, trailing slashes are ignored. External domains, non-http(s) schemes (`mailto:`, `tel:`, `javascript:` ...), downloads/assets and logout/delete-style links are skipped.
 - **Coverage is reported honestly.** Pages that failed (HTTP error, timeout, redirect off-site, not HTML, no access) are listed separately, pages not reached because of the limit are counted, and a cancelled scan is labeled partial. Full coverage is only claimed when every discovered page was scanned.
 - Cancel at any time with the **Cancel** button; closing the panel also cancels.
@@ -61,7 +64,8 @@ A real same-origin crawl of the **rendered** DOM (not downloaded HTML):
 | `sidePanel` | Show the UI in Chrome's native side panel. |
 | `activeTab` | Lets the toolbar click inspect the current page without a prompt where Chrome allows it. It is temporary, so it is not relied on alone. |
 | `scripting` | Inject the scanner into the page on demand (there are no always-on content scripts). |
-| `tabs` | Read the active tab's URL/title and open and close the temporary tabs of a site crawl. |
+| `tabs` | Read the active tab's URL/title, and open/close the temporary tabs when you choose that crawl mode. |
+| `offscreen` | Create the hidden document that renders pages of a site crawl invisibly (no tabs). It exists only while a crawl runs. |
 | `storage` | Remember your settings and the ids of temporary tabs (to clean up orphans). |
 | optional `http://*/*`, `https://*/*` | Requested **at runtime for one origin only**, when you click Find, so the panel can keep scanning and the crawl can open background tabs on that site. |
 
@@ -86,6 +90,9 @@ services/                       pure/shared logic
   color-spaces.js, color-matcher.js, url-normalizer.js
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
+  background-renderer.js        invisible page renderer (runs in the offscreen document)
+  offscreen-scanner.js          service-worker side: owns the offscreen document, scans URLs through it
+offscreen/                      hidden document used by the invisible crawl mode
 shared/                         constants, helpers, validators, named colors
 sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded features
   features/registry.js          add a tool here
@@ -111,7 +118,6 @@ Every color is reduced to canonical **RGBA with four integer channels 0-255** (a
 Tests run in the browser with a tiny built-in runner (no framework).
 
 ```
-cd web-inspector-toolkit
 python3 -m http.server 8765
 # open http://localhost:8765/tests/color-normalizer.test.html
 ```
@@ -127,7 +133,7 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Not inspected: pseudo-elements (`::before`/`::after`), images, `<canvas>`, closed shadow roots, and cross-origin iframes.
 - Cross-origin stylesheets that block `cssRules` cannot be read. Their colors are still found from computed styles, but no source is shown (the panel reports how many sheets were unreadable). Source details and line numbers are only shown when they can be **verified**; a line number appears only when the declaration is found exactly once in the stylesheet text.
 - `box-shadow`/`text-shadow`/CSS-variable attribution relies on the browser's computed values; the "original value" is the CSSOM serialization (colors are serialized as `rgb()`).
-- Entire Site renders pages in background tabs: content that loads lazily on scroll or after interaction may not appear, and sites requiring a login only work if your browser session is logged in. The crawl is bounded (default 50 pages) and never submits forms; links that look like logout/delete actions are skipped.
+- Entire Site, invisible mode, reads HTML + CSS only (no scripts); use the tab mode for script-heavy sites. In either mode, content that loads lazily on scroll or after interaction may not appear, and sites requiring a login only work if your browser session is logged in. The crawl is bounded (default 50 pages) and never submits forms; links that look like logout/delete actions are skipped.
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap

@@ -161,6 +161,18 @@
   margin-top: 10px;
 }
 
+.crawl-mode {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.crawl-mode .select {
+  width: 100%;
+}
+
 .crawl-grid label {
   display: grid;
   gap: 4px;

@@ -43,7 +43,8 @@ function urlLabel(href, doc) {
   try {
     const url = new URL(href);
     const path = `${url.pathname.replace(/^\//, '')}${url.search}`;
-    const sameOrigin = url.origin === doc.location.origin;
+    // baseURI (not location) so documents rendered from a string compare against the page's real URL.
+    const sameOrigin = url.origin === new URL(doc.baseURI).origin;
     return sameOrigin ? path || url.host : `${url.host}/${path}`;
   } catch {
     return href;
@@ -98,6 +99,9 @@ export async function buildStylesheetIndex(doc = document, { isCancelled = () =>
   }
 
   function describeSheet(sheet, kind) {
+    // Background renderer: a downloaded stylesheet is inlined as <style data-wit-href="original URL">.
+    const inlinedFrom = sheet.ownerNode?.getAttribute?.('data-wit-href');
+    if (inlinedFrom) return { href: inlinedFrom, label: urlLabel(inlinedFrom, doc), kind: 'link', sheet };
     if (sheet.href) return { href: sheet.href, label: urlLabel(sheet.href, doc), kind: sheet.ownerNode ? 'link' : 'import', sheet };
     if (kind === 'adopted') {
       state.adopted += 1;
