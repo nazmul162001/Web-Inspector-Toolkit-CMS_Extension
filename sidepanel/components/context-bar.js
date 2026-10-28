@@ -37,8 +37,8 @@ export function createContextBar(container) {
       el(
         'div',
         { class: 'context-bar__text', title: tab.url },
-        el('span', { class: 'context-bar__title' }, tab.title || host),
-        el('span', { class: 'context-bar__url' }, host),
+        el('span', { class: 'context-bar__title', 'data-i18n-skip': true }, tab.title || host),
+        el('span', { class: 'context-bar__url', 'data-i18n-skip': true }, host),
       ),
       tabContext.restricted
         ? el('span', { class: 'badge', title: tabContext.restrictionReason || '' }, 'Not inspectable')

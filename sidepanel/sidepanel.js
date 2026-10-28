@@ -8,6 +8,9 @@
 import { FEATURES, FEATURE_STATUS, MSG, SCOPE } from '../shared/constants.js';
 import { debounce, el, uid } from '../shared/helpers.js';
 import { onEvent, openSession, sendToBackground } from '../services/message-service.js';
+import { loadSettings, saveSettings } from '../services/settings-service.js';
+import { normalizeLanguage } from '../services/i18n.js';
+import { createDomTranslator } from './i18n-dom.js';
 import { renderHeader } from './components/header.js';
 import { createContextBar } from './components/context-bar.js';
 import { createFeatureNav } from './components/navigation.js';
@@ -91,9 +94,18 @@ async function mountFeature(id) {
 
 async function init() {
   const { version } = chrome.runtime.getManifest();
-  renderHeader(dom.header, {
+  const translator = createDomTranslator(document.body);
+  const language = normalizeLanguage((await loadSettings()).language);
+  translator.setLanguage(language);
+  const header = renderHeader(dom.header, {
     version,
-    onSettings: () => notifier.info('Settings are coming soon.'),
+    language,
+    onLanguage: (next) => {
+      const active = translator.setLanguage(next);
+      header.setActive(active);
+      saveSettings({ language: active });
+      state.feature?.onLanguageChange?.(active);
+    },
   });
 
   const nav = createFeatureNav(dom.featureNav, {

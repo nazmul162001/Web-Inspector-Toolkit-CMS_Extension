@@ -17,6 +17,7 @@ import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
+import { normalizeLanguage } from '../services/i18n.js';
 import {
   cleanupOrphanedTempTabs,
   closeAllTempTabs,
@@ -266,6 +267,7 @@ async function handleImageInspect({ tabId, enabled, options, sessionId } = {}) {
     backgrounds: options?.backgrounds !== false,
     outline: options?.outline !== false,
     preview: options?.preview !== false,
+    language: normalizeLanguage(options?.language),
   };
   if (!enabled) {
     if (inspectors.get(sessionId) === tabId) inspectors.delete(sessionId);

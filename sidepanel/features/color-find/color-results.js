@@ -125,8 +125,8 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
     );
   }
 
-  function option(value, label, selected) {
-    return el('option', { value, selected }, label);
+  function option(value, label, selected, data = false) {
+    return el('option', { value, selected, ...(data ? { 'data-i18n-skip': true } : {}) }, label);
   }
 
   function toolbar(facets) {
@@ -162,12 +162,12 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
           view.sortMode = value;
           renderList();
         }),
-        select('Tag', [option('', `All tags (${facets.tags.length})`, view.tag === ''), ...facets.tags.map((t) => option(t.value, `${t.value} (${t.count})`, view.tag === t.value))], (value) => {
+        select('Tag', [option('', `All tags (${facets.tags.length})`, view.tag === ''), ...facets.tags.map((t) => option(t.value, `${t.value} (${t.count})`, view.tag === t.value, true))], (value) => {
           view.tag = value;
           view.limit = RENDER_STEP;
           renderList();
         }),
-        select('Class', [option('', `All classes (${facets.classes.length})`, view.cls === ''), ...facets.classes.slice(0, MAX_CLASS_OPTIONS).map((c) => option(c.value, `.${c.value} (${c.count})`, view.cls === c.value))], (value) => {
+        select('Class', [option('', `All classes (${facets.classes.length})`, view.cls === ''), ...facets.classes.slice(0, MAX_CLASS_OPTIONS).map((c) => option(c.value, `.${c.value} (${c.count})`, view.cls === c.value, true))], (value) => {
           view.cls = value;
           view.limit = RENDER_STEP;
           renderList();

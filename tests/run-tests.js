@@ -16,6 +16,7 @@ import './suites/href-find.test.js';
 import './suites/font-find.test.js';
 import './suites/width-find.test.js';
 import './suites/image-resolution.test.js';
+import './suites/i18n.test.js';
 
 const filter = new URLSearchParams(location.search).get('filter') || undefined;
 runAll(document.getElementById('report'), { filter });

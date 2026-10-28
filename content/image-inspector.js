@@ -18,6 +18,7 @@
 
 import { MSG } from '../shared/constants.js';
 import { broadcast } from '../services/message-service.js';
+import { normalizeLanguage, translate } from '../services/i18n.js';
 import {
   aspectRatio,
   dataUrlBytes,
@@ -375,9 +376,10 @@ function buildCard() {
   const makeRow = (name, mono = false) => {
     const row = node('div', 'row');
     const value = node('span', mono ? 'mono' : '');
-    row.append(node('span', '', name), value);
+    const title = node('span', '', name);
+    row.append(title, value);
     rows.append(row);
-    return { row, value, mono };
+    return { row, value, mono, title, name };
   };
   const fields = {
     natural: makeRow('Displayed on page', true),
@@ -392,7 +394,7 @@ function buildCard() {
   tip.append(top, main, rows, name, hint);
 
   shadow.append(style, outline, tip);
-  return { host, outline, chip, tip, kind, state, thumb, thumbImage, big, label, fields, name };
+  return { host, outline, chip, tip, kind, state, thumb, thumbImage, big, label, fields, name, hint };
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -401,15 +403,18 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function paintCard(card, hit, point, options) {
   const { display, natural } = hit;
-  card.kind.textContent = hit.kind;
+  const tr = (text) => translate(text, options.language);
+  card.kind.textContent = tr(hit.kind);
   card.state.hidden = !(hit.broken || hit.loading);
-  card.state.textContent = hit.broken ? 'Failed to load' : 'Loading…';
+  card.state.textContent = tr(hit.broken ? 'Failed to load' : 'Loading…');
+  card.hint.textContent = tr('Esc to stop');
+  for (const field of Object.values(card.fields)) field.title.textContent = tr(field.name);
 
   // The headline is the picture's real (file) size. Only when that is unknown does the displayed size stand in.
   const known = natural.w > 0 && natural.h > 0;
   const headline = known ? natural : display;
   card.big.replaceChildren(formatSize(headline.w, headline.h), node('small', '', 'px'));
-  card.label.textContent = known ? 'Actual image size' : hit.loading ? 'Still loading - showing displayed size' : 'Displayed size (actual size unknown)';
+  card.label.textContent = tr(known ? 'Actual image size' : hit.loading ? 'Still loading - showing displayed size' : 'Displayed size (actual size unknown)');
 
   const set = (field, value, tone = '') => {
     field.row.hidden = !value;
@@ -417,14 +422,14 @@ function paintCard(card, hit, point, options) {
     field.value.className = [field.mono ? 'mono' : '', tone ? `tone-${tone}` : ''].filter(Boolean).join(' ');
   };
   set(card.fields.natural, known ? `${formatSize(display.w, display.h)} px` : '');
-  set(card.fields.scale, hit.scale?.text || '', hit.scale?.tone);
+  set(card.fields.scale, hit.scale ? tr(hit.scale.text) : '', hit.scale?.tone);
   set(card.fields.ratio, hit.ratio);
   const file = [hit.format, formatBytes(hit.bytes)].filter(Boolean).join(' · ');
   set(card.fields.file, file);
   set(card.fields.box, hit.box ? `${formatSize(hit.box.w, hit.box.h)} px` : '');
   set(card.fields.alt, hit.alt ? (hit.alt.length > 48 ? `${hit.alt.slice(0, 47)}…` : hit.alt) : '');
   card.name.hidden = !hit.name;
-  card.name.textContent = hit.name;
+  card.name.textContent = tr(hit.name);
   card.name.title = hit.url.length > 300 ? `${hit.url.slice(0, 299)}…` : hit.url;
 
   const showThumb = options.preview && !hit.broken;
@@ -488,6 +493,7 @@ export function startInspector(options = {}) {
     backgrounds: options.backgrounds !== false,
     outline: options.outline !== false,
     preview: options.preview !== false,
+    language: normalizeLanguage(options.language),
   };
   if (session) {
     session.options = settings;

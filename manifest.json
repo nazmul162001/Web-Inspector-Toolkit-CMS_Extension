@@ -46,6 +46,7 @@
         "services/font-*.js",
         "services/width-*.js",
         "services/image-*.js",
+        "services/i18n*.js",
         "services/message-service.js",
         "shared/*.js"
       ],

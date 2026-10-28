@@ -15,9 +15,10 @@ const DASH = '—';
 
 const swatchStyle = ({ r, g, b, a }) => `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 
-export function kv(label, value, { mono = false } = {}) {
+/** `data`: the value is the page's own text (a title, a link text ...), so it is never translated. */
+export function kv(label, value, { mono = false, data = false } = {}) {
   const content =
-    value instanceof Node ? value : el(mono ? 'code' : 'span', { class: mono ? 'kv__code' : '' }, value || DASH);
+    value instanceof Node ? value : el(mono ? 'code' : 'span', { class: mono ? 'kv__code' : '', ...(data ? { 'data-i18n-skip': true } : {}) }, value || DASH);
   return el('div', { class: 'kv' }, el('dt', {}, label), el('dd', {}, content));
 }
 
@@ -71,7 +72,7 @@ export function locationSection(item) {
   return section(
     'Location',
     kv('Page URL', page.url, { mono: true }),
-    kv('Page title', page.title),
+    kv('Page title', page.title, { data: true }),
     kv('Parent', parent ? parent.selector : '', { mono: true }),
     kv('Section', SECTION_LABELS[location.section] || location.section),
     kv('Section name', location.sectionName, { mono: true }),
@@ -127,7 +128,7 @@ function sourceBody(item, noun) {
         : el(
             'span',
             { class: 'kv__stack' },
-            el('span', {}, source.stylesheetLabel),
+            el('span', { 'data-i18n-skip': true }, source.stylesheetLabel),
             source.stylesheetUrl && source.stylesheetUrl !== source.stylesheetLabel
               ? el('code', { class: 'kv__code kv__dim' }, source.stylesheetUrl)
               : null,
@@ -167,7 +168,7 @@ export function sourceSection(item, { noun = 'color' } = {}) {
   return el(
     'details',
     { class: 'rcard__section rcard__source' },
-    el('summary', {}, el('h4', {}, 'CSS source'), el('span', { class: 'rcard__source-hint' }, summary)),
+    el('summary', {}, el('h4', {}, 'CSS source'), el('span', { class: 'rcard__source-hint', 'data-i18n-skip': true }, summary)),
     sourceBody(item, noun),
   );
 }

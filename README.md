@@ -95,6 +95,16 @@ Not a search: open the tool, then move the pointer over any image on the page an
 - **Side panel**: the last image stays in the panel with the same details, a **Copy size** (the actual size, `800x533`) and a **Copy address** button, so it can be used after the pointer moves on. Options: include background images, outline, preview (remembered).
 - It follows the active tab and starts again after a reload; where the site is not yet allowed, an **Allow access** button asks once. Nothing on the page is modified; the card is drawn in a closed shadow root that ignores the pointer.
 
+### Language (English / 日本語)
+
+The switch at the top right of the panel (**EN** | **日本語**) changes the whole interface between English (the default) and Japanese, in both directions, and the choice is remembered.
+
+- Everything the extension writes is translated: tool names and options, hints, results, counts, notices, errors, and the card that Image Resolution draws on the page (it follows the panel's language at once).
+- What comes from the website is never translated: the page's own text, URLs, selectors, class and tag names, CSS values, page titles and file names.
+- Switching back to English restores the exact original text, without rebuilding anything, so results, typed text and the scroll position stay as they are.
+- A rare message that has no Japanese yet is simply shown in English.
+- The extension name and description in `chrome://extensions` are not localised.
+
 ## Installation
 
 1. Open `chrome://extensions`.
@@ -175,6 +185,7 @@ services/                       pure/shared logic
   font-matcher.js               Font Find rules (font lists, names, @font-face / Google Fonts parsing)
   width-matcher.js              Half/Full Width Text rules (kinds of characters, runs, conversion)
   image-geometry.js             Image Resolution maths (background size / position / repeat, ratio, wording)
+  i18n.js, i18n-ja.js           interface language: translate() and the English -> Japanese dictionary and patterns
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
   background-renderer.js        invisible page renderer (runs in the offscreen document)
@@ -182,6 +193,7 @@ services/                       pure/shared logic
 offscreen/                      hidden document used by the invisible crawl mode
 shared/                         constants, helpers, validators, named colors
 sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded features
+  i18n-dom.js                   translates the panel in place (remembers the English original of every text)
   features/registry.js          add a tool here
   features/color-find/          the Color Find feature
   features/text-find/           the Text Find feature
@@ -218,7 +230,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched), Image Resolution (CSS background layout, finding images under text and overlays, shadow roots, the card).
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched), Image Resolution (CSS background layout, finding images under text and overlays, shadow roots, the card), and the English / Japanese language switch (translation, page data left alone, exact restore to English, the header switch).
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -239,4 +251,4 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 
 ## Roadmap
 
-a settings page, export of results (CSV/JSON).
+a settings page (the gear icon was replaced by the language switch), export of results (CSV/JSON).

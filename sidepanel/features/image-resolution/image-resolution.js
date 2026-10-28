@@ -10,6 +10,7 @@ import { MSG } from '../../../shared/constants.js';
 import { copyToClipboard, el, setChildren } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
+import { getLanguage } from '../../../services/i18n.js';
 import { formatBytes, formatPixels, formatSize } from '../../../services/image-geometry.js';
 import { ensureAccess } from '../../permissions.js';
 import { describeError } from '../scan-ui.js';
@@ -119,7 +120,7 @@ export function createFeature(ctx) {
         return;
       }
       if (stale()) return;
-      await sendToBackground(MSG.IMAGE_INSPECT, { tabId, enabled: true, options, sessionId: ctx.sessionId }, { timeoutMs: 10000 });
+      await sendToBackground(MSG.IMAGE_INSPECT, { tabId, enabled: true, options: { ...options, language: getLanguage() }, sessionId: ctx.sessionId }, { timeoutMs: 10000 });
       inspectedTabId = tabId; // remembered even if a newer change took over, so it can still be stopped
       if (stale()) return;
       showStatus('on', 'Inspector is on', 'Move the pointer over any image on the page. Press Esc on the page to stop.');
@@ -270,6 +271,11 @@ export function createFeature(ctx) {
     await apply();
   }
 
+  /** The card in the page speaks the panel's language. */
+  function onLanguageChange() {
+    if (refs && enabled && inspectedTabId !== null) apply();
+  }
+
   function unmount() {
     sequence += 1;
     disposers.splice(0).forEach((dispose) => dispose());
@@ -293,5 +299,5 @@ export function createFeature(ctx) {
     apply(); // follows the active tab and re-starts after a reload or navigation
   }
 
-  return { mount, unmount, onTabContextChange };
+  return { mount, unmount, onTabContextChange, onLanguageChange };
 }

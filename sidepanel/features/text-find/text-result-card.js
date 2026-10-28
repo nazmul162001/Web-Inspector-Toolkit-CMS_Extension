@@ -66,7 +66,7 @@ function fontFileSection(item) {
   return section(
     'Font file',
     kv('Source', FACE_NOTES[face.status] || ''),
-    face.status === 'font-face' && face.stylesheetLabel ? kv('Declared in', face.stylesheetLabel) : null,
+    face.status === 'font-face' && face.stylesheetLabel ? kv('Declared in', face.stylesheetLabel, { data: true }) : null,
     ...face.files.map((file) =>
       kv(
         file.format ? `File (${file.format})` : 'File',
@@ -126,7 +126,7 @@ function matchSection(item) {
       kv('Found in', FOUND_IN(match)),
       kv('Link value', snippetNode(match, { className: 'tsnip tsnip--full tsnip--mono' })),
       match.resolved && match.resolved !== match.text ? kv('Full address', match.resolved, { mono: true }) : null,
-      match.label ? kv('Link text', match.label) : null,
+      match.label ? kv('Link text', match.label, { data: true }) : null,
     );
   }
   return section(
