@@ -93,6 +93,16 @@ export async function scanTab(tabId, { scanId, target, options = {}, signal, tim
   }
 }
 
+/**
+ * Start or stop the Image Resolution hover inspector in a tab. Stopping never
+ * injects anything: a page that never ran it has nothing to stop.
+ */
+export async function setImageInspector(tabId, enabled, options = {}) {
+  if (enabled) await ensureContentScript(tabId);
+  else if (!(await pingTab(tabId, 500))) return { running: false };
+  return sendToTab(tabId, MSG.CONTENT_IMAGE_INSPECT, { enabled, options }, { timeoutMs: 4000 });
+}
+
 /** Remove the character marks of Half/Full Width Text from a tab (nothing to do when the scanner never ran there). */
 export async function clearMarksInTab(tabId) {
   if (!(await pingTab(tabId, 500))) return { cleared: false };

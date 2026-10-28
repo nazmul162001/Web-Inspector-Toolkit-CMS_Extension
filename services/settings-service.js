@@ -49,6 +49,11 @@ export const DEFAULT_SETTINGS = Object.freeze({
     highlightOnPage: true,
     groupMode: 'section',
   }),
+  image: Object.freeze({
+    backgrounds: true,
+    outline: true,
+    preview: true,
+  }),
   font: Object.freeze({
     query: '',
     use: 'first',
@@ -85,6 +90,7 @@ function sanitize(raw) {
     href: sanitizeSearchSettings(value.href, DEFAULT_SETTINGS.href),
     font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
     widthText: sanitizeSearchSettings(value.widthText, DEFAULT_SETTINGS.widthText),
+    image: sanitizeSearchSettings(value.image, DEFAULT_SETTINGS.image),
   };
 }
 
@@ -109,6 +115,7 @@ export async function saveSettings(patch) {
     href: { ...current.href, ...(patch.href || {}) },
     font: { ...current.font, ...(patch.font || {}) },
     widthText: { ...current.widthText, ...(patch.widthText || {}) },
+    image: { ...current.image, ...(patch.image || {}) },
   });
   try {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });

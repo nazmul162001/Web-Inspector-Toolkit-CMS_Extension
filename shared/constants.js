@@ -31,7 +31,7 @@ export const FEATURES = Object.freeze([
   { id: 'link-href', label: 'Link href', icon: 'link', status: FEATURE_STATUS.ACTIVE },
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.ACTIVE },
-  { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.SOON },
+  { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
 ]);
 
 /* -------------------------------------------------------------- Messages */
@@ -46,6 +46,7 @@ export const MSG = Object.freeze({
   CANCEL_SCAN: 'wit/cancel-scan',
   HIGHLIGHT: 'wit/highlight',
   CLEAR_MARKS: 'wit/clear-marks',
+  IMAGE_INSPECT: 'wit/image-inspect', // start / stop the hover inspector of Image Resolution in a tab
 
   // background -> side panel (events)
   TAB_CONTEXT_CHANGED: 'wit/tab-context-changed',
@@ -63,9 +64,11 @@ export const MSG = Object.freeze({
   CONTENT_CANCEL: 'wit/content/cancel',
   CONTENT_HIGHLIGHT: 'wit/content/highlight',
   CONTENT_CLEAR_MARKS: 'wit/content/clear-marks',
+  CONTENT_IMAGE_INSPECT: 'wit/content/image-inspect',
 
   // content script -> extension (events)
   CONTENT_PROGRESS: 'wit/content/progress',
+  IMAGE_INSPECT_EVENT: 'wit/image-inspect-event', // { type: 'hover', info } | { type: 'stopped' }
 });
 
 export const SESSION_PORT_PREFIX = 'wit-session:';

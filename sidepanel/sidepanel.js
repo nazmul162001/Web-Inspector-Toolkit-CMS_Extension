@@ -69,6 +69,8 @@ async function mountFeature(id) {
   state.feature = null;
   state.featureId = id;
   dom.featureRoot.replaceChildren();
+  // Tools that are not searches (Image Resolution) have no "This Page / Entire Site" choice.
+  dom.scopeTabs.hidden = FEATURES.find((feature) => feature.id === id)?.usesScope === false;
 
   if (!hasFeature(id)) {
     dom.featureRoot.append(el('div', { class: 'coming-soon' }, 'This tool is coming soon.'));

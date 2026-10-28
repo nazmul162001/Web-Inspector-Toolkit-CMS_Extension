@@ -13,6 +13,7 @@ import { runScan } from './run-scan.js';
 import { clearHighlight, highlightElement } from './element-highlighter.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
 import { clearMarks, markPage } from './width-marks.js';
+import { startInspector, stopInspector } from './image-inspector.js';
 
 /** scanId -> { cancelled } for scans currently running in this page. */
 const runningScans = new Map();
@@ -91,6 +92,7 @@ export function init() {
       return { cancelled: !!job };
     },
     [MSG.CONTENT_HIGHLIGHT]: handleHighlight,
+    [MSG.CONTENT_IMAGE_INSPECT]: ({ enabled, options } = {}) => (enabled ? startInspector(options) : stopInspector()),
     [MSG.CONTENT_CLEAR_MARKS]: () => {
       clearMarks();
       return { cleared: true };
@@ -103,5 +105,6 @@ export function init() {
       job.cancelled = true;
     });
     clearHighlight();
+    stopInspector();
   });
 }

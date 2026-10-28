@@ -12,7 +12,7 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { clearMarksInTab, highlightInTab, probeAccess, scanTab } from '../services/page-scan-service.js';
+import { clearMarksInTab, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
@@ -59,8 +59,20 @@ watchSessions({
       scan.controller.abort();
       endScan(scanId);
     }
+    stopInspectorOf(sessionId); // the panel closed: the hover inspector must not stay on in the page
   },
 });
+
+/* ------------------------------------------------------ Image inspector */
+
+/** sessionId -> tabId where that side panel's Image Resolution inspector runs. */
+const inspectors = new Map();
+
+function stopInspectorOf(sessionId) {
+  const tabId = inspectors.get(sessionId);
+  inspectors.delete(sessionId);
+  if (tabId !== undefined) setImageInspector(tabId, false).catch(() => {}); // the tab may be gone already
+}
 
 // Per-page progress from content scripts is relayed under a single event type.
 onEvent(MSG.CONTENT_PROGRESS, (progress) => {
@@ -248,6 +260,30 @@ async function handleHighlight(payload) {
   return highlightInTab(tab.id, { elementId, contextId, path, tag, label, ...(widthMarks ? { marks: widthMarks } : {}) }, mode);
 }
 
+async function handleImageInspect({ tabId, enabled, options, sessionId } = {}) {
+  if (!Number.isInteger(tabId)) throw createError(ERR.INVALID_REQUEST, 'Missing tab.');
+  const settings = {
+    backgrounds: options?.backgrounds !== false,
+    outline: options?.outline !== false,
+    preview: options?.preview !== false,
+  };
+  if (!enabled) {
+    if (inspectors.get(sessionId) === tabId) inspectors.delete(sessionId);
+    try {
+      return await setImageInspector(tabId, false);
+    } catch {
+      return { running: false };
+    }
+  }
+  const result = await setImageInspector(tabId, true, settings);
+  if (typeof sessionId === 'string') {
+    const previous = inspectors.get(sessionId);
+    if (previous !== undefined && previous !== tabId) setImageInspector(previous, false).catch(() => {});
+    inspectors.set(sessionId, tabId);
+  }
+  return result;
+}
+
 async function handleClearMarks({ tabId } = {}) {
   if (!Number.isInteger(tabId)) return { cleared: false };
   try {
@@ -267,4 +303,5 @@ registerHandlers({
   [MSG.CANCEL_SCAN]: handleCancel,
   [MSG.HIGHLIGHT]: handleHighlight,
   [MSG.CLEAR_MARKS]: handleClearMarks,
+  [MSG.IMAGE_INSPECT]: handleImageInspect,
 });

@@ -14,7 +14,7 @@ Everything runs locally; no page content ever leaves your device.
 | **Link href** | Available |
 | **Font Find** | Available |
 | **Half/Full Width Text** | Available |
-| Image Resolution | "Coming soon" (disabled, architecture ready) |
+| **Image Resolution** | Available (hover tool, not a search) |
 
 ### Color Find
 
@@ -84,6 +84,17 @@ Finds full-width characters in the text of a page or of the whole site, and mark
 - **Marks on the page**: the found characters are marked white on red, like the bookmarklet this replaces, but without rewriting the page. It uses the CSS Custom Highlight API (Chrome 105+), so no tags are inserted, scripts, forms and layout keep working, and "Remove marks from the page" (or closing the tool) clears them. Untick "Mark the characters on the page" to only list the results. In Entire Site, the page you are viewing is marked; opening a result on another page marks that page.
 - Only text is searched (not scripts, styles, attributes, images or canvas). Entire Site reads the other pages as HTML without running their scripts.
 
+### Image Resolution
+
+Not a search: open the tool, then move the pointer over any image on the page and a card next to the pointer shows its size. Switch it off with the toggle, with **Esc** on the page, or by choosing another tool (it also stops when the panel closes).
+
+- **Images it reads**: `<img>` and `<picture>`, `<input type="image">`, SVG `<image>`, and **CSS background images** (hero banners, patterns, sprites).
+- **Through whatever is on top**: the whole stack of elements under the pointer is checked (`elementsFromPoint`, including open shadow roots), so text, links, buttons and transparent layers over an image do not hide it. If an icon sits on a banner, the icon (the topmost picture) is shown; move onto the banner to see the banner.
+- **Backgrounds are tested where they are really painted**: `background-size` (`cover`, `contain`, lengths, percentages), `background-position` (including `calc()` offsets), `background-repeat` (`repeat`, `space`, `round`), `background-origin`, `background-clip` and several layers are all applied, so the empty part of a box that does not repeat its picture is not reported, and for a repeating pattern the copy under the pointer is outlined.
+- **The card shows**: the image's **actual pixel size** (big, the size of the file, like DevTools' "Intrinsic size"), the size it is displayed at on the page, how they compare ("Shown at its own size", "2× image, sharp on high-density screens", "Enlarged 1.5× - can look soft", "Shrunk 3.4×"), aspect ratio, format and file size when the browser reports it, alt text, the file name, a small preview, and for backgrounds the size of the element box. A frame with the size is drawn around the picture.
+- **Side panel**: the last image stays in the panel with the same details, a **Copy size** (the actual size, `800x533`) and a **Copy address** button, so it can be used after the pointer moves on. Options: include background images, outline, preview (remembered).
+- It follows the active tab and starts again after a reload; where the site is not yet allowed, an **Allow access** button asks once. Nothing on the page is modified; the card is drawn in a closed shadow root that ignores the pointer.
+
 ## Installation
 
 1. Open `chrome://extensions`.
@@ -152,6 +163,7 @@ content/                        injected on demand
   href-scanner.js               Link href scan (href, formaction, data-href, onclick)
   font-scanner.js, font-source.js  Font Find scan and its CSS source resolver
   width-scanner.js, width-marks.js  Half/Full Width Text scan and the red marks (CSS Custom Highlight API)
+  image-inspector.js            Image Resolution hover inspector (card, outline, background painting hit test)
   run-scan.js                   picks the color, text, phone, link, font or width scanner for a target
   element-registry.js           element ids for highlight requests
 services/                       pure/shared logic
@@ -162,6 +174,7 @@ services/                       pure/shared logic
   href-matcher.js               Link href rules (resolving, normalizing, exact / contains)
   font-matcher.js               Font Find rules (font lists, names, @font-face / Google Fonts parsing)
   width-matcher.js              Half/Full Width Text rules (kinds of characters, runs, conversion)
+  image-geometry.js             Image Resolution maths (background size / position / repeat, ratio, wording)
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
   background-renderer.js        invisible page renderer (runs in the offscreen document)
@@ -176,6 +189,7 @@ sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded featur
   features/link-href/           the Link href feature
   features/font-find/           the Font Find feature
   features/width-text/          the Half/Full Width Text feature
+  features/image-resolution/    the Image Resolution tool
   features/search-feature.js    shared controller for the search tools (Text Find, Telephone, Link href, Font Find, Half/Full Width Text)
   features/scan-ui.js           status block, error text and live results shared by the tools
 tests/                          browser test runner, suites and fixtures
@@ -204,7 +218,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched).
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched), Image Resolution (CSS background layout, finding images under text and overlays, shadow roots, the card).
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -220,8 +234,9 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Link href reads the links in the HTML of each page. Links built by scripts, inside images, closed shadow roots or cross-origin iframes are not found, and only `onclick` handlers written as attributes are read (not `addEventListener`).
 - Font Find reads the CSS, not the pixels: it cannot tell whether a font was really installed or loaded for a visitor, and fonts set by scripts after load, or inside images, canvas, closed shadow roots and cross-origin iframes, are not found. Stylesheets that block `cssRules` (cross-origin) hide their rules, so a source may be unavailable for them (the panel says how many); Google Fonts stylesheets are still recognised from their `family=` address.
 - Half/Full Width Text searches text nodes only. Marking needs Chrome 105+ (the list of results works without it), only the page you are viewing is marked while searching,. Text Chrome has translated is searched as it currently is.
+- Image Resolution looks at the top page only: images inside iframes are not inspected. CSS pictures in `::before`/`::after`, `border-image`, `mask-image`, `<video>` posters and `<canvas>` are not reported. For `<img>` the displayed size is the element's content box (with `object-fit` the picture itself may be drawn smaller or cropped). File size is shown only when the browser exposes it for that image (same-origin or CORS-enabled).
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap
 
-Image Resolution, a settings page, export of results (CSV/JSON).
+a settings page, export of results (CSV/JSON).

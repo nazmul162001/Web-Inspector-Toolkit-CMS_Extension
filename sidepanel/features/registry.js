@@ -23,6 +23,7 @@ const loaders = {
   'link-href': () => import('./link-href/link-href.js'),
   'font-find': () => import('./font-find/font-find.js'),
   'width-text': () => import('./width-text/width-text.js'),
+  'image-resolution': () => import('./image-resolution/image-resolution.js'),
 };
 
 export const hasFeature = (id) => Object.prototype.hasOwnProperty.call(loaders, id);
