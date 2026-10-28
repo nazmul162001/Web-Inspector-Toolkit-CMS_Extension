@@ -19,7 +19,7 @@ const MAX_CLASS_OPTIONS = 150;
  * @param {HTMLElement} root
  * @param {{ onAction: (action: string, item: object) => void, groupMode?: string, onGroupModeChange?: (mode: string) => void }} options
  */
-export function createTextResults(root, { onAction, groupMode = 'section', onGroupModeChange, emptyState, copyLabel, subject = 'text' }) {
+export function createTextResults(root, { onAction, groupMode = 'section', onGroupModeChange, emptyState, copyLabel, subject = 'text', truncatedHint = 'Try a longer or more specific text, Match case or Whole word.' }) {
   let scan = null;
   let items = [];
   let view = { groupMode, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
@@ -27,7 +27,7 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
   let countEl = null;
   const expanded = new Set();
 
-  const noticeOptions = { truncatedHint: 'Try a longer or more specific text, Match case or Whole word.' };
+  const noticeOptions = { truncatedHint };
 
   function summaryTiles(summary, isSite) {
     const tile = (label, value) =>

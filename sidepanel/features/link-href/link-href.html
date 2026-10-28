@@ -1,0 +1,53 @@
+<section class="cf tf" aria-labelledby="lh-title">
+  <div class="cf-head">
+    <h2 id="lh-title" class="cf-title">Link href</h2>
+    <p class="cf-lead">Find every link, button or anchor that points to an address - on this page or across the whole site.</p>
+  </div>
+
+  <form class="cf-form" id="lh-form" novalidate>
+    <label class="field-label" for="lh-text">Link</label>
+    <input
+      id="lh-text"
+      class="input mono"
+      type="text"
+      inputmode="url"
+      spellcheck="false"
+      autocomplete="off"
+      autocapitalize="off"
+      placeholder="https://www.line.me/en/"
+      aria-describedby="lh-error lh-help"
+      maxlength="2000"
+    />
+    <p class="field-error" id="lh-error" role="alert" hidden></p>
+    <p class="field-help" id="lh-help">
+      Paste any address, for example https://www.line.me/en/ or https://www.instagram.com/?locale=ja_%C3%A5JP. Relative links on the page (/en/) are compared by where they lead.
+    </p>
+
+    <div class="tf-options tf-options--stack">
+      <label class="cf-check" for="lh-exact">
+        <input id="lh-exact" type="checkbox" data-opt="exact" />
+        <span>Exact link (off: any link that contains this text)</span>
+      </label>
+      <label class="cf-check" for="lh-loose">
+        <input id="lh-loose" type="checkbox" data-opt="looseHost" />
+        <span>Ignore http/https and www</span>
+      </label>
+      <label class="cf-check" for="lh-buttons">
+        <input id="lh-buttons" type="checkbox" data-opt="includeButtons" />
+        <span>Also buttons, forms and click handlers</span>
+      </label>
+    </div>
+
+    <div class="cf-site-panel" id="lh-site-panel" hidden>
+      <div class="notice notice--info" id="lh-site-notice"></div>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="lh-find" type="submit">Find</button>
+      <button class="btn" id="lh-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="lh-status" aria-live="polite"></div>
+  <div class="cf-results" id="lh-results"></div>
+</section>

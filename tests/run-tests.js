@@ -12,6 +12,8 @@ import './suites/color-names.test.js';
 import './suites/background-renderer.test.js';
 import './suites/text-find.test.js';
 import './suites/phone-find.test.js';
+import './suites/href-find.test.js';
+import './suites/font-find.test.js';
 
 const filter = new URLSearchParams(location.search).get('filter') || undefined;
 runAll(document.getElementById('report'), { filter });

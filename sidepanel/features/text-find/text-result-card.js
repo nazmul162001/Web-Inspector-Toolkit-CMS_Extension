@@ -7,7 +7,7 @@
 
 import { el } from '../../../shared/helpers.js';
 import { icon } from '../../components/icons.js';
-import { elementSection, kv, locationSection, section } from '../color-find/color-result-card.js';
+import { elementSection, kv, locationSection, section, sourceSection } from '../color-find/color-result-card.js';
 
 /** `…before [match] after…` with the match emphasised. */
 export function snippetNode(match, { className = 'tsnip' } = {}) {
@@ -22,7 +22,74 @@ export function snippetNode(match, { className = 'tsnip' } = {}) {
   );
 }
 
+/* ------------------------------------------------------------ Font cards */
+
+const quoteName = (name) => (/[\s,'"]/.test(name) ? `"${name}"` : name);
+const ordinal = (n) => ({ 1: '1st', 2: '2nd', 3: '3rd' })[n] || `${n}th`;
+
+/** The font list with the searched font marked: `Roboto, "Noto Sans JP", sans-serif`. */
+function fontStackNode(match, className) {
+  const wanted = new Set(match.matched);
+  const parts = [];
+  match.families.forEach((name, i) => {
+    if (i) parts.push(', ');
+    parts.push(wanted.has(name) ? el('mark', { class: 'tmark' }, quoteName(name)) : quoteName(name));
+  });
+  return el('span', { class: className }, ...parts);
+}
+
+const FACE_NOTES = {
+  'font-face': 'Loaded by an @font-face rule on this page.',
+  'google-fonts': 'Loaded from a Google Fonts stylesheet linked on this page.',
+  generic: 'A generic family: the browser picks the actual font.',
+  none: 'No @font-face rule or Google Fonts link was found for it. It is a font installed on the visitor\'s device, or comes from a source this page does not show.',
+  unreadable: 'No @font-face rule was found, but some stylesheets could not be read, so a web font may still exist.',
+};
+
+function fontSection(item) {
+  const { match } = item;
+  const position = `${ordinal(match.position)} of ${match.families.length}`;
+  return section(
+    'Match',
+    kv('Found in', 'Font list (font-family)'),
+    kv('Matched font', match.matched.join(', '), { mono: true }),
+    kv('Place in the list', match.position === 1 ? `${position} - the first choice` : `${position} - a fallback; earlier fonts are tried first`),
+    kv('Font list', fontStackNode(match, 'tsnip tsnip--full tsnip--mono')),
+    kv('Applied', match.inherited ? 'Inherited from a parent element' : 'Set on this element'),
+  );
+}
+
+function fontFileSection(item) {
+  const { face } = item.match;
+  if (!face) return null;
+  return section(
+    'Font file',
+    kv('Source', FACE_NOTES[face.status] || ''),
+    face.status === 'font-face' && face.stylesheetLabel ? kv('Declared in', face.stylesheetLabel) : null,
+    ...face.files.map((file) =>
+      kv(
+        file.format ? `File (${file.format})` : 'File',
+        el(
+          'span',
+          { class: 'kv__stack' },
+          el('code', { class: 'kv__code' }, file.url),
+          file.weight || file.style ? el('span', { class: 'kv__dim' }, [file.style, file.weight && `weight ${file.weight}`].filter(Boolean).join(', ')) : null,
+        ),
+      ),
+    ),
+    face.google && face.status !== 'google-fonts' ? kv('Also', 'A Google Fonts stylesheet on this page lists this family.') : null,
+  );
+}
+
+const HREF_FOUND_IN = {
+  href: 'Link (href attribute)',
+  formaction: 'Button / form submit (formaction)',
+  action: 'Form action',
+  onclick: 'Click handler (onclick)',
+};
+
 const FOUND_IN = (match) => {
+  if (match.kind === 'href') return HREF_FOUND_IN[match.attribute] || `Data attribute "${match.attribute}"`;
   if (match.kind === 'attribute') return `Attribute "${match.attribute}"`;
   if (match.kind === 'link') return 'Phone link (tel:)';
   return 'Text content';
@@ -30,6 +97,16 @@ const FOUND_IN = (match) => {
 
 function matchSection(item) {
   const { match } = item;
+  if (match.kind === 'font') return fontSection(item);
+  if (match.kind === 'href') {
+    return section(
+      'Match',
+      kv('Found in', FOUND_IN(match)),
+      kv('Link value', snippetNode(match, { className: 'tsnip tsnip--full tsnip--mono' })),
+      match.resolved && match.resolved !== match.text ? kv('Full address', match.resolved, { mono: true }) : null,
+      match.label ? kv('Link text', match.label) : null,
+    );
+  }
   return section(
     'Match',
     kv('Found in', FOUND_IN(match)),
@@ -79,11 +156,13 @@ export function createTextResultCard(item, { onAction, expanded = false, onToggl
         { class: 'rcard__title' },
         el('span', { class: 'tag-chip' }, element.tag),
         selectorRest ? el('code', { class: 'rcard__selector' }, selectorRest) : null,
-        match.kind === 'attribute' ? el('span', { class: 'pill' }, match.attribute) : null,
+        match.kind === 'attribute' || (match.kind === 'href' && match.attribute !== 'href') ? el('span', { class: 'pill' }, match.attribute) : null,
+        match.kind === 'font' && match.position > 1 ? el('span', { class: 'pill' }, `fallback ${ordinal(match.position)}`) : null,
+        match.kind === 'font' && match.inherited ? el('span', { class: 'pill pill--muted' }, 'inherited') : null,
         match.kind === 'link' ? el('span', { class: 'pill' }, 'tel link') : null,
         hidden ? el('span', { class: 'pill pill--muted' }, 'hidden') : null,
       ),
-      snippetNode(match),
+      match.kind === 'font' ? fontStackNode(match, 'tsnip tsnip--mono') : snippetNode(match, { className: match.kind === 'href' ? 'tsnip tsnip--mono' : 'tsnip' }),
     ),
     icon('chevron', { size: 14, className: 'rcard__chev' }),
   );
@@ -110,7 +189,12 @@ export function createTextResultCard(item, { onAction, expanded = false, onToggl
     body.hidden = !open;
     if (open && !bodyBuilt) {
       bodyBuilt = true;
-      body.append(...[matchSection(item), elementSection(item), locationSection(item), actionsRow(item, onAction, copyLabel)].filter(Boolean));
+      body.append(
+        ...(match.kind === 'font'
+          ? [matchSection(item), fontFileSection(item), elementSection(item), locationSection(item), sourceSection(item, { noun: 'font' }), actionsRow(item, onAction, copyLabel)]
+          : [matchSection(item), elementSection(item), locationSection(item), actionsRow(item, onAction, copyLabel)]
+        ).filter(Boolean),
+      );
     }
     onToggle?.(item.key, open);
   }

@@ -22,6 +22,7 @@
 import { COLOR_PROPERTIES, SCAN_LIMITS } from '../shared/constants.js';
 import { yieldToMain } from '../shared/helpers.js';
 import { extractColors, parseColor } from '../services/color-normalizer.js';
+import { fontFaceFiles, foldFamily, splitFontStack } from '../services/font-matcher.js';
 import { getReadableSelector } from './element-info.js';
 import {
   calculateSpecificity,
@@ -86,9 +87,16 @@ function addToBucket(index, property, entry, key) {
  *   sheetCount: number, ruleCount: number
  * }>}
  */
-export async function buildStylesheetIndex(doc = document, { isCancelled = () => false } = {}) {
+export async function buildStylesheetIndex(
+  doc = document,
+  {
+    isCancelled = () => false,
+    covered = coveredProperties, // declaration name -> the properties it sets (colors by default)
+    fontFaces = false, // also collect @font-face rules (Font Find)
+  } = {},
+) {
   const view = doc.defaultView;
-  const index = { byProperty: new Map(), inaccessible: [], sheetCount: 0, ruleCount: 0 };
+  const index = { byProperty: new Map(), inaccessible: [], sheetCount: 0, ruleCount: 0, fontFaces: new Map() };
   const state = { order: 0, styleBlocks: 0, adopted: 0, sliceStart: performance.now() };
 
   async function maybeYield() {
@@ -120,7 +128,7 @@ export async function buildStylesheetIndex(doc = document, { isCancelled = () =>
     for (const declaration of declarations) {
       const properties = declaration.name.startsWith('--')
         ? [declaration.name]
-        : coveredProperties(declaration.name);
+        : covered(declaration.name);
       if (properties.length === 0) continue;
       state.order += 1;
       for (const selector of matchSelectors) {
@@ -141,6 +149,25 @@ export async function buildStylesheetIndex(doc = document, { isCancelled = () =>
       }
     }
     return { matchSelectors, displaySelectors };
+  }
+
+  function collectFontFace(rule, ctx) {
+    const [name] = splitFontStack(rule.style.getPropertyValue('font-family'));
+    if (!name) return;
+    const family = foldFamily(name);
+    const files = fontFaceFiles(rule.style.getPropertyValue('src'), ctx.sheet.href || doc.baseURI);
+    const list = index.fontFaces.get(family) || [];
+    if (list.length < 12) {
+      list.push({
+        files,
+        weight: rule.style.getPropertyValue('font-weight') || null,
+        style: rule.style.getPropertyValue('font-style') || null,
+        display: rule.style.getPropertyValue('font-display') || null,
+        stylesheetLabel: ctx.sheet.label,
+        conditions: ctx.conditions,
+      });
+    }
+    index.fontFaces.set(family, list);
   }
 
   async function walk(rules, ctx) {
@@ -186,8 +213,11 @@ export async function buildStylesheetIndex(doc = document, { isCancelled = () =>
             await indexSheet(rule.styleSheet, 'import', ctx);
           }
           break;
+        case 'CSSFontFaceRule':
+          if (fontFaces) collectFontFace(rule, ctx);
+          break;
         default:
-          break; // keyframes, font-face, page rules ... carry no element colors
+          break; // keyframes, page rules ... carry no element colors
       }
     }
   }
@@ -226,7 +256,7 @@ export async function buildStylesheetIndex(doc = document, { isCancelled = () =>
 
 /* --------------------------------------------------------------- Resolver */
 
-function safeMatches(element, selector) {
+export function safeMatches(element, selector) {
   try {
     return element.matches(selector);
   } catch {
@@ -234,7 +264,7 @@ function safeMatches(element, selector) {
   }
 }
 
-function bucketEntries(index, property, element) {
+export function bucketEntries(index, property, element) {
   const bucket = index.byProperty.get(property);
   if (!bucket) return [];
   const out = [];
@@ -257,7 +287,7 @@ function compareRank(a, b) {
   return a.order - b.order;
 }
 
-const pickWinner = (candidates) => candidates.reduce((best, c) => (!best || compareRank(c, best) > 0 ? c : best), null);
+export const pickWinner = (candidates) => candidates.reduce((best, c) => (!best || compareRank(c, best) > 0 ? c : best), null);
 
 /** Index of the first comma outside parentheses, or -1. */
 function firstTopLevelComma(text) {
@@ -288,7 +318,7 @@ function closingParen(text, open) {
  * element. Returns null when a variable cannot be resolved. `used` collects the
  * top-level variables (for CSS-variable attribution).
  */
-function substituteVariables(value, style, used, depth = 0) {
+export function substituteVariables(value, style, used, depth = 0) {
   if (depth > MAX_VAR_DEPTH) return null;
   let out = '';
   let i = 0;

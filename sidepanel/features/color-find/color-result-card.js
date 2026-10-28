@@ -82,7 +82,7 @@ export function locationSection(item) {
   );
 }
 
-function sourceBody(item) {
+function sourceBody(item, noun) {
   const { source, sourceStatus } = item.match;
 
   if (!source) {
@@ -93,15 +93,17 @@ function sourceBody(item) {
         { class: 'notice notice--warn' },
         el('strong', {}, 'Source information unavailable. '),
         `${blocked.length} stylesheet${blocked.length === 1 ? '' : 's'} on this page could not be read ` +
-          '(cross-origin restrictions), and no readable rule explains this color.',
+          `(cross-origin restrictions), and no readable rule explains this ${noun}.`,
         el('ul', { class: 'plain-list' }, blocked.slice(0, 5).map((s) => el('li', {}, el('code', {}, s.label)))),
       );
     }
     return el(
       'div',
       { class: 'notice notice--info' },
-      'No author CSS rule that produces this color could be verified. It may be a browser default, ' +
-        'or come from a value that cannot be resolved here (for example color-mix()).',
+      `No author CSS rule that produces this ${noun} could be verified. It may be a browser default, ` +
+        (noun === 'color'
+          ? 'or come from a value that cannot be resolved here (for example color-mix()).'
+          : 'or come from a value that cannot be resolved here.'),
     );
   }
 
@@ -159,14 +161,14 @@ function sourceBody(item) {
   );
 }
 
-function sourceSection(item) {
+export function sourceSection(item, { noun = 'color' } = {}) {
   const { source } = item.match;
   const summary = source ? describeSourceLocation(source) : 'Not available';
   return el(
     'details',
     { class: 'rcard__section rcard__source' },
     el('summary', {}, el('h4', {}, 'CSS source'), el('span', { class: 'rcard__source-hint' }, summary)),
-    sourceBody(item),
+    sourceBody(item, noun),
   );
 }
 

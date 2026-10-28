@@ -15,7 +15,8 @@
  *   words             { busy, page, siteStart, site(done, total), searched, cancelled, found }
  *
  * The markup needs `${prefix}-` ids: form, text, error, find, cancel, status, results,
- * site-panel, site-notice, plus any checkboxes marked with data-opt="optionName".
+ * site-panel, site-notice, plus any checkboxes or <select>s marked with data-opt="optionName".
+ * Optional: `${prefix}-preview` (a line under the input) filled by config.preview(text, options) -> string | null.
  */
 
 import { ERR, MSG, SCOPE } from '../../shared/constants.js';
@@ -63,7 +64,14 @@ export function createSearchFeature(ctx, config) {
   }
 
   function readOptions() {
-    return Object.fromEntries(Object.entries(refs.options).map(([name, box]) => [name, box.checked]));
+    return Object.fromEntries(Object.entries(refs.options).map(([name, box]) => [name, box.type === 'checkbox' ? box.checked : box.value]));
+  }
+
+  function updatePreview() {
+    if (!refs.preview || !config.preview) return;
+    const line = refs.text.value.trim() ? config.preview(refs.text.value, readOptions()) : null;
+    refs.preview.textContent = line || '';
+    refs.preview.hidden = !line;
   }
 
   /** @returns {{ ok: true, query: object } | { ok: false, error: string }} */
@@ -295,14 +303,18 @@ export function createSearchFeature(ctx, config) {
         cancel: $('cancel'),
         status: $('status'),
         results: $('results'),
+        preview: $('preview'),
         options: Object.fromEntries(
-          Array.from(container.querySelectorAll('input[type="checkbox"][data-opt]'), (box) => [box.dataset.opt, box]),
+          Array.from(container.querySelectorAll('input[type="checkbox"][data-opt], select[data-opt]'), (box) => [box.dataset.opt, box]),
         ),
       };
 
       const saved = (await loadSettings())[config.settingsKey];
       refs.text.value = saved.query;
-      for (const [name, box] of Object.entries(refs.options)) box.checked = !!saved[name];
+      for (const [name, box] of Object.entries(refs.options)) {
+        if (box.type === 'checkbox') box.checked = !!saved[name];
+        else if (typeof saved[name] === 'string') box.value = saved[name];
+      }
 
       status = createStatus(refs.status);
       results = config.createResults(refs.results, {
@@ -316,7 +328,12 @@ export function createSearchFeature(ctx, config) {
         event.preventDefault();
         find();
       });
-      refs.text.addEventListener('input', () => showInputError(''));
+      refs.text.addEventListener('input', () => {
+        showInputError('');
+        updatePreview();
+      });
+      for (const box of Object.values(refs.options)) box.addEventListener('change', updatePreview);
+      updatePreview();
       refs.cancel.addEventListener('click', cancel);
 
       disposers.push(onEvent(MSG.SCAN_PROGRESS, handleProgress));

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Font fixture</title>
+  <style>
+    @font-face {
+      font-family: "Fixture Sans";
+      src: url(fonts/fixture.woff2) format("woff2"), url("fonts/fixture.woff") format("woff");
+      font-weight: 700;
+    }
+    body { font-family: Georgia, serif; }
+    h1 { font-family: "Fixture Sans", Arial, sans-serif; }
+    .note { font-family: Arial, "Fixture Sans", sans-serif; }
+  </style>
+</head>
+<body>
+  <h1>Heading in the fixture font</h1>
+  <p>Body text inherits Georgia.</p>
+  <p class="note">A note that lists the fixture font as a fallback.</p>
+</body>
+</html>

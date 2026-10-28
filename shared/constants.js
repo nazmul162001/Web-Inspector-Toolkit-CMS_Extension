@@ -28,9 +28,10 @@ export const FEATURES = Object.freeze([
   { id: 'color-find', label: 'Color Find', icon: 'palette', status: FEATURE_STATUS.ACTIVE },
   { id: 'text-find', label: 'Text Find', icon: 'text-search', status: FEATURE_STATUS.ACTIVE },
   { id: 'telephone', label: 'Telephone Number', icon: 'phone', status: FEATURE_STATUS.ACTIVE },
+  { id: 'link-href', label: 'Link href', icon: 'link', status: FEATURE_STATUS.ACTIVE },
+  { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.SOON },
   { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.SOON },
-  { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.SOON },
 ]);
 
 /* -------------------------------------------------------------- Messages */

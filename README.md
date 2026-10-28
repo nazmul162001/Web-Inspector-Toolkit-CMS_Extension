@@ -11,7 +11,9 @@ Everything runs locally; no page content ever leaves your device.
 | **Color Find** | Available |
 | **Text Find** | Available |
 | **Telephone Number** | Available |
-| Half/Full Width Text, Image Resolution, Font Find | "Coming soon" (disabled, architecture ready) |
+| **Link href** | Available |
+| **Font Find** | Available |
+| Half/Full Width Text, Image Resolution | "Coming soon" (disabled, architecture ready) |
 
 ### Color Find
 
@@ -43,6 +45,32 @@ Type a phone number in any format and see every place it appears, on **This Page
 - **Treat +81 80... and 080... as the same number** (on by default): `+81 80-1234-5678`, `+81 (0)80-1234-5678` and `080-1234-5678` match each other; `+1 (555) 555-0123` matches `555-555-0123`. The country code (1-3 digits) is not checked against a list, so a different country code with the same national digits also matches.
 - **Also find tel: links** (on by default): the number inside `href="tel:..."` / `callto:` is found even when the visible text is "Call us". A link whose visible text already matched is reported once.
 - Input must have 4-15 digits; letters or other symbols show a clear message.
+
+### Link href
+
+Type any address and see every link, anchor or button that points to it, on **This Page** or across the **Entire Site** (same invisible, streaming crawl and results as the other tools, with the eye shortcut).
+
+- Examples: `https://www.line.me/en/`, `https://www.instagram.com/?locale=ja_%C3%A5JP`, `line.me/en/`, `/contact`, `mailto:hello@example.com`.
+- Relative links are resolved against the page they are on, so `<a href="/en/">` on `https://www.line.me` counts as `https://www.line.me/en/`. The result shows the link as written, the full address, the link text (or aria-label / title / image alt) and the element.
+- **Exact link** (on by default) compares whole addresses. Ignored because they do not change where a link goes: case of scheme and host, default port, order of query parameters, `%XX` upper/lower case, readable vs escaped characters (`å` = `%C3%A5`), a trailing slash on a path and the `#fragment` (unless you type one). Different path, different query value or an extra parameter are different addresses. A link that is only a `#fragment` is not matched by a full address. A typed path (`/contact`) only matches links to that path on the page's own site; `#top`, `?page=2` or `about.html` are compared with the link as written.
+- **Exact link** off: every link that merely contains the typed text matches (case-insensitive, escaped or readable), for example `instagram.com` finds all Instagram links.
+- **Ignore http/https and www** (on by default): `http://line.me/en/` matches `https://www.line.me/en/`. A typed address without a scheme always behaves this way.
+- **Also buttons, forms and click handlers** (on by default): besides `href` of anchors, image maps, SVG links and `<link>` elements, it reads `formaction`, form `action`, `data-href` / `data-url` / `data-link` / `data-link-url` / `data-target-url` / `data-redirect-url` and addresses written in `onclick` (`location.href='...'`, `window.open('...')`, absolute URLs).
+- Links that scripts add or build later, `<iframe>` sources and links drawn inside images are not found.
+
+### Font Find
+
+Type a font family and see every element that uses it, on **This Page** or across the **Entire Site** (same invisible, streaming crawl and results as the other tools, with the eye shortcut).
+
+- Input: write it any way. A name (`Noto Sans JP`), a quoted name, a list (`"Noto Sans JP", arial, sans-serif`) or a CSS line pasted from a stylesheet or DevTools - `font-family: "Noto Sans JP", arial, sans-serif;`, indented, over several lines, with `!important`, the `font:` shorthand, or inside a whole `.title { ... }` rule or `style="..."` attribute. The font names are read out of it, and a line under the input shows what was understood and what will be searched. Quotes, capitals, extra spaces and full-width letters do not matter. A font that comes from a CSS variable (`var(--x)`) cannot be read - type the name instead.
+- **Which fonts from what you typed**: *the first font only* (default - pasting a whole list finds "the font"; the rest are fallbacks), *any of the fonts*, or *all of the fonts, in that order* (other fonts may sit between them).
+- What is searched is the element's computed `font-family` list (for example `"Shippori Mincho", "Noto Sans JP", sans-serif`), so the cascade, inheritance, the `font` shorthand and CSS variables are already applied by the browser.
+- **Exact match** (on by default): `Roboto` does not find `Roboto Slab`. Off (partial match): any name containing the text matches (`Noto` finds `Noto Sans JP` and `Noto Serif`).
+- **Only where it is the first choice**: the font must be the first in the element's list, not a fallback.
+- **Also elements that inherit it**: by default an element is reported where the font is applied (its list differs from its parent's). This also lists every element that inherits the list and has text of its own.
+- Per result: the font list with the searched font marked, its place in the list (first choice or fallback), whether it is set on the element or inherited, the web font behind it (the `@font-face` files with format and weight, or a Google Fonts stylesheet linked on the page; "generic family" for `serif`, `monospace` ...), the element, the location and the **CSS source** (stylesheet, selector, declaration, CSS variable, line number, "inherited from").
+- The CSS source follows the same truthfulness rules as Color Find: only the winning declaration (by `!important`, inline, layer, specificity and order) can be the source, and only when it really lists the font after variables are resolved. Otherwise the card says it could not be verified.
+- It reports the font the CSS **asks for**. A page cannot see whether the visitor's browser had it installed, so the tool never claims which font was actually drawn. A font with no `@font-face` and no Google Fonts link is described as "installed on the visitor's device, or from a source this page does not show".
 
 ## Installation
 
@@ -109,13 +137,17 @@ content/                        injected on demand
   element-highlighter.js        shadow-DOM overlay, auto-removed
   text-scanner.js               shared flow scan (inline joining, attributes, links) + Text Find
   phone-scanner.js              Telephone Number scan (uses the flow scan)
-  run-scan.js                   picks the color, text or phone scanner for a target
+  href-scanner.js               Link href scan (href, formaction, data-href, onclick)
+  font-scanner.js, font-source.js  Font Find scan and its CSS source resolver
+  run-scan.js                   picks the color, text, phone, link or font scanner for a target
   element-registry.js           element ids for highlight requests
 services/                       pure/shared logic
   color-normalizer.js           parsing + canonical RGBA (see "Color precision")
   color-spaces.js, color-matcher.js, url-normalizer.js
   text-matcher.js               Text Find query rules (case folding, whitespace, whole word)
   phone-matcher.js              Telephone Number rules (digits, separators, exact, +81/0)
+  href-matcher.js               Link href rules (resolving, normalizing, exact / contains)
+  font-matcher.js               Font Find rules (font lists, names, @font-face / Google Fonts parsing)
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
   background-renderer.js        invisible page renderer (runs in the offscreen document)
@@ -127,7 +159,9 @@ sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded featur
   features/color-find/          the Color Find feature
   features/text-find/           the Text Find feature
   features/telephone/           the Telephone Number feature
-  features/search-feature.js    shared controller for the search tools (Text Find, Telephone)
+  features/link-href/           the Link href feature
+  features/font-find/           the Font Find feature
+  features/search-feature.js    shared controller for the search tools (Text Find, Telephone, Link href, Font Find)
   features/scan-ui.js           status block, error text and live results shared by the tools
 tests/                          browser test runner, suites and fixtures
 icons/
@@ -155,7 +189,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find and Telephone Number matching/scanning (formats, exact mode, +81/0, split tags, tel: links, invisible renderer).
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number and Link href and Font Find matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer).
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -168,8 +202,10 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Entire Site, invisible mode, reads HTML + CSS only (no scripts); colors that only scripts add on other pages are not included. Content that loads lazily on scroll or after interaction may not appear, and sites requiring a login only work if your browser session is logged in. The crawl is bounded by a 2000-page safety cap and never submits forms; links that look like logout/delete actions are skipped.
 - Text Find does not read text inside images, `<canvas>`, closed shadow roots or cross-origin iframes, and not text that Chrome translates or scripts change after the page was read (it searches the page as it currently is, so a page Chrome has auto-translated is searched in the translated language). On other pages of a site, text added only by JavaScript is not seen.
 - Telephone Number does not read numbers drawn inside images or `<canvas>`, closed shadow roots or cross-origin iframes, and on other pages of a site not numbers that only scripts add. Numbers written as words are not recognised.
+- Link href reads the links in the HTML of each page. Links built by scripts, inside images, closed shadow roots or cross-origin iframes are not found, and only `onclick` handlers written as attributes are read (not `addEventListener`).
+- Font Find reads the CSS, not the pixels: it cannot tell whether a font was really installed or loaded for a visitor, and fonts set by scripts after load, or inside images, canvas, closed shadow roots and cross-origin iframes, are not found. Stylesheets that block `cssRules` (cross-origin) hide their rules, so a source may be unavailable for them (the panel says how many); Google Fonts stylesheets are still recognised from their `family=` address.
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap
 
-Half/Full Width Text, Image Resolution, Font Find, a settings page, export of results (CSV/JSON).
+Half/Full Width Text, Image Resolution, a settings page, export of results (CSV/JSON).

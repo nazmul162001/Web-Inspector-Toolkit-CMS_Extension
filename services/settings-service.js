@@ -27,6 +27,21 @@ export const DEFAULT_SETTINGS = Object.freeze({
     includeLinks: true,
     groupMode: 'section',
   }),
+  href: Object.freeze({
+    query: '',
+    exact: true,
+    looseHost: true,
+    includeButtons: true,
+    groupMode: 'section',
+  }),
+  font: Object.freeze({
+    query: '',
+    use: 'first',
+    exact: true,
+    primaryOnly: false,
+    includeInherited: false,
+    groupMode: 'section',
+  }),
 });
 
 /** Saved options of a "find in page text" tool: strings and booleans only, anything else falls back to the default. */
@@ -36,6 +51,7 @@ function sanitizeSearchSettings(raw, defaults) {
   for (const [key, fallback] of Object.entries(defaults)) {
     if (key === 'query') out.query = typeof value.query === 'string' ? value.query.slice(0, 500) : fallback;
     else if (key === 'groupMode') out.groupMode = ['section', 'tag', 'none'].includes(value.groupMode) ? value.groupMode : fallback;
+    else if (typeof fallback === 'string') out[key] = typeof value[key] === 'string' && value[key].length <= 20 ? value[key] : fallback;
     else out[key] = typeof value[key] === 'boolean' ? value[key] : fallback;
   }
   return out;
@@ -51,6 +67,8 @@ function sanitize(raw) {
     crawl: sanitizeCrawlOptions(value.crawl),
     text: sanitizeSearchSettings(value.text, DEFAULT_SETTINGS.text),
     phone: sanitizeSearchSettings(value.phone, DEFAULT_SETTINGS.phone),
+    href: sanitizeSearchSettings(value.href, DEFAULT_SETTINGS.href),
+    font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
   };
 }
 
@@ -72,6 +90,8 @@ export async function saveSettings(patch) {
     crawl: { ...current.crawl, ...(patch.crawl || {}) },
     text: { ...current.text, ...(patch.text || {}) },
     phone: { ...current.phone, ...(patch.phone || {}) },
+    href: { ...current.href, ...(patch.href || {}) },
+    font: { ...current.font, ...(patch.font || {}) },
   });
   try {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });

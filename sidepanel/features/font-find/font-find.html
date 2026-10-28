@@ -1,0 +1,60 @@
+<section class="cf tf" aria-labelledby="ff-title">
+  <div class="cf-head">
+    <h2 id="ff-title" class="cf-title">Font Find</h2>
+    <p class="cf-lead">Find every element that uses a font family - on this page or across the whole site.</p>
+  </div>
+
+  <form class="cf-form" id="ff-form" novalidate>
+    <label class="field-label" for="ff-text">Font family</label>
+    <input
+      id="ff-text"
+      class="input mono"
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      autocapitalize="off"
+      placeholder='Noto Sans JP   or   font-family: "Noto Sans JP", arial, sans-serif;'
+      aria-describedby="ff-error ff-preview ff-help"
+      maxlength="2000"
+    />
+    <p class="field-error" id="ff-error" role="alert" hidden></p>
+    <p class="ff-preview" id="ff-preview" aria-live="polite" hidden></p>
+    <p class="field-help" id="ff-help">
+      Write it any way: a name (Noto Sans JP), a list ("Noto Sans JP", arial, sans-serif) or paste a CSS line such as <code>font-family: "Noto Sans JP", arial, sans-serif;</code>. The font names are read out of it. Capitals, quotes and extra spaces do not matter.
+    </p>
+
+    <label class="field-label ff-use-label" for="ff-use">Which fonts from what you typed</label>
+    <select id="ff-use" class="select" data-opt="use">
+      <option value="first">The first font only (the rest are fallbacks)</option>
+      <option value="any">Any of the fonts</option>
+      <option value="list">All of the fonts, in that order</option>
+    </select>
+
+    <div class="tf-options tf-options--stack">
+      <label class="cf-check" for="ff-exact">
+        <input id="ff-exact" type="checkbox" data-opt="exact" />
+        <span>Exact match (turn off for partial match: Noto also finds Noto Sans JP)</span>
+      </label>
+      <label class="cf-check" for="ff-primary">
+        <input id="ff-primary" type="checkbox" data-opt="primaryOnly" />
+        <span>Only where it is the first choice (not a fallback)</span>
+      </label>
+      <label class="cf-check" for="ff-inherited">
+        <input id="ff-inherited" type="checkbox" data-opt="includeInherited" />
+        <span>Also elements that inherit it (with their own text)</span>
+      </label>
+    </div>
+
+    <div class="cf-site-panel" id="ff-site-panel" hidden>
+      <div class="notice notice--info" id="ff-site-notice"></div>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="ff-find" type="submit">Find</button>
+      <button class="btn" id="ff-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="ff-status" aria-live="polite"></div>
+  <div class="cf-results" id="ff-results"></div>
+</section>

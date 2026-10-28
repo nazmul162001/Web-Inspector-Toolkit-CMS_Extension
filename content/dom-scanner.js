@@ -188,7 +188,7 @@ export async function scanDocument({
  * media conditions and order. Two pages with the same signature have the same
  * rules, so they can share one index.
  */
-function stylesheetSignature(doc) {
+export function stylesheetSignature(doc) {
   const parts = [];
   for (const sheet of Array.from(doc.styleSheets)) {
     const node = sheet.ownerNode;
