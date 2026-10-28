@@ -25,7 +25,10 @@
 
 import { ERR } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
-import { collectLinks, scanDocument } from '../content/dom-scanner.js';
+import { collectLinks } from '../content/dom-scanner.js';
+import { runScan } from '../content/run-scan.js';
+import { isPhoneQuery } from './phone-matcher.js';
+import { isTextQuery } from './text-matcher.js';
 import { isSameOrigin } from './url-normalizer.js';
 
 const MAX_HTML_CHARS = 6_000_000;
@@ -110,6 +113,15 @@ function wrapImported(css, conditions) {
 export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...args), container } = {}) {
   /** absolute stylesheet URL -> Promise<segments | null> (shared by every page of a crawl) */
   const sheetCache = new Map();
+  /** absolute stylesheet URL -> original text */
+  const rawTexts = new Map();
+  /** Caches the scanner reuses from page to page (stylesheet indexes, line-number lookups). */
+  const shared = {
+    indexes: new Map(),
+    lineTexts: new Map(),
+    lineResults: new Map(),
+    fetchText: async (href) => rawTexts.get(href) ?? null,
+  };
 
   async function fetchSheetText(url) {
     const controller = new AbortController();
@@ -118,7 +130,9 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
       const response = await fetchImpl(url, { credentials: 'include', redirect: 'follow', signal: controller.signal });
       if (!response.ok) return null;
       const text = await response.text();
-      return text.length > MAX_SHEET_CHARS ? null : text;
+      if (text.length > MAX_SHEET_CHARS) return null;
+      rawTexts.set(url, text); // original text: the source of truth for line numbers
+      return text;
     } catch {
       return null;
     } finally {
@@ -240,6 +254,29 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
     return { html: `<!DOCTYPE html>\n${parsed.documentElement.outerHTML}`, unreadable };
   }
 
+  /**
+   * The page as an inert parsed document (no scripts run, nothing loads) with
+   * the same sanitising as prepareHtml but without stylesheets or layout.
+   */
+  function parseInert(html, pageUrl) {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    let baseUrl = pageUrl;
+    const baseElement = parsed.querySelector('base[href]');
+    if (baseElement) {
+      try {
+        baseUrl = new URL(baseElement.getAttribute('href'), pageUrl).href;
+      } catch {
+        /* keep page URL */
+      }
+    }
+    parsed.querySelectorAll(REMOVE_SELECTOR).forEach((node) => node.remove());
+    const head = parsed.head || parsed.documentElement.insertBefore(parsed.createElement('head'), parsed.body);
+    const base = parsed.createElement('base');
+    base.setAttribute('href', baseUrl);
+    head.prepend(base);
+    return parsed;
+  }
+
   async function download(url, { signal, origin }) {
     let response;
     try {
@@ -302,7 +339,13 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
 
   return {
     /** Forget downloaded stylesheets (call between crawls). */
-    clearCache: () => sheetCache.clear(),
+    clearCache() {
+      sheetCache.clear();
+      rawTexts.clear();
+      shared.indexes.clear();
+      shared.lineTexts.clear();
+      shared.lineResults.clear();
+    },
 
     /**
      * Scan one URL without any tab or window.
@@ -313,21 +356,43 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
       const linked = linkSignals(signal, timeoutMs);
       let frame = null;
       try {
+        const t0 = performance.now();
         const page = await download(url, { signal: linked.signal, origin });
-        const prepared = await prepareHtml(page.html, page.finalUrl);
-        if (linked.signal.aborted) throw abortError(linked.state);
+        const t1 = performance.now();
+        let doc;
+        let unreadable = [];
+        let t2;
+        let t3;
+        if (isPhoneQuery(target) || (isTextQuery(target) && !target.visibleOnly)) {
+          // Searching text needs no layout: skip the stylesheets and the iframe entirely.
+          doc = parseInert(page.html, page.finalUrl);
+          t2 = performance.now();
+          t3 = t2;
+        } else {
+          const prepared = await prepareHtml(page.html, page.finalUrl);
+          unreadable = prepared.unreadable;
+          if (linked.signal.aborted) throw abortError(linked.state);
+          t2 = performance.now();
+          frame = await loadFrame(prepared.html, linked.signal);
+          doc = frame.contentDocument;
+          if (!doc?.documentElement) throw createError(ERR.LOAD_FAILED, 'The page could not be rendered.');
+          t3 = performance.now();
+        }
 
-        frame = await loadFrame(prepared.html, linked.signal);
-        const doc = frame.contentDocument;
-        if (!doc?.documentElement) throw createError(ERR.LOAD_FAILED, 'The page could not be rendered.');
-
-        const result = await scanDocument({
+        const result = await runScan({
           doc,
           target,
           options,
+          shared,
+          budgetMs: 40, // nothing else to keep responsive in the hidden document
           isCancelled: () => linked.signal.aborted,
         });
-        result.stats.stylesheets.inaccessible.push(...prepared.unreadable);
+        result.stats.stylesheets.inaccessible.push(...unreadable);
+        Object.assign(result.stats.timings, {
+          downloadMs: Math.round(t1 - t0),
+          prepareMs: Math.round(t2 - t1),
+          frameMs: Math.round(t3 - t2),
+        });
 
         return {
           url: page.finalUrl,

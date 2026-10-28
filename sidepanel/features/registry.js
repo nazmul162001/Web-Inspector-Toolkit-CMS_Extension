@@ -18,6 +18,8 @@
 
 const loaders = {
   'color-find': () => import('./color-find/color-find.js'),
+  'text-find': () => import('./text-find/text-find.js'),
+  telephone: () => import('./telephone/telephone.js'),
 };
 
 export const hasFeature = (id) => Object.prototype.hasOwnProperty.call(loaders, id);

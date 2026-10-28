@@ -26,10 +26,10 @@ export const FEATURE_STATUS = Object.freeze({
  */
 export const FEATURES = Object.freeze([
   { id: 'color-find', label: 'Color Find', icon: 'palette', status: FEATURE_STATUS.ACTIVE },
-  { id: 'text-find', label: 'Text Find', icon: 'text-search', status: FEATURE_STATUS.SOON },
+  { id: 'text-find', label: 'Text Find', icon: 'text-search', status: FEATURE_STATUS.ACTIVE },
+  { id: 'telephone', label: 'Telephone Number', icon: 'phone', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.SOON },
   { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.SOON },
-  { id: 'telephone', label: 'Telephone Number', icon: 'phone', status: FEATURE_STATUS.SOON },
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.SOON },
 ]);
 
@@ -48,6 +48,7 @@ export const MSG = Object.freeze({
   // background -> side panel (events)
   TAB_CONTEXT_CHANGED: 'wit/tab-context-changed',
   SCAN_PROGRESS: 'wit/scan-progress',
+  SCAN_PAGE_RESULT: 'wit/scan-page-result', // one finished page of an Entire Site scan, streamed as it completes
 
   // background -> offscreen document (invisible page renderer for Entire Site)
   OFFSCREEN_PING: 'wit/offscreen/ping',
@@ -131,16 +132,18 @@ export const CRAWL_MODE = Object.freeze({
 
 export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
   mode: CRAWL_MODE.BACKGROUND,
-  maxPages: 50,
-  concurrency: 3,
+  // Entire Site checks every page it can reach; this is only a runaway guard
+  // (infinite calendars, faceted search ...) and is reported when hit.
+  maxPages: 2000,
+  concurrency: 12,
   pageTimeoutMs: 20000,
   retries: 1,
   renderDelayMs: 500,
 });
 
 export const CRAWL_LIMITS = Object.freeze({
-  maxPages: { min: 1, max: 200 },
-  concurrency: { min: 1, max: 5 },
+  maxPages: { min: 1, max: 5000 },
+  concurrency: { min: 1, max: 16 },
   pageTimeoutMs: { min: 5000, max: 120000 },
   retries: { min: 0, max: 3 },
   renderDelayMs: { min: 0, max: 5000 },

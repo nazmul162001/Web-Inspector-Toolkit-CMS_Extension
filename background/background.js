@@ -197,6 +197,8 @@ async function handleScanSite(payload) {
       crawl: request.crawl,
       signal: controller.signal,
       onProgress: (progress) => broadcast(MSG.SCAN_PROGRESS, progress),
+      // Stream every finished page so the panel can show results while the crawl continues.
+      onPage: (page) => broadcast(MSG.SCAN_PAGE_RESULT, { scanId: request.scanId, page }),
       deps: { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete },
     });
     return { scanId: request.scanId, scope: 'site', target: request.target, tabId: request.tabId, ...result };

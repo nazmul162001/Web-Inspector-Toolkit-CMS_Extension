@@ -7,6 +7,7 @@
 import { pluralize, el, setChildren } from '../../../shared/helpers.js';
 import { displayPath } from '../../../services/url-normalizer.js';
 import { icon } from '../../components/icons.js';
+import { createSpinner } from '../../components/loading.js';
 import { createResultCard } from './color-result-card.js';
 import {
   buildSummary,
@@ -21,6 +22,79 @@ import {
 
 const RENDER_STEP = 60;
 const MAX_CLASS_OPTIONS = 150;
+
+/** Which scope/page a result set belongs to (results outlive tab switches). */
+export function scopeLabel(result) {
+  if (result.scope === 'site') {
+    return el('div', { class: 'cf-scanned' }, icon('globe', { size: 13 }), `Entire Site · ${result.coverage?.origin || ''}`);
+  }
+  const page = result.pages[0];
+  return el('div', { class: 'cf-scanned', title: page.url }, icon('file', { size: 13 }), `This Page · ${displayPath(page.url)}`);
+}
+
+export function coverageBanner(coverage, failures, { subject } = {}) {
+  const info = describeCoverage(coverage, { subject });
+  if (!info) return null;
+  const tone = info.state === 'complete' ? 'success' : info.state === 'progress' ? 'info' : 'warn';
+  return el(
+    'div',
+    { class: `notice notice--${tone}` },
+    el(
+      'div',
+      { class: 'notice__row' },
+      info.state === 'progress' ? createSpinner() : icon(tone === 'success' ? 'check' : 'alert', { size: 15 }),
+      el('strong', {}, info.headline),
+    ),
+    el('div', { class: 'notice__text' }, info.detail),
+    info.note ? el('div', { class: 'notice__text' }, info.note) : null,
+    failures.length
+      ? el(
+          'details',
+          { class: 'cf-details' },
+          el('summary', {}, `${pluralize(failures.length, 'page')} could not be inspected`),
+          el(
+            'ul',
+            { class: 'plain-list plain-list--tight' },
+            failures.map((failure) =>
+              el('li', {}, el('code', { title: failure.url }, displayPath(failure.url)), el('span', { class: 'kv__dim' }, ` - ${failure.reason}`)),
+            ),
+          ),
+        )
+      : null,
+  );
+}
+
+export function pageNotices(pages, { truncatedHint = 'Try a more specific color or Exact match.' } = {}) {
+  const blocked = new Map();
+  let truncated = false;
+  for (const page of pages) {
+    truncated ||= !!page.truncated;
+    for (const sheet of page.stats?.stylesheets?.inaccessible || []) blocked.set(sheet.href || sheet.label, sheet);
+  }
+  const notices = [];
+  if (truncated) {
+    notices.push(
+      el(
+        'div',
+        { class: 'notice notice--warn' },
+        `The per-page result limit was reached, so some matches are not listed. ${truncatedHint}`,
+      ),
+    );
+  }
+  if (blocked.size) {
+    notices.push(
+      el(
+        'details',
+        { class: 'notice notice--info' },
+        el('summary', {}, `${pluralize(blocked.size, 'stylesheet')} could not be read (cross-origin)`),
+        el('div', { class: 'notice__text' }, 'Matches that come only from these files show computed values, but no CSS source details.'),
+        el('ul', { class: 'plain-list plain-list--tight' }, Array.from(blocked.values()).slice(0, 8).map((s) => el('li', {}, el('code', {}, s.label)))),
+      ),
+    );
+  }
+  return notices;
+}
+
 
 /**
  * @param {HTMLElement} root
@@ -49,73 +123,6 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       tile('Sections', summary.sections),
       isSite ? tile('Pages', summary.pages) : null,
     );
-  }
-
-  /** Which scope/page a result set belongs to (results outlive tab switches). */
-  function scopeLabel(result) {
-    if (result.scope === 'site') {
-      return el('div', { class: 'cf-scanned' }, icon('globe', { size: 13 }), `Entire Site · ${result.coverage?.origin || ''}`);
-    }
-    const page = result.pages[0];
-    return el('div', { class: 'cf-scanned', title: page.url }, icon('file', { size: 13 }), `This Page · ${displayPath(page.url)}`);
-  }
-
-  function coverageBanner(coverage, failures) {
-    const info = describeCoverage(coverage);
-    if (!info) return null;
-    const tone = info.state === 'complete' ? 'success' : 'warn';
-    return el(
-      'div',
-      { class: `notice notice--${tone}` },
-      el('div', { class: 'notice__row' }, icon(tone === 'success' ? 'check' : 'alert', { size: 15 }), el('strong', {}, info.headline)),
-      el('div', { class: 'notice__text' }, info.detail),
-      info.note ? el('div', { class: 'notice__text' }, info.note) : null,
-      failures.length
-        ? el(
-            'details',
-            { class: 'cf-details' },
-            el('summary', {}, `${pluralize(failures.length, 'page')} could not be inspected`),
-            el(
-              'ul',
-              { class: 'plain-list plain-list--tight' },
-              failures.map((failure) =>
-                el('li', {}, el('code', { title: failure.url }, displayPath(failure.url)), el('span', { class: 'kv__dim' }, ` - ${failure.reason}`)),
-              ),
-            ),
-          )
-        : null,
-    );
-  }
-
-  function pageNotices(pages) {
-    const blocked = new Map();
-    let truncated = false;
-    for (const page of pages) {
-      truncated ||= !!page.truncated;
-      for (const sheet of page.stats?.stylesheets?.inaccessible || []) blocked.set(sheet.href || sheet.label, sheet);
-    }
-    const notices = [];
-    if (truncated) {
-      notices.push(
-        el(
-          'div',
-          { class: 'notice notice--warn' },
-          'The per-page result limit was reached, so some matches are not listed. Try a more specific color or Exact match.',
-        ),
-      );
-    }
-    if (blocked.size) {
-      notices.push(
-        el(
-          'details',
-          { class: 'notice notice--info' },
-          el('summary', {}, `${pluralize(blocked.size, 'stylesheet')} could not be read (cross-origin)`),
-          el('div', { class: 'notice__text' }, 'Matches that come only from these files show computed values, but no CSS source details.'),
-          el('ul', { class: 'plain-list plain-list--tight' }, Array.from(blocked.values()).slice(0, 8).map((s) => el('li', {}, el('code', {}, s.label)))),
-        ),
-      );
-    }
-    return notices;
   }
 
   function option(value, label, selected) {
@@ -265,12 +272,25 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       root.replaceChildren();
     },
 
-    /** Replace the view with a finished (or partial) scan response. */
-    show(scanResult, { hex }) {
+    /**
+     * Live update while a site scan is still running: re-render with the pages
+     * finished so far, keeping the user's sorting, filters and open cards.
+     */
+    showPartial(scanResult) {
       scan = scanResult;
       items = flattenScanResult(scanResult);
-      expanded.clear();
-      view = { ...view, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+      if (items.length === 0) return;
+      build();
+    },
+
+    /** Replace the view with a finished (or partial) scan response. */
+    show(scanResult, { hex, keepView = false }) {
+      scan = scanResult;
+      items = flattenScanResult(scanResult);
+      if (!keepView) {
+        expanded.clear();
+        view = { ...view, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+      }
 
       if (items.length === 0) {
         setChildren(

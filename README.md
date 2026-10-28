@@ -9,7 +9,9 @@ Everything runs locally; no page content ever leaves your device.
 | Tool | Status |
 | --- | --- |
 | **Color Find** | Available |
-| Text Find, Half/Full Width Text, Image Resolution, Telephone Number, Font Find | "Coming soon" (disabled, architecture ready) |
+| **Text Find** | Available |
+| **Telephone Number** | Available |
+| Half/Full Width Text, Image Resolution, Font Find | "Coming soon" (disabled, architecture ready) |
 
 ### Color Find
 
@@ -20,6 +22,27 @@ Finds every element that renders a given color, on **This Page** or across the *
 - Per result: element (tag, id, classes, selector, unique path), color (computed + normalized), location (page URL/title, nearest meaningful parent, section, ancestors) and CSS source (stylesheet URL, selector, property, original value, inline, CSS variable, line number).
 - Actions: highlight in page, scroll to, copy HEX / selector / class names / stylesheet URL.
 - Results: summary tiles, Header / Main Content / Footer / Other groups, sort (DOM order, property, tag), group by (section, property, none), tag and class filters, expandable cards, empty / loading / error states.
+
+### Text Find
+
+Type any word or sentence and see every place it appears, on **This Page** or across the **Entire Site** (same invisible, streaming crawl as Color Find).
+
+- Searches the text people read, not the HTML source. Text split across inline tags (`Hello <b>big</b> world`) is found as one phrase; text in different blocks is never joined; a `<br>` counts as a space. Line breaks, tabs, non-breaking and ideographic spaces are collapsed on both sides. `<script>`, `<style>`, `<noscript>`, `<template>` and furigana (`<rt>`) are ignored.
+- Options: **Match case** (off by default), **Whole word** (only applies to scripts that use spaces; Japanese, Chinese, Korean and Thai are matched as written), **Also search alt, title, placeholder…** (`alt`, `title`, `placeholder`, `aria-label`, button values), **Visible text only** (needs layout: on other pages the stylesheets are downloaded to decide what is hidden, so it is slower).
+- The query is matched literally (no regular expressions) and limited to 500 characters.
+- Per result: the match highlighted inside its surrounding text, where it was found (text or attribute), the element (tag, id, classes, selector, unique path) and its location (page, parent, section, ancestors).
+- Actions: highlight in page, scroll to, copy text / selector / class names. Results use the same summary, grouping (section, tag, none), sorting, filters and live "Still checking the site" banner as Color Find.
+- Fast by design: for other pages of a site only the HTML is downloaded (no stylesheets, no hidden frame) and searched as an inert document - nothing runs and nothing else loads.
+
+### Telephone Number
+
+Type a phone number in any format and see every place it appears, on **This Page** or across the **Entire Site**, with the same results, eye (highlight) shortcut, grouping and live crawl as Text Find.
+
+- Matching is by **digits only**, so `080-1234-5678`, `08012345678`, `080 1234 5678`, `080.1234.5678`, `(080) 1234-5678` and full-width `０８０－１２３４－５６７８` all find each other. Up to 3 separator characters (space, `-`, `ー`, `.`, parentheses) are allowed between digits; any other character (letter, comma, `/`) ends the number. Digits split across tags (`080<span>-</span>1234`) are found.
+- **Exact number** (on by default): the number must not be part of a longer number, so `1234-5678` is not reported inside `080-1234-5678` and `080-1234-5678` is not reported inside an ID like `080-1234-56789`. A space ends a number (`03-1234-5678 080-1111-2222` are two numbers). Turn it off to find partial numbers.
+- **Treat +81 80... and 080... as the same number** (on by default): `+81 80-1234-5678`, `+81 (0)80-1234-5678` and `080-1234-5678` match each other; `+1 (555) 555-0123` matches `555-555-0123`. The country code (1-3 digits) is not checked against a list, so a different country code with the same national digits also matches.
+- **Also find tel: links** (on by default): the number inside `href="tel:..."` / `callto:` is found even when the visible text is "Call us". A link whose visible text already matched is reported once.
+- Input must have 4-15 digits; letters or other symbols show a clear message.
 
 ## Installation
 
@@ -48,11 +71,10 @@ The side panel never touches the page DOM; it only exchanges messages with the s
 A real same-origin crawl of the **rendered** DOM (not downloaded HTML):
 
 - Starts from the page you are on (scanned in your own tab) and follows internal links breadth-first.
-- **Page loading** (Crawl options) has two modes:
-  - **Invisible - no tabs (default).** No tab or window is ever opened. Each page is downloaded (with your session cookies) and rendered in a hidden offscreen document: scripts, `<noscript>`, frames and meta refresh are removed, every linked stylesheet (including `@import`) is downloaded and inlined with its original URL, and the result is loaded into a sandboxed iframe (no `allow-scripts`, CSP blocking images, fonts, media and frames). The same scanner as for live pages then runs on it. The HTML and CSS are exactly what the server sent; **JavaScript is not executed**, so content or styles added by scripts are not seen.
-  - **Temporary background tabs.** Pages open in short-lived, inactive, muted tabs - your active tab is never switched - so their scripts run; the tabs are always closed afterwards (also after errors, cancel, or a service-worker restart).
+- **Checks every internal page, invisibly - no options to set.** No tab or window is ever opened. Each page is downloaded (with your session cookies) and rendered in a hidden offscreen document: scripts, `<noscript>`, frames and meta refresh are removed, every linked stylesheet (including `@import`) is downloaded and inlined with its original URL, and the result is loaded into a sandboxed iframe (no `allow-scripts`, CSP blocking images, fonts, media and frames). The same scanner as for live pages then runs on it. The HTML and CSS are exactly what the server sent; **JavaScript is not executed**, so content or styles added only by scripts on those pages are not seen. (The service worker can still use short-lived background tabs for a script-running crawl through its internal `mode: 'tabs'` option; the UI no longer exposes it.)
+- **Fast.** About 12 pages are fetched in parallel, stylesheets shared between pages are indexed once, and **results stream into the panel as each page finishes** - the first matches (your current page) show in well under a second, and the list keeps growing with a "Still checking the site" banner until the crawl completes. Total time is dominated by how fast the website's server answers (measured on the test site: 79 pages in about 8 seconds, first results in about 0.5 s).
 - The page you are on is always scanned live in your own tab (its exact current state).
-- Defaults: max 50 pages, 3 concurrent pages, 20 s page timeout, 1 retry for transient failures. All configurable under *Crawl options*.
+- Internal defaults: 12 parallel pages, a 2000-page safety cap, 20 s page timeout, 1 retry for transient failures.
 - URLs are normalized and de-duplicated: fragments, credentials and tracking parameters (`utm_*`, `gclid`, `fbclid` ...) are removed, query parameters are sorted, trailing slashes are ignored. External domains, non-http(s) schemes (`mailto:`, `tel:`, `javascript:` ...), downloads/assets and logout/delete-style links are skipped.
 - **Coverage is reported honestly.** Pages that failed (HTTP error, timeout, redirect off-site, not HTML, no access) are listed separately, pages not reached because of the limit are counted, and a cancelled scan is labeled partial. Full coverage is only claimed when every discovered page was scanned.
 - Cancel at any time with the **Cancel** button; closing the panel also cancels.
@@ -85,9 +107,15 @@ content/                        injected on demand
   css-utils.js                  declaration parsing, specificity, line lookup
   element-info.js               selectors, paths, sections, ancestors
   element-highlighter.js        shadow-DOM overlay, auto-removed
+  text-scanner.js               shared flow scan (inline joining, attributes, links) + Text Find
+  phone-scanner.js              Telephone Number scan (uses the flow scan)
+  run-scan.js                   picks the color, text or phone scanner for a target
+  element-registry.js           element ids for highlight requests
 services/                       pure/shared logic
   color-normalizer.js           parsing + canonical RGBA (see "Color precision")
   color-spaces.js, color-matcher.js, url-normalizer.js
+  text-matcher.js               Text Find query rules (case folding, whitespace, whole word)
+  phone-matcher.js              Telephone Number rules (digits, separators, exact, +81/0)
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
   background-renderer.js        invisible page renderer (runs in the offscreen document)
@@ -97,6 +125,10 @@ shared/                         constants, helpers, validators, named colors
 sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded features
   features/registry.js          add a tool here
   features/color-find/          the Color Find feature
+  features/text-find/           the Text Find feature
+  features/telephone/           the Telephone Number feature
+  features/search-feature.js    shared controller for the search tools (Text Find, Telephone)
+  features/scan-ui.js           status block, error text and live results shared by the tools
 tests/                          browser test runner, suites and fixtures
 icons/
 ```
@@ -123,7 +155,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers.
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find and Telephone Number matching/scanning (formats, exact mode, +81/0, split tags, tel: links, invisible renderer).
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -133,9 +165,11 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Not inspected: pseudo-elements (`::before`/`::after`), images, `<canvas>`, closed shadow roots, and cross-origin iframes.
 - Cross-origin stylesheets that block `cssRules` cannot be read. Their colors are still found from computed styles, but no source is shown (the panel reports how many sheets were unreadable). Source details and line numbers are only shown when they can be **verified**; a line number appears only when the declaration is found exactly once in the stylesheet text.
 - `box-shadow`/`text-shadow`/CSS-variable attribution relies on the browser's computed values; the "original value" is the CSSOM serialization (colors are serialized as `rgb()`).
-- Entire Site, invisible mode, reads HTML + CSS only (no scripts); use the tab mode for script-heavy sites. In either mode, content that loads lazily on scroll or after interaction may not appear, and sites requiring a login only work if your browser session is logged in. The crawl is bounded (default 50 pages) and never submits forms; links that look like logout/delete actions are skipped.
+- Entire Site, invisible mode, reads HTML + CSS only (no scripts); colors that only scripts add on other pages are not included. Content that loads lazily on scroll or after interaction may not appear, and sites requiring a login only work if your browser session is logged in. The crawl is bounded by a 2000-page safety cap and never submits forms; links that look like logout/delete actions are skipped.
+- Text Find does not read text inside images, `<canvas>`, closed shadow roots or cross-origin iframes, and not text that Chrome translates or scripts change after the page was read (it searches the page as it currently is, so a page Chrome has auto-translated is searched in the translated language). On other pages of a site, text added only by JavaScript is not seen.
+- Telephone Number does not read numbers drawn inside images or `<canvas>`, closed shadow roots or cross-origin iframes, and on other pages of a site not numbers that only scripts add. Numbers written as words are not recognised.
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap
 
-Text Find, Half/Full Width Text, Image Resolution, Telephone Number, Font Find, a settings page, export of results (CSV/JSON).
+Half/Full Width Text, Image Resolution, Font Find, a settings page, export of results (CSV/JSON).

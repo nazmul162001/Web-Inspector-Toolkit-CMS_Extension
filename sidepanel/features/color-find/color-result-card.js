@@ -15,19 +15,19 @@ const DASH = '—';
 
 const swatchStyle = ({ r, g, b, a }) => `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 
-function kv(label, value, { mono = false } = {}) {
+export function kv(label, value, { mono = false } = {}) {
   const content =
     value instanceof Node ? value : el(mono ? 'code' : 'span', { class: mono ? 'kv__code' : '' }, value || DASH);
   return el('div', { class: 'kv' }, el('dt', {}, label), el('dd', {}, content));
 }
 
-function section(title, ...rows) {
+export function section(title, ...rows) {
   return el('section', { class: 'rcard__section' }, el('h4', {}, title), el('dl', {}, rows.filter(Boolean)));
 }
 
 /* ----------------------------------------------------------- Card sections */
 
-function elementSection(item) {
+export function elementSection(item) {
   const { element } = item;
   return section(
     'Element',
@@ -64,7 +64,7 @@ function colorSection(item) {
   );
 }
 
-function locationSection(item) {
+export function locationSection(item) {
   const { element, page } = item;
   const { location } = element;
   const parent = location.parent;

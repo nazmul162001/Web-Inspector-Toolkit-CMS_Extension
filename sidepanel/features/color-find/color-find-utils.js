@@ -167,8 +167,16 @@ export function declarationKey(item) {
 }
 
 /** Descriptive text for the coverage banner of an Entire Site scan. */
-export function describeCoverage(coverage) {
+export function describeCoverage(coverage, { subject = 'colors' } = {}) {
   if (!coverage || coverage.scope !== 'site') return null;
+  if (coverage.inProgress) {
+    return {
+      state: 'progress',
+      headline: `Still checking the site · ${coverage.scanned} ${coverage.scanned === 1 ? 'page' : 'pages'} done${coverage.discovered ? ` of ${coverage.discovered} found` : ''}`,
+      detail: 'Results below update as each page finishes.',
+      note: null,
+    };
+  }
   const parts = [`Scanned ${coverage.scanned} of ${coverage.discovered} discovered ${coverage.discovered === 1 ? 'page' : 'pages'}`];
   if (coverage.failed) parts.push(`${coverage.failed} could not be inspected`);
   if (coverage.notScanned) parts.push(`${coverage.notScanned} not scanned`);
@@ -188,7 +196,7 @@ export function describeCoverage(coverage) {
   }
   const note =
     coverage.mode === 'background'
-      ? 'Other pages were read invisibly as HTML + CSS without running their scripts, so colors added by JavaScript are not included. Choose "Temporary background tabs" in Crawl options to include them.'
+      ? `Other pages were read invisibly without running their scripts, so ${subject} that only JavaScript adds on those pages are not included. The page you are viewing is always checked live.`
       : null;
   return { state, headline, detail, note };
 }

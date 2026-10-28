@@ -1,0 +1,52 @@
+<section class="cf tf" aria-labelledby="ph-title">
+  <div class="cf-head">
+    <h2 id="ph-title" class="cf-title">Telephone Number</h2>
+    <p class="cf-lead">Find every place a phone number appears - on this page or across the whole site.</p>
+  </div>
+
+  <form class="cf-form" id="ph-form" novalidate>
+    <label class="field-label" for="ph-text">Phone number</label>
+    <input
+      id="ph-text"
+      class="input mono"
+      type="tel"
+      inputmode="tel"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="080-1234-5678"
+      aria-describedby="ph-error ph-help"
+      maxlength="40"
+    />
+    <p class="field-error" id="ph-error" role="alert" hidden></p>
+    <p class="field-help" id="ph-help">
+      Write it any way you like: 080-1234-5678, 08012345678, 080 1234 5678, (080) 1234-5678, +81 80 1234 5678 or full-width digits. Only the digits count, so every spelling of the same number is found.
+    </p>
+
+    <div class="tf-options tf-options--stack">
+      <label class="cf-check" for="ph-exact">
+        <input id="ph-exact" type="checkbox" data-opt="exact" />
+        <span>Exact number (not part of a longer number)</span>
+      </label>
+      <label class="cf-check" for="ph-intl">
+        <input id="ph-intl" type="checkbox" data-opt="international" />
+        <span>Treat +81 80… and 080… as the same number</span>
+      </label>
+      <label class="cf-check" for="ph-links">
+        <input id="ph-links" type="checkbox" data-opt="includeLinks" />
+        <span>Also find tel: links</span>
+      </label>
+    </div>
+
+    <div class="cf-site-panel" id="ph-site-panel" hidden>
+      <div class="notice notice--info" id="ph-site-notice"></div>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="ph-find" type="submit">Find</button>
+      <button class="btn" id="ph-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="ph-status" aria-live="polite"></div>
+  <div class="cf-results" id="ph-results"></div>
+</section>

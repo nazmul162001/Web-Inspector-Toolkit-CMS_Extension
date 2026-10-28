@@ -1,6 +1,6 @@
 import { assert, describe, it } from '../test-runner.js';
 import { crawlSite } from '../../services/site-crawler.js';
-import { ERR } from '../../shared/constants.js';
+import { DEFAULT_CRAWL_OPTIONS, ERR } from '../../shared/constants.js';
 import { createError, sleep } from '../../shared/helpers.js';
 
 const ORIGIN = 'https://site.test';
@@ -236,7 +236,7 @@ describe('Site crawler', () => {
     assert.ok(events.length >= 1);
     assert.equal(events[0].phase, 'crawling');
     assert.equal(events[0].scanId, 's4');
-    assert.ok(events.every((e) => e.maxPages === 50));
+    assert.ok(events.every((e) => e.maxPages === DEFAULT_CRAWL_OPTIONS.maxPages));
   });
 
   it('starts from a non-root URL and only follows same origin', async () => {
@@ -355,6 +355,24 @@ describe('Site crawler: invisible mode (no tabs)', () => {
     assert.equal(result.failures.length, 0);
     assert.equal(world.active, 0);
     assert.equal(world.tabCalls, 0);
+  });
+
+  it('checks every reachable page by default (no small page cap) and streams each finished page', async () => {
+    const links = Array.from({ length: 70 }, (_, i) => `/p${i}`);
+    const site = { '/': { links } };
+    const world = createInvisibleWorld(site);
+    const streamed = [];
+    const result = await crawlSite({
+      startTabId: 1, startUrl: `${ORIGIN}/`, scanId: 'all', target: TARGET,
+      crawl: {}, signal: new AbortController().signal, deps: world.deps,
+      onPage: (page) => streamed.push(page.url),
+    });
+    assert.equal(result.pages.length, 71, 'more than the old 50-page limit');
+    assert.equal(result.coverage.limitReached, false);
+    assert.equal(result.coverage.complete, true);
+    assert.equal(streamed.length, 71, 'one onPage call per finished page');
+    assert.equal(world.tabCalls, 0);
+    assert.ok(DEFAULT_CRAWL_OPTIONS.concurrency >= 8, 'pages are fetched in parallel');
   });
 
   it('uses tabs only when explicitly requested', async () => {

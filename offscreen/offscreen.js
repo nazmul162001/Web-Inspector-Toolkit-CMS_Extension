@@ -6,7 +6,7 @@
 
 import { ERR, MSG } from '../shared/constants.js';
 import { createError, isCancelled } from '../shared/helpers.js';
-import { isCanonicalColor } from '../shared/validators.js';
+import { isScanTarget } from '../shared/validators.js';
 import { registerHandlers } from '../services/message-service.js';
 import { createBackgroundRenderer } from '../services/background-renderer.js';
 
@@ -20,7 +20,7 @@ registerHandlers({
 
   [MSG.OFFSCREEN_SCAN_URL]: async ({ jobId, url, origin, target, options, timeoutMs }) => {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) throw createError(ERR.INVALID_REQUEST, 'Invalid URL.');
-    if (!isCanonicalColor(target)) throw createError(ERR.INVALID_REQUEST, 'Invalid target color.');
+    if (!isScanTarget(target)) throw createError(ERR.INVALID_REQUEST, 'Invalid search target.');
     const controller = new AbortController();
     jobs.set(jobId, controller);
     try {

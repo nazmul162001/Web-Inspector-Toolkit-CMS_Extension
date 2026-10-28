@@ -1,0 +1,55 @@
+<section class="cf tf" aria-labelledby="tf-title">
+  <div class="cf-head">
+    <h2 id="tf-title" class="cf-title">Text Find</h2>
+    <p class="cf-lead">Find every place a word or sentence appears - on this page or across the whole site.</p>
+  </div>
+
+  <form class="cf-form" id="tf-form" novalidate>
+    <label class="field-label" for="tf-text">Text</label>
+    <input
+      id="tf-text"
+      class="input"
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="Type any word or sentence…"
+      aria-describedby="tf-error tf-help"
+      maxlength="500"
+    />
+    <p class="field-error" id="tf-error" role="alert" hidden></p>
+    <p class="field-help" id="tf-help">
+      Searches the text people read, even when it is split across bold, links or other inline tags. Line breaks and extra spaces are ignored.
+    </p>
+
+    <div class="tf-options">
+      <label class="cf-check" for="tf-case">
+        <input id="tf-case" data-opt="matchCase" type="checkbox" />
+        <span>Match case</span>
+      </label>
+      <label class="cf-check" for="tf-word">
+        <input id="tf-word" data-opt="wholeWord" type="checkbox" />
+        <span>Whole word</span>
+      </label>
+      <label class="cf-check" for="tf-attrs">
+        <input id="tf-attrs" data-opt="includeAttributes" type="checkbox" />
+        <span>Also search alt, title, placeholder…</span>
+      </label>
+      <label class="cf-check" for="tf-visible">
+        <input id="tf-visible" data-opt="visibleOnly" type="checkbox" />
+        <span>Visible text only</span>
+      </label>
+    </div>
+
+    <div class="cf-site-panel" id="tf-site-panel" hidden>
+      <div class="notice notice--info" id="tf-site-notice"></div>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="tf-find" type="submit">Find</button>
+      <button class="btn" id="tf-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="tf-status" aria-live="polite"></div>
+  <div class="cf-results" id="tf-results"></div>
+</section>

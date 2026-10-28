@@ -12,7 +12,34 @@ export const DEFAULT_SETTINGS = Object.freeze({
   includeInherited: false,
   groupMode: 'section',
   crawl: DEFAULT_CRAWL_OPTIONS,
+  text: Object.freeze({
+    query: '',
+    matchCase: false,
+    wholeWord: false,
+    includeAttributes: false,
+    visibleOnly: false,
+    groupMode: 'section',
+  }),
+  phone: Object.freeze({
+    query: '',
+    exact: true,
+    international: true,
+    includeLinks: true,
+    groupMode: 'section',
+  }),
 });
+
+/** Saved options of a "find in page text" tool: strings and booleans only, anything else falls back to the default. */
+function sanitizeSearchSettings(raw, defaults) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  const out = {};
+  for (const [key, fallback] of Object.entries(defaults)) {
+    if (key === 'query') out.query = typeof value.query === 'string' ? value.query.slice(0, 500) : fallback;
+    else if (key === 'groupMode') out.groupMode = ['section', 'tag', 'none'].includes(value.groupMode) ? value.groupMode : fallback;
+    else out[key] = typeof value[key] === 'boolean' ? value[key] : fallback;
+  }
+  return out;
+}
 
 function sanitize(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
@@ -22,6 +49,8 @@ function sanitize(raw) {
     includeInherited: !!value.includeInherited,
     groupMode: ['section', 'property', 'none'].includes(value.groupMode) ? value.groupMode : DEFAULT_SETTINGS.groupMode,
     crawl: sanitizeCrawlOptions(value.crawl),
+    text: sanitizeSearchSettings(value.text, DEFAULT_SETTINGS.text),
+    phone: sanitizeSearchSettings(value.phone, DEFAULT_SETTINGS.phone),
   };
 }
 
@@ -37,7 +66,13 @@ export async function loadSettings() {
 /** Merge `patch` into the stored settings. */
 export async function saveSettings(patch) {
   const current = await loadSettings();
-  const next = sanitize({ ...current, ...patch, crawl: { ...current.crawl, ...(patch.crawl || {}) } });
+  const next = sanitize({
+    ...current,
+    ...patch,
+    crawl: { ...current.crawl, ...(patch.crawl || {}) },
+    text: { ...current.text, ...(patch.text || {}) },
+    phone: { ...current.phone, ...(patch.phone || {}) },
+  });
   try {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });
   } catch {

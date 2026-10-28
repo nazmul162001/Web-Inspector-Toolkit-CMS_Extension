@@ -5,9 +5,11 @@
 
 import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
-import { isCanonicalColor } from '../shared/validators.js';
+import { isScanTarget } from '../shared/validators.js';
 import { broadcast, registerHandlers } from '../services/message-service.js';
-import { CONTEXT_ID, collectLinks, lookupRegisteredElement, scanDocument } from './dom-scanner.js';
+import { collectLinks } from './dom-scanner.js';
+import { CONTEXT_ID, lookupRegisteredElement } from './element-registry.js';
+import { runScan } from './run-scan.js';
 import { clearHighlight, highlightElement } from './element-highlighter.js';
 
 /** scanId -> { cancelled } for scans currently running in this page. */
@@ -24,11 +26,11 @@ function navigationInfo() {
 }
 
 async function handleScan({ scanId, target, options = {} }) {
-  if (!isCanonicalColor(target)) throw createError(ERR.INVALID_REQUEST, 'Invalid target color.');
+  if (!isScanTarget(target)) throw createError(ERR.INVALID_REQUEST, 'Invalid search target.');
   const job = { cancelled: false };
   runningScans.set(scanId, job);
   try {
-    const result = await scanDocument({
+    const result = await runScan({
       target,
       options,
       isCancelled: () => job.cancelled,

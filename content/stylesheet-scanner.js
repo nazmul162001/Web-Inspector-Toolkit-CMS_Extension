@@ -492,9 +492,16 @@ async function fetchStylesheetText(href) {
  * unambiguously in the stylesheet text. Stylesheet text is fetched at most
  * once per URL, and the number of lookups is capped.
  */
-export async function resolveSourceLines(pending, { fetchText = fetchStylesheetText, isCancelled = () => false } = {}) {
-  const texts = new Map();
-  const results = new Map();
+export async function resolveSourceLines(
+  pending,
+  {
+    fetchText = fetchStylesheetText,
+    isCancelled = () => false,
+    texts = new Map(), // href -> Promise<text>; pass a shared Map to reuse downloads across pages
+    results = new Map(), // declaration key -> line; shared Map reuses answers across pages
+  } = {},
+) {
+  const localResults = new Map(); // inline <style> blocks: their labels repeat from page to page
   let lookups = 0;
 
   const textFor = (sheet) => {
@@ -507,14 +514,15 @@ export async function resolveSourceLines(pending, { fetchText = fetchStylesheetT
   for (const { source, entry } of pending) {
     if (isCancelled()) return;
     const key = `${entry.sheet.href || entry.sheet.label}|${entry.selectorText}|${entry.declName}|${entry.value}`;
-    if (!results.has(key)) {
+    const store = entry.sheet.kind === 'style' ? localResults : results;
+    if (!store.has(key)) {
       if (lookups >= SCAN_LIMITS.MAX_LINE_LOOKUPS) continue;
       lookups += 1;
       const text = await textFor(entry.sheet);
-      results.set(key, text ? findDeclarationLine(text, entry.selectorText, entry.declName, entry.value) : null);
+      store.set(key, text ? findDeclarationLine(text, entry.selectorText, entry.declName, entry.value) : null);
       if (lookups % 25 === 0) await yieldToMain();
     }
-    const line = results.get(key);
+    const line = store.get(key);
     if (line) {
       source.line = line;
       source.lineBase = entry.sheet.kind === 'style' ? 'style-element' : 'file';

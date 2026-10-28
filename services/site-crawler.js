@@ -51,6 +51,7 @@ export async function crawlSite({
   crawl,
   signal,
   onProgress = () => {},
+  onPage = () => {},
   deps = defaultDeps,
 }) {
   const options = sanitizeCrawlOptions(crawl);
@@ -114,6 +115,11 @@ export async function crawlSite({
     const { links, ...page } = result;
     pages.push(page);
     matchCount += page.matches.length;
+    try {
+      onPage(page);
+    } catch (error) {
+      console.error('[crawler] onPage failed', error);
+    }
     enqueueLinks(links, result.url);
   }
 

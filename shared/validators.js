@@ -4,6 +4,8 @@
  */
 
 import { normalizeColor } from '../services/color-normalizer.js';
+import { isPhoneQuery, sanitizePhoneQuery } from '../services/phone-matcher.js';
+import { isTextQuery, sanitizeTextQuery } from '../services/text-matcher.js';
 import { CRAWL_LIMITS, CRAWL_MODE, DEFAULT_CRAWL_OPTIONS, ERR, NEAR_TOLERANCE, SCOPE } from './constants.js';
 import { clamp, createError } from './helpers.js';
 
@@ -22,6 +24,9 @@ export function isCanonicalColor(value) {
     )
   );
 }
+
+/** A scan target is a canonical color, a text query or a phone number query. */
+export const isScanTarget = (value) => isCanonicalColor(value) || isTextQuery(value) || isPhoneQuery(value);
 
 export const isValidScope = (scope) => scope === SCOPE.PAGE || scope === SCOPE.SITE;
 
@@ -108,12 +113,13 @@ export function parseScanRequest(payload, { site = false } = {}) {
   const { scanId, sessionId, tabId, target, options = {}, crawl } = payload;
   if (typeof scanId !== 'string' || !scanId) throw bad('Missing scan id.');
   if (!Number.isInteger(tabId)) throw bad('Missing tab id.');
-  if (!isCanonicalColor(target)) throw bad('The target color is invalid.');
+  const search = sanitizeTextQuery(target) || sanitizePhoneQuery(target);
+  if (!search && !isCanonicalColor(target)) throw bad('The search target is invalid.');
   return {
     scanId,
     sessionId: typeof sessionId === 'string' ? sessionId : null,
     tabId,
-    target: { r: target.r, g: target.g, b: target.b, a: target.a },
+    target: search || { r: target.r, g: target.g, b: target.b, a: target.a },
     scanOptions: {
       tolerance: options.tolerance ? clamp(Math.round(Number(options.tolerance)) || 0, 0, NEAR_TOLERANCE) : 0,
       includeInherited: !!options.includeInherited,

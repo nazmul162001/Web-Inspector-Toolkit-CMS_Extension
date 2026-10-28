@@ -49,22 +49,6 @@
 
     <div class="cf-site-panel" id="cf-site-panel" hidden>
       <div class="notice notice--info" id="cf-site-notice"></div>
-      <details class="cf-details">
-        <summary>Crawl options</summary>
-        <div class="crawl-mode">
-          <label for="cf-crawl-mode">Page loading</label>
-          <select id="cf-crawl-mode" class="select">
-            <option value="background">Invisible - no tabs (HTML + CSS, scripts not run)</option>
-            <option value="tabs">Temporary background tabs (runs page scripts)</option>
-          </select>
-        </div>
-        <div class="crawl-grid">
-          <label>Max pages <input class="input" id="cf-crawl-maxPages" type="number" min="1" max="200" /></label>
-          <label>Concurrent tabs <input class="input" id="cf-crawl-concurrency" type="number" min="1" max="5" /></label>
-          <label>Page timeout (s) <input class="input" id="cf-crawl-pageTimeoutMs" type="number" min="5" max="120" /></label>
-          <label>Retries <input class="input" id="cf-crawl-retries" type="number" min="0" max="3" /></label>
-        </div>
-      </details>
     </div>
 
     <div class="cf-actions">

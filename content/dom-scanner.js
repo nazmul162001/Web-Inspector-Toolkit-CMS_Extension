@@ -17,26 +17,17 @@
  */
 
 import { COLOR_PROPERTIES, ERR, HIGHLIGHT_HOST_ID, SCAN_LIMITS, SKIPPED_TAGS } from '../shared/constants.js';
-import { createError, throttle, uid, yieldToMain } from '../shared/helpers.js';
+import { createError, throttle, yieldToMain } from '../shared/helpers.js';
 import { alphaToNumber, toHex } from '../services/color-normalizer.js';
 import { createColorMatcher } from '../services/color-matcher.js';
 import { buildElementRecord, createPathBuilder } from './element-info.js';
+import { CONTEXT_ID, lookupRegisteredElement, registerElement } from './element-registry.js';
 import { createStyleScanner } from './style-scanner.js';
 import { buildStylesheetIndex, createSourceResolver, resolveSourceLines } from './stylesheet-scanner.js';
 
 const DESCRIPTORS = new Map(COLOR_PROPERTIES.map((d) => [d.property, d]));
 
-/** Registry so highlight requests can find elements again (WeakRefs: no leaks). */
-/** Identifies this content-script lifetime; element ids are only valid within it. */
-export const CONTEXT_ID = uid('ctx');
-
-const elementRegistry = new Map();
-let nextElementId = 1;
-
-export function lookupRegisteredElement(elementId) {
-  const element = elementRegistry.get(elementId)?.deref();
-  return element && element.isConnected ? element : null;
-}
+export { CONTEXT_ID, lookupRegisteredElement };
 
 /**
  * @param {object} params
@@ -46,6 +37,9 @@ export function lookupRegisteredElement(elementId) {
  * @param {{ tolerance?: number, includeInherited?: boolean, collectLinks?: boolean, withSources?: boolean }} [params.options]
  * @param {() => boolean} [params.isCancelled]
  * @param {(progress: {scanned:number,total:number,matches:number}) => void} [params.onProgress]
+ * @param {object} [params.shared] caches reused between the pages of one crawl:
+ *   { indexes: Map, lineTexts: Map, lineResults: Map, fetchText?: (href) => Promise<string|null> }
+ * @param {number} [params.budgetMs] time slice before yielding (default SCAN_LIMITS.BATCH_BUDGET_MS)
  */
 export async function scanDocument({
   doc = document,
@@ -54,8 +48,11 @@ export async function scanDocument({
   options = {},
   isCancelled = () => false,
   onProgress = () => {},
+  shared = null,
+  budgetMs = SCAN_LIMITS.BATCH_BUDGET_MS,
 }) {
   const startedAt = performance.now();
+  const timings = {};
   const { tolerance = 0, includeInherited = false, withSources = true } = options;
   const checkCancelled = () => {
     if (isCancelled()) throw createError(ERR.CANCELLED, 'Scan cancelled');
@@ -66,10 +63,32 @@ export async function scanDocument({
   const buildPath = createPathBuilder(doc);
   const total = root.querySelectorAll('*').length + 1;
 
-  const index = withSources
-    ? await buildStylesheetIndex(doc, { isCancelled })
-    : { byProperty: new Map(), inaccessible: [], sheetCount: 0, ruleCount: 0 };
+  let mark = performance.now();
+  const lap = (name) => {
+    const now = performance.now();
+    timings[name] = Math.round(now - mark);
+    mark = now;
+  };
+
+  let index;
+  if (!withSources) {
+    index = { byProperty: new Map(), inaccessible: [], sheetCount: 0, ruleCount: 0 };
+  } else if (shared) {
+    // Pages of one site mostly share the same stylesheets, and the index only holds
+    // selector text and declarations, so it is built once per distinct set of sheets.
+    const signature = stylesheetSignature(doc);
+    if (!shared.indexes.has(signature)) shared.indexes.set(signature, buildStylesheetIndex(doc, { isCancelled }));
+    try {
+      index = await shared.indexes.get(signature);
+    } catch (error) {
+      shared.indexes.delete(signature);
+      throw error;
+    }
+  } else {
+    index = await buildStylesheetIndex(doc, { isCancelled });
+  }
   checkCancelled();
+  lap('indexMs');
   const resolver = createSourceResolver({ index, styleOf: styleScanner.styleOf, matcher });
 
   const elements = [];
@@ -86,9 +105,7 @@ export async function scanDocument({
     const hits = styleScanner.scanElement(element);
     if (hits.length === 0) return;
 
-    const elementId = nextElementId;
-    nextElementId += 1;
-    elementRegistry.set(elementId, new WeakRef(element));
+    const elementId = registerElement(element);
     elements.push(buildElementRecord(element, { buildPath, elementId, domIndex }));
 
     for (const hit of hits) {
@@ -127,18 +144,25 @@ export async function scanDocument({
   while (node && !truncated) {
     handleElement(node);
     node = walker.nextNode();
-    if (performance.now() - sliceStart > SCAN_LIMITS.BATCH_BUDGET_MS) {
+    if (performance.now() - sliceStart > budgetMs) {
       reportProgress();
       await yieldToMain();
       checkCancelled();
       sliceStart = performance.now();
     }
   }
+  lap('walkMs');
 
   if (withSources && resolver.pendingLines.length) {
-    await resolveSourceLines(resolver.pendingLines, { isCancelled });
+    await resolveSourceLines(resolver.pendingLines, {
+      isCancelled,
+      texts: shared?.lineTexts,
+      results: shared?.lineResults,
+      ...(shared?.fetchText ? { fetchText: shared.fetchText } : {}),
+    });
   }
   checkCancelled();
+  lap('linesMs');
 
   return {
     contextId: CONTEXT_ID,
@@ -148,13 +172,31 @@ export async function scanDocument({
     stats: {
       elementsScanned: scanned,
       durationMs: Math.round(performance.now() - startedAt),
+      timings,
       stylesheets: {
         scanned: index.sheetCount,
-        inaccessible: index.inaccessible,
+        inaccessible: [...index.inaccessible], // a copy: the index may be shared between pages
         rules: index.ruleCount,
       },
     },
   };
+}
+
+/**
+ * Identity of the page's stylesheet set: linked/imported sheets by original URL
+ * (the renderer marks them `data-wit-href`), inline blocks by their text, plus
+ * media conditions and order. Two pages with the same signature have the same
+ * rules, so they can share one index.
+ */
+function stylesheetSignature(doc) {
+  const parts = [];
+  for (const sheet of Array.from(doc.styleSheets)) {
+    const node = sheet.ownerNode;
+    const href = node?.getAttribute?.('data-wit-href') || sheet.href;
+    const media = sheet.media?.mediaText || '';
+    parts.push(href ? `h:${href}|${media}|${sheet.disabled ? 'off' : 'on'}` : `s:${media}|${node?.textContent ?? ''}`);
+  }
+  return parts.join('\u0001');
 }
 
 /**

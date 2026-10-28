@@ -40,6 +40,8 @@
       "resources": [
         "content/*.js",
         "services/color-*.js",
+        "services/text-*.js",
+        "services/phone-*.js",
         "services/message-service.js",
         "shared/*.js"
       ],
