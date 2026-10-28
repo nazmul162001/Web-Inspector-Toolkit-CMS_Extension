@@ -13,7 +13,8 @@ Everything runs locally; no page content ever leaves your device.
 | **Telephone Number** | Available |
 | **Link href** | Available |
 | **Font Find** | Available |
-| Half/Full Width Text, Image Resolution | "Coming soon" (disabled, architecture ready) |
+| **Half/Full Width Text** | Available |
+| Image Resolution | "Coming soon" (disabled, architecture ready) |
 
 ### Color Find
 
@@ -71,6 +72,17 @@ Type a font family and see every element that uses it, on **This Page** or acros
 - Per result: the font list with the searched font marked, its place in the list (first choice or fallback), whether it is set on the element or inherited, the web font behind it (the `@font-face` files with format and weight, or a Google Fonts stylesheet linked on the page; "generic family" for `serif`, `monospace` ...), the element, the location and the **CSS source** (stylesheet, selector, declaration, CSS variable, line number, "inherited from").
 - The CSS source follows the same truthfulness rules as Color Find: only the winning declaration (by `!important`, inline, layer, specificity and order) can be the source, and only when it really lists the font after variables are resolved. Otherwise the card says it could not be verified.
 - It reports the font the CSS **asks for**. A page cannot see whether the visitor's browser had it installed, so the tool never claims which font was actually drawn. A font with no `@font-face` and no Google Fonts link is described as "installed on the visitor's device, or from a source this page does not show".
+
+### Half/Full Width Text
+
+Finds full-width characters in the text of a page or of the whole site, and marks them in red on the page.
+
+- Tick the kinds of full-width characters to find (only parentheses are ticked at first, and there are no text fields): numbers (`０１２`), letters (`ＡＢｃ`), parentheses and brackets (`（）［］`), colons and semicolons (`：；`), percent (`％`), question and exclamation marks (`？！`), commas and periods (`，．`), hyphens, slashes, `￥` and other symbols, and spaces (the ideographic space `U+3000`). "Select all" / "Select none" are provided; at least one kind must be ticked.
+- A result is one **run** of characters: `２０２４` is one result, not four; `０３－１２３４` joins a number, a hyphen and numbers.
+- Normal Japanese punctuation (`、。「」【】ー`) is not full-width text in this sense (it has no half-width twin) and is never reported.
+- Per result: the characters in context (white on red), the kinds, the character codes (`U+FF11`), the same text in the other form (`２０２４` -> `2024`), and the element, location and selector like the other tools. The eye button scrolls to and highlights the element.
+- **Marks on the page**: the found characters are marked white on red, like the bookmarklet this replaces, but without rewriting the page. It uses the CSS Custom Highlight API (Chrome 105+), so no tags are inserted, scripts, forms and layout keep working, and "Remove marks from the page" (or closing the tool) clears them. Untick "Mark the characters on the page" to only list the results. In Entire Site, the page you are viewing is marked; opening a result on another page marks that page.
+- Only text is searched (not scripts, styles, attributes, images or canvas). Entire Site reads the other pages as HTML without running their scripts.
 
 ## Installation
 
@@ -139,7 +151,8 @@ content/                        injected on demand
   phone-scanner.js              Telephone Number scan (uses the flow scan)
   href-scanner.js               Link href scan (href, formaction, data-href, onclick)
   font-scanner.js, font-source.js  Font Find scan and its CSS source resolver
-  run-scan.js                   picks the color, text, phone, link or font scanner for a target
+  width-scanner.js, width-marks.js  Half/Full Width Text scan and the red marks (CSS Custom Highlight API)
+  run-scan.js                   picks the color, text, phone, link, font or width scanner for a target
   element-registry.js           element ids for highlight requests
 services/                       pure/shared logic
   color-normalizer.js           parsing + canonical RGBA (see "Color precision")
@@ -148,6 +161,7 @@ services/                       pure/shared logic
   phone-matcher.js              Telephone Number rules (digits, separators, exact, +81/0)
   href-matcher.js               Link href rules (resolving, normalizing, exact / contains)
   font-matcher.js               Font Find rules (font lists, names, @font-face / Google Fonts parsing)
+  width-matcher.js              Half/Full Width Text rules (kinds of characters, runs, conversion)
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
   page-scan-service.js, site-crawler.js, temp-tab-manager.js, settings-service.js
   background-renderer.js        invisible page renderer (runs in the offscreen document)
@@ -161,7 +175,8 @@ sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded featur
   features/telephone/           the Telephone Number feature
   features/link-href/           the Link href feature
   features/font-find/           the Font Find feature
-  features/search-feature.js    shared controller for the search tools (Text Find, Telephone, Link href, Font Find)
+  features/width-text/          the Half/Full Width Text feature
+  features/search-feature.js    shared controller for the search tools (Text Find, Telephone, Link href, Font Find, Half/Full Width Text)
   features/scan-ui.js           status block, error text and live results shared by the tools
 tests/                          browser test runner, suites and fixtures
 icons/
@@ -189,7 +204,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number and Link href and Font Find matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer).
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched).
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -204,8 +219,9 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Telephone Number does not read numbers drawn inside images or `<canvas>`, closed shadow roots or cross-origin iframes, and on other pages of a site not numbers that only scripts add. Numbers written as words are not recognised.
 - Link href reads the links in the HTML of each page. Links built by scripts, inside images, closed shadow roots or cross-origin iframes are not found, and only `onclick` handlers written as attributes are read (not `addEventListener`).
 - Font Find reads the CSS, not the pixels: it cannot tell whether a font was really installed or loaded for a visitor, and fonts set by scripts after load, or inside images, canvas, closed shadow roots and cross-origin iframes, are not found. Stylesheets that block `cssRules` (cross-origin) hide their rules, so a source may be unavailable for them (the panel says how many); Google Fonts stylesheets are still recognised from their `family=` address.
+- Half/Full Width Text searches text nodes only. Marking needs Chrome 105+ (the list of results works without it), only the page you are viewing is marked while searching,. Text Chrome has translated is searched as it currently is.
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap
 
-Half/Full Width Text, Image Resolution, a settings page, export of results (CSV/JSON).
+Image Resolution, a settings page, export of results (CSV/JSON).

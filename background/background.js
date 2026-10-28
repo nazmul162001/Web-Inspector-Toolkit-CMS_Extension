@@ -12,10 +12,11 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { highlightInTab, probeAccess, scanTab } from '../services/page-scan-service.js';
+import { clearMarksInTab, highlightInTab, probeAccess, scanTab } from '../services/page-scan-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
+import { sanitizeWidthQuery } from '../services/width-matcher.js';
 import {
   cleanupOrphanedTempTabs,
   closeAllTempTabs,
@@ -236,14 +237,24 @@ async function findOrOpenPageTab({ tabId, windowId, pageUrl }) {
 }
 
 async function handleHighlight(payload) {
-  const { pageUrl, elementId, contextId, path, tag, mode, label, tabId, windowId } = payload || {};
+  const { pageUrl, elementId, contextId, path, tag, mode, label, tabId, windowId, marks } = payload || {};
   if (!pageUrl || (!path && !elementId)) throw createError(ERR.INVALID_REQUEST, 'Missing element locator.');
 
   const tab = await findOrOpenPageTab({ tabId, windowId, pageUrl });
   // The user asked to see the element, so (unlike scanning) bringing the tab forward is intended.
   await chrome.tabs.update(tab.id, { active: true });
   await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
-  return highlightInTab(tab.id, { elementId, contextId, path, tag, label }, mode);
+  const widthMarks = marks ? sanitizeWidthQuery(marks) : null; // never forward an unchecked payload
+  return highlightInTab(tab.id, { elementId, contextId, path, tag, label, ...(widthMarks ? { marks: widthMarks } : {}) }, mode);
+}
+
+async function handleClearMarks({ tabId } = {}) {
+  if (!Number.isInteger(tabId)) return { cleared: false };
+  try {
+    return await clearMarksInTab(tabId);
+  } catch {
+    return { cleared: false }; // the tab is gone, restricted or was never scanned
+  }
 }
 
 /* ------------------------------------------------------------- Register */
@@ -255,4 +266,5 @@ registerHandlers({
   [MSG.SCAN_SITE]: handleScanSite,
   [MSG.CANCEL_SCAN]: handleCancel,
   [MSG.HIGHLIGHT]: handleHighlight,
+  [MSG.CLEAR_MARKS]: handleClearMarks,
 });

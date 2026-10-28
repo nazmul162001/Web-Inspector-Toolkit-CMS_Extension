@@ -6,14 +6,17 @@
  *   {kind: 'phone', ...}    -> Telephone Number scanner
  *   {kind: 'href', ...}     -> Link (href) scanner
  *   {kind: 'font', ...}     -> Font Find scanner
+ *   {kind: 'width', ...}    -> Half/Full Width Text scanner
  * All return the same page-result shape.
  */
 
+import { isWidthQuery } from '../services/width-matcher.js';
 import { isFontQuery } from '../services/font-matcher.js';
 import { isHrefQuery } from '../services/href-matcher.js';
 import { isPhoneQuery } from '../services/phone-matcher.js';
 import { isTextQuery } from '../services/text-matcher.js';
 import { scanDocument } from './dom-scanner.js';
+import { scanWidthDocument } from './width-scanner.js';
 import { scanFontDocument } from './font-scanner.js';
 import { scanHrefDocument } from './href-scanner.js';
 import { scanPhoneDocument } from './phone-scanner.js';
@@ -24,5 +27,6 @@ export function runScan(params) {
   if (isPhoneQuery(params.target)) return scanPhoneDocument(params);
   if (isHrefQuery(params.target)) return scanHrefDocument(params);
   if (isFontQuery(params.target)) return scanFontDocument(params);
+  if (isWidthQuery(params.target)) return scanWidthDocument(params);
   return scanDocument(params);
 }

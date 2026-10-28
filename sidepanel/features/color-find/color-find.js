@@ -299,7 +299,7 @@ export function createFeature(ctx) {
       };
 
       settings = await loadSettings();
-      refs.text.value = settings.color;
+      refs.text.value = ''; // always start with an empty field
       refs.matchMode.value = settings.matchMode;
       refs.inherited.checked = settings.includeInherited;
 

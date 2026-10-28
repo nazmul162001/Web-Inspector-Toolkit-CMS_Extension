@@ -17,6 +17,9 @@
  * The markup needs `${prefix}-` ids: form, text, error, find, cancel, status, results,
  * site-panel, site-notice, plus any checkboxes or <select>s marked with data-opt="optionName".
  * Optional: `${prefix}-preview` (a line under the input) filled by config.preview(text, options) -> string | null.
+ * Optional hooks: config.onOptionsChanged({ container, options }), config.onMount({ container, refs, ctx, update }),
+ * config.onUnmount({ ctx }), config.locateExtras(query) -> object merged into highlight requests.
+ * A tool without a text field can use a hidden input for `${prefix}-text`.
  */
 
 import { ERR, MSG, SCOPE } from '../../shared/constants.js';
@@ -49,6 +52,7 @@ export function createSearchFeature(ctx, config) {
   let busy = false;
   let currentScanId = null;
   let lastScan = null;
+  let lastQuery = null;
   const disposers = [];
 
   /* ------------------------------------------------------------- Helpers */
@@ -68,8 +72,9 @@ export function createSearchFeature(ctx, config) {
   }
 
   function updatePreview() {
+    config.onOptionsChanged?.({ container: refs.container, options: readOptions() });
     if (!refs.preview || !config.preview) return;
-    const line = refs.text.value.trim() ? config.preview(refs.text.value, readOptions()) : null;
+    const line = refs.text.value.trim() || config.alwaysPreview ? config.preview(refs.text.value, readOptions()) : null;
     refs.preview.textContent = line || '';
     refs.preview.hidden = !line;
   }
@@ -162,6 +167,7 @@ export function createSearchFeature(ctx, config) {
       return;
     }
     const { query } = parsed;
+    lastQuery = query;
     showInputError('');
 
     const scope = ctx.getScope();
@@ -248,6 +254,7 @@ export function createSearchFeature(ctx, config) {
       tag: item.element.tag,
       label: item.element.selector,
       mode,
+      ...(config.locateExtras && lastQuery ? config.locateExtras(lastQuery) : {}),
     };
     try {
       return await sendToBackground(MSG.HIGHLIGHT, payload, { timeoutMs: 40000 });
@@ -294,6 +301,7 @@ export function createSearchFeature(ctx, config) {
       const $ = (name) => container.querySelector(`#${config.prefix}-${name}`);
 
       refs = {
+        container,
         form: $('form'),
         text: $('text'),
         error: $('error'),
@@ -310,7 +318,7 @@ export function createSearchFeature(ctx, config) {
       };
 
       const saved = (await loadSettings())[config.settingsKey];
-      refs.text.value = saved.query;
+      refs.text.value = ''; // always start with an empty field
       for (const [name, box] of Object.entries(refs.options)) {
         if (box.type === 'checkbox') box.checked = !!saved[name];
         else if (typeof saved[name] === 'string') box.value = saved[name];
@@ -338,6 +346,7 @@ export function createSearchFeature(ctx, config) {
 
       disposers.push(onEvent(MSG.SCAN_PROGRESS, handleProgress));
       disposers.push(onEvent(MSG.SCAN_PAGE_RESULT, handlePageResult));
+      config.onMount?.({ container, refs, ctx, update: updatePreview });
       applyScope();
       refs.text.focus();
     },
@@ -345,6 +354,7 @@ export function createSearchFeature(ctx, config) {
     unmount() {
       if (currentScanId) cancel();
       streamer?.reset();
+      config.onUnmount?.({ ctx });
       disposers.splice(0).forEach((dispose) => dispose());
     },
 

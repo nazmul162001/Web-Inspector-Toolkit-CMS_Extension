@@ -29,6 +29,7 @@ import { collectLinks } from '../content/dom-scanner.js';
 import { runScan } from '../content/run-scan.js';
 import { isHrefQuery } from './href-matcher.js';
 import { isPhoneQuery } from './phone-matcher.js';
+import { isWidthQuery } from './width-matcher.js';
 import { isTextQuery } from './text-matcher.js';
 import { isSameOrigin } from './url-normalizer.js';
 
@@ -364,7 +365,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
         let unreadable = [];
         let t2;
         let t3;
-        if (isPhoneQuery(target) || isHrefQuery(target) || (isTextQuery(target) && !target.visibleOnly)) {
+        if (isPhoneQuery(target) || isHrefQuery(target) || isWidthQuery(target) || (isTextQuery(target) && !target.visibleOnly)) {
           // Searching text needs no layout: skip the stylesheets and the iframe entirely.
           doc = parseInert(page.html, page.finalUrl);
           t2 = performance.now();

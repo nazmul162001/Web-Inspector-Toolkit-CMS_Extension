@@ -93,6 +93,12 @@ export async function scanTab(tabId, { scanId, target, options = {}, signal, tim
   }
 }
 
+/** Remove the character marks of Half/Full Width Text from a tab (nothing to do when the scanner never ran there). */
+export async function clearMarksInTab(tabId) {
+  if (!(await pingTab(tabId, 500))) return { cleared: false };
+  return sendToTab(tabId, MSG.CONTENT_CLEAR_MARKS, null, { timeoutMs: 3000 });
+}
+
 /** Highlight (or scroll to) an element in a tab. */
 export async function highlightInTab(tabId, locator, mode) {
   await ensureContentScript(tabId);

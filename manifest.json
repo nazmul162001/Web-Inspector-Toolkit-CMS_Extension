@@ -44,6 +44,7 @@
         "services/phone-*.js",
         "services/href-*.js",
         "services/font-*.js",
+        "services/width-*.js",
         "services/message-service.js",
         "shared/*.js"
       ],

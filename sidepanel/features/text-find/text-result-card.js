@@ -7,16 +7,17 @@
 
 import { el } from '../../../shared/helpers.js';
 import { icon } from '../../components/icons.js';
+import { labelsOf, shortLabelsOf } from '../../../services/width-matcher.js';
 import { elementSection, kv, locationSection, section, sourceSection } from '../color-find/color-result-card.js';
 
 /** `…before [match] after…` with the match emphasised. */
-export function snippetNode(match, { className = 'tsnip' } = {}) {
+export function snippetNode(match, { className = 'tsnip', markClass = 'tmark' } = {}) {
   return el(
     'span',
     { class: className },
     match.moreBefore ? '…' : '',
     match.before,
-    el('mark', { class: 'tmark' }, match.text),
+    el('mark', { class: markClass }, match.text),
     match.after,
     match.moreAfter ? '…' : '',
   );
@@ -81,6 +82,26 @@ function fontFileSection(item) {
   );
 }
 
+/* ------------------------------------------------- Half/Full width cards */
+
+/** A run of ideographic spaces is invisible: show it as a visible box. */
+const visibleSpaces = (text) => text.replace(/\u3000/g, '□');
+
+function widthSection(item) {
+  const { match } = item;
+  const form = match.replacementForm === 'half' ? 'half-width' : 'full-width';
+  const found = { ...match, text: visibleSpaces(match.text), before: match.before, after: match.after };
+  return section(
+    'Match',
+    kv('Found in', 'Page text'),
+    kv('Found', visibleSpaces(match.text), { mono: true }),
+    kv('Kind', labelsOf(match.kinds).join(', ')),
+    kv('Character codes', match.codes.join(',  '), { mono: true }),
+    match.replacement !== match.text ? kv(`As ${form}`, match.replacement, { mono: true }) : null,
+    kv('Context', snippetNode(found, { className: 'tsnip tsnip--full', markClass: 'tmark tmark--red' })),
+  );
+}
+
 const HREF_FOUND_IN = {
   href: 'Link (href attribute)',
   formaction: 'Button / form submit (formaction)',
@@ -98,6 +119,7 @@ const FOUND_IN = (match) => {
 function matchSection(item) {
   const { match } = item;
   if (match.kind === 'font') return fontSection(item);
+  if (match.kind === 'width') return widthSection(item);
   if (match.kind === 'href') {
     return section(
       'Match',
@@ -157,12 +179,18 @@ export function createTextResultCard(item, { onAction, expanded = false, onToggl
         el('span', { class: 'tag-chip' }, element.tag),
         selectorRest ? el('code', { class: 'rcard__selector' }, selectorRest) : null,
         match.kind === 'attribute' || (match.kind === 'href' && match.attribute !== 'href') ? el('span', { class: 'pill' }, match.attribute) : null,
+        match.kind === 'width' ? el('span', { class: 'pill' }, shortLabelsOf(match.kinds)[0] + (match.kinds.length > 1 ? ` +${match.kinds.length - 1}` : '')) : null,
         match.kind === 'font' && match.position > 1 ? el('span', { class: 'pill' }, `fallback ${ordinal(match.position)}`) : null,
         match.kind === 'font' && match.inherited ? el('span', { class: 'pill pill--muted' }, 'inherited') : null,
         match.kind === 'link' ? el('span', { class: 'pill' }, 'tel link') : null,
         hidden ? el('span', { class: 'pill pill--muted' }, 'hidden') : null,
       ),
-      match.kind === 'font' ? fontStackNode(match, 'tsnip tsnip--mono') : snippetNode(match, { className: match.kind === 'href' ? 'tsnip tsnip--mono' : 'tsnip' }),
+      match.kind === 'font'
+        ? fontStackNode(match, 'tsnip tsnip--mono')
+        : snippetNode({ ...match, text: match.kind === 'width' ? visibleSpaces(match.text) : match.text }, {
+            className: match.kind === 'href' ? 'tsnip tsnip--mono' : 'tsnip',
+            markClass: match.kind === 'width' ? 'tmark tmark--red' : 'tmark',
+          }),
     ),
     icon('chevron', { size: 14, className: 'rcard__chev' }),
   );

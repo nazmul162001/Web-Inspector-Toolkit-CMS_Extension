@@ -11,6 +11,8 @@ import { collectLinks } from './dom-scanner.js';
 import { CONTEXT_ID, lookupRegisteredElement } from './element-registry.js';
 import { runScan } from './run-scan.js';
 import { clearHighlight, highlightElement } from './element-highlighter.js';
+import { sanitizeWidthQuery } from '../services/width-matcher.js';
+import { clearMarks, markPage } from './width-marks.js';
 
 /** scanId -> { cancelled } for scans currently running in this page. */
 const runningScans = new Map();
@@ -51,7 +53,11 @@ async function handleScan({ scanId, target, options = {} }) {
   }
 }
 
-function handleHighlight({ elementId, contextId, path, tag, mode = 'highlight', label }) {
+function handleHighlight({ elementId, contextId, path, tag, mode = 'highlight', label, marks }) {
+  // Half/Full Width Text: also mark the found characters when this page was opened from a result.
+  const widthQuery = marks ? sanitizeWidthQuery(marks) : null;
+  if (widthQuery) markPage(widthQuery);
+
   // Prefer the exact element remembered from the scan (same content-script life)...
   let element = elementId && contextId === CONTEXT_ID ? lookupRegisteredElement(elementId) : null;
   // ...otherwise fall back to the unique path, accepted only if the tag still agrees.
@@ -85,6 +91,10 @@ export function init() {
       return { cancelled: !!job };
     },
     [MSG.CONTENT_HIGHLIGHT]: handleHighlight,
+    [MSG.CONTENT_CLEAR_MARKS]: () => {
+      clearMarks();
+      return { cleared: true };
+    },
   });
 
   // Leaving the page aborts any scan and removes the overlay.

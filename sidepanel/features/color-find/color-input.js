@@ -73,6 +73,9 @@ export function createColorInput({ textInput, picker, preview, errorEl, helpEl, 
     if (result.ok) {
       showErrorSoon.cancel();
       showValidity(false);
+    } else if (!immediateError && textInput.value.trim() === '') {
+      showErrorSoon.cancel();
+      showValidity(false); // an empty field is not an error until the user presses Find or leaves it
     } else if (immediateError) {
       showErrorSoon.cancel();
       showValidity(true);

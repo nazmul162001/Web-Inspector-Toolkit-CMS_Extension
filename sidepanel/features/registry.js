@@ -22,6 +22,7 @@ const loaders = {
   telephone: () => import('./telephone/telephone.js'),
   'link-href': () => import('./link-href/link-href.js'),
   'font-find': () => import('./font-find/font-find.js'),
+  'width-text': () => import('./width-text/width-text.js'),
 };
 
 export const hasFeature = (id) => Object.prototype.hasOwnProperty.call(loaders, id);

@@ -30,7 +30,7 @@ export const FEATURES = Object.freeze([
   { id: 'telephone', label: 'Telephone Number', icon: 'phone', status: FEATURE_STATUS.ACTIVE },
   { id: 'link-href', label: 'Link href', icon: 'link', status: FEATURE_STATUS.ACTIVE },
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
-  { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.SOON },
+  { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.ACTIVE },
   { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.SOON },
 ]);
 
@@ -45,6 +45,7 @@ export const MSG = Object.freeze({
   SCAN_SITE: 'wit/scan-site',
   CANCEL_SCAN: 'wit/cancel-scan',
   HIGHLIGHT: 'wit/highlight',
+  CLEAR_MARKS: 'wit/clear-marks',
 
   // background -> side panel (events)
   TAB_CONTEXT_CHANGED: 'wit/tab-context-changed',
@@ -61,6 +62,7 @@ export const MSG = Object.freeze({
   CONTENT_SCAN: 'wit/content/scan',
   CONTENT_CANCEL: 'wit/content/cancel',
   CONTENT_HIGHLIGHT: 'wit/content/highlight',
+  CONTENT_CLEAR_MARKS: 'wit/content/clear-marks',
 
   // content script -> extension (events)
   CONTENT_PROGRESS: 'wit/content/progress',

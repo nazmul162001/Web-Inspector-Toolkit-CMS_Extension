@@ -1,0 +1,51 @@
+<section class="cf tf" aria-labelledby="wd-title">
+  <div class="cf-head">
+    <h2 id="wd-title" class="cf-title">Half/Full Width Text</h2>
+    <p class="cf-lead">Tick the kinds of full-width characters to find - on this page or across the whole site.</p>
+  </div>
+
+  <form class="cf-form" id="wd-form" novalidate>
+    <input id="wd-text" type="hidden" value="" />
+
+    <div class="field-label wd-kinds-label">Full-width characters to find</div>
+    <div class="wd-grid" role="group" aria-label="Which characters">
+      <label class="cf-check" for="wd-number"><input id="wd-number" type="checkbox" data-opt="number" /><span>Numbers <code data-example="number"></code></span></label>
+      <label class="cf-check" for="wd-letter"><input id="wd-letter" type="checkbox" data-opt="letter" /><span>Letters <code data-example="letter"></code></span></label>
+      <label class="cf-check" for="wd-bracket"><input id="wd-bracket" type="checkbox" data-opt="bracket" /><span>Parentheses <code data-example="bracket"></code></span></label>
+      <label class="cf-check" for="wd-colon"><input id="wd-colon" type="checkbox" data-opt="colon" /><span>Colons <code data-example="colon"></code></span></label>
+      <label class="cf-check" for="wd-percent"><input id="wd-percent" type="checkbox" data-opt="percent" /><span>Percent <code data-example="percent"></code></span></label>
+      <label class="cf-check" for="wd-mark"><input id="wd-mark" type="checkbox" data-opt="mark" /><span>Question, exclamation <code data-example="mark"></code></span></label>
+      <label class="cf-check" for="wd-punct"><input id="wd-punct" type="checkbox" data-opt="punct" /><span>Commas, periods <code data-example="punct"></code></span></label>
+      <label class="cf-check" for="wd-symbol"><input id="wd-symbol" type="checkbox" data-opt="symbol" /><span>Hyphen, slash, ￥ <code data-example="symbol"></code></span></label>
+      <label class="cf-check" for="wd-space"><input id="wd-space" type="checkbox" data-opt="space" /><span>Spaces <code data-example="space"></code></span></label>
+    </div>
+    <div class="wd-tools">
+      <button class="btn btn--sm" id="wd-all" type="button">Select all</button>
+      <button class="btn btn--sm" id="wd-none" type="button">Select none</button>
+    </div>
+    <p class="field-error" id="wd-error" role="alert" hidden></p>
+    <p class="ff-preview" id="wd-preview" aria-live="polite" hidden></p>
+
+    <div class="tf-options tf-options--stack">
+      <label class="cf-check" for="wd-highlight">
+        <input id="wd-highlight" type="checkbox" data-opt="highlightOnPage" />
+        <span>Mark the characters on the page (white on red)</span>
+      </label>
+    </div>
+    <div class="wd-tools">
+      <button class="btn btn--sm" id="wd-clear" type="button">Remove marks from the page</button>
+    </div>
+
+    <div class="cf-site-panel" id="wd-site-panel" hidden>
+      <div class="notice notice--info" id="wd-site-notice"></div>
+    </div>
+
+    <div class="cf-actions">
+      <button class="btn btn--primary" id="wd-find" type="submit">Find</button>
+      <button class="btn" id="wd-cancel" type="button" hidden>Cancel</button>
+    </div>
+  </form>
+
+  <div class="cf-status" id="wd-status" aria-live="polite"></div>
+  <div class="cf-results" id="wd-results"></div>
+</section>

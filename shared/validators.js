@@ -4,6 +4,7 @@
  */
 
 import { normalizeColor } from '../services/color-normalizer.js';
+import { isWidthQuery, sanitizeWidthQuery } from '../services/width-matcher.js';
 import { isFontQuery, sanitizeFontQuery } from '../services/font-matcher.js';
 import { isHrefQuery, sanitizeHrefQuery } from '../services/href-matcher.js';
 import { isPhoneQuery, sanitizePhoneQuery } from '../services/phone-matcher.js';
@@ -27,8 +28,8 @@ export function isCanonicalColor(value) {
   );
 }
 
-/** A scan target is a canonical color, a text, phone number, link or font query. */
-export const isScanTarget = (value) => isCanonicalColor(value) || isTextQuery(value) || isPhoneQuery(value) || isHrefQuery(value) || isFontQuery(value);
+/** A scan target is a canonical color, a text, phone number, link, font or width query. */
+export const isScanTarget = (value) => isCanonicalColor(value) || isTextQuery(value) || isPhoneQuery(value) || isHrefQuery(value) || isFontQuery(value) || isWidthQuery(value);
 
 export const isValidScope = (scope) => scope === SCOPE.PAGE || scope === SCOPE.SITE;
 
@@ -115,7 +116,7 @@ export function parseScanRequest(payload, { site = false } = {}) {
   const { scanId, sessionId, tabId, target, options = {}, crawl } = payload;
   if (typeof scanId !== 'string' || !scanId) throw bad('Missing scan id.');
   if (!Number.isInteger(tabId)) throw bad('Missing tab id.');
-  const search = sanitizeTextQuery(target) || sanitizePhoneQuery(target) || sanitizeHrefQuery(target) || sanitizeFontQuery(target);
+  const search = sanitizeTextQuery(target) || sanitizePhoneQuery(target) || sanitizeHrefQuery(target) || sanitizeFontQuery(target) || sanitizeWidthQuery(target);
   if (!search && !isCanonicalColor(target)) throw bad('The search target is invalid.');
   return {
     scanId,

@@ -7,7 +7,7 @@ import { DEFAULT_CRAWL_OPTIONS, MATCH_MODE, STORAGE_KEYS } from '../shared/const
 import { sanitizeCrawlOptions } from '../shared/validators.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  color: '#ffffff',
+  color: '',
   matchMode: MATCH_MODE.EXACT,
   includeInherited: false,
   groupMode: 'section',
@@ -32,6 +32,21 @@ export const DEFAULT_SETTINGS = Object.freeze({
     exact: true,
     looseHost: true,
     includeButtons: true,
+    groupMode: 'section',
+  }),
+  // Only parentheses are ticked at first. (Stored under its own key, so older saved tick-boxes do not carry over.)
+  widthText: Object.freeze({
+    query: '',
+    number: false,
+    letter: false,
+    bracket: true,
+    colon: false,
+    percent: false,
+    mark: false,
+    punct: false,
+    symbol: false,
+    space: false,
+    highlightOnPage: true,
     groupMode: 'section',
   }),
   font: Object.freeze({
@@ -69,6 +84,7 @@ function sanitize(raw) {
     phone: sanitizeSearchSettings(value.phone, DEFAULT_SETTINGS.phone),
     href: sanitizeSearchSettings(value.href, DEFAULT_SETTINGS.href),
     font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
+    widthText: sanitizeSearchSettings(value.widthText, DEFAULT_SETTINGS.widthText),
   };
 }
 
@@ -92,6 +108,7 @@ export async function saveSettings(patch) {
     phone: { ...current.phone, ...(patch.phone || {}) },
     href: { ...current.href, ...(patch.href || {}) },
     font: { ...current.font, ...(patch.font || {}) },
+    widthText: { ...current.widthText, ...(patch.widthText || {}) },
   });
   try {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });
