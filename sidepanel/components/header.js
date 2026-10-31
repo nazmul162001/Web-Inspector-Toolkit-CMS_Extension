@@ -6,6 +6,8 @@ import { LANGUAGES } from '../../services/i18n.js';
 import { oppositeTheme } from '../../services/theme.js';
 import { icon } from './icons.js';
 
+const AUTHOR = '- Nazmul';
+
 /**
  * @param {HTMLElement} container
  * @param {{ version: string, language: string, onLanguage: (language: string) => void,
@@ -55,8 +57,17 @@ export function renderHeader(container, { version, language, onLanguage, shownTh
       'div',
       { class: 'brand' },
       el('img', { class: 'brand__logo', src: '../icons/icon48.png', alt: '', width: 26, height: 26 }),
-      el('h1', { class: 'brand__title' }, APP_NAME),
-      el('span', { class: 'brand__version', title: `Version ${version}` }, `v${version}`),
+      el(
+        'div',
+        { class: 'brand__text' },
+        el(
+          'div',
+          { class: 'brand__row' },
+          el('h1', { class: 'brand__title' }, APP_NAME),
+          el('span', { class: 'brand__version', title: `Version ${version}` }, `v${version}`),
+        ),
+        el('p', { class: 'brand__copy', 'data-i18n-skip': true }, `© ${new Date().getFullYear()} ${AUTHOR}`),
+      ),
     ),
     el('div', { class: 'header-actions' }, themeButton, group),
   );
