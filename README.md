@@ -15,6 +15,7 @@ Everything runs locally; no page content ever leaves your device.
 | **Font Find** | Available |
 | **Half/Full Width Text** | Available |
 | **Image Resolution** | Available (hover tool, not a search) |
+| **Screenshot Taker** | Available (capture + editor, not a search) |
 
 ### Color Find
 
@@ -95,11 +96,23 @@ Not a search: open the tool, then move the pointer over any image on the page an
 - **Side panel**: the last image stays in the panel with the same details, a **Copy size** (the actual size, `800x533`) and a **Copy address** button, so it can be used after the pointer moves on. Options: include background images, outline, preview (remembered).
 - It follows the active tab and starts again after a reload; where the site is not yet allowed, an **Allow access** button asks once. Nothing on the page is modified; the card is drawn in a closed shadow root that ignores the pointer.
 
+### Screenshot Taker
+
+Not a search: open the tool and pick **Full Page**, **Current Screen** or **Select Area**. The picture is taken in the tab, then an editor opens on the page so you can mark it up, copy it or save it. Nothing is uploaded, shared or sent anywhere.
+
+- **Full Page**: scrolls the page one screen at a time and joins the photos into one picture. Fixed and sticky bars are kept on the first screen only, so they are not repeated. Very long pages stop at 24,000 CSS px; very large pictures are scaled down. Pages that scroll inside a panel (not the window) are captured as you see them.
+- **Current Screen**: only what is visible in the tab, without the scrollbar.
+- **Select Area**: the page dims; drag a rectangle. The box stays on the page so you can drag it into place or pull a corner / edge handle to grow or shrink it; the tool palette and Copy/Save bar follow it and never sit on top of each other. Enter or a tool takes the picture of that final box. Esc cancels. The overlay is removed before the photo, so it is not in the picture.
+- **Select Area shortcut**: in **Editor tools and shortcuts**, click the shortcut field, press a key or combination, then click **Save**. After that, the same keys start Select Area on any website without opening the side panel (not while you type in a field). Copy or Save closes the overlay. Chrome pages cannot use it. Needs the same tab-photograph permission as taking a screenshot.
+- **Editor** (same for every mode): a tool palette on the right (pen, line, arrow, circle / oval, rectangle, square, text, colour and thickness, undo / redo) and an action bar (Copy, Save, Close). After you draw a mark, drag it to move it (Undo puts it back). Hold Shift for a perfect circle, a square, or a line on 45°. Size is shown in pixels. Shortcuts: P L A C R S T, Ctrl+Z / Shift+Z, Ctrl+C, Ctrl+S, Esc. There is no cloud, share, search or print.
+- Copy puts a PNG on the clipboard and closes the editor (on some http pages Chrome refuses this; the editor stays open so you can Save). Save downloads `screenshot-<site>-YYYYMMDD-HHMMSS.png` and closes. Closing with unsaved drawings asks first.
+- The first time, Chrome asks for permission to photograph tabs (`<all_urls>`). That is a Chrome rule for `captureVisibleTab`; Find only needs the current site. Nothing is uploaded. The tab must be the one you are looking at; the extension never switches tabs on your behalf.
+
 ### Language (English / 日本語)
 
 The switch at the top right of the panel (**EN** | **日本語**) changes the whole interface between English (the default) and Japanese, in both directions, and the choice is remembered.
 
-- Everything the extension writes is translated: tool names and options, hints, results, counts, notices, errors, and the card that Image Resolution draws on the page (it follows the panel's language at once).
+- Everything the extension writes is translated: tool names and options, hints, results, counts, notices, errors, the card that Image Resolution draws on the page, and the Screenshot Taker editor on the page (they follow the panel's language at once).
 - What comes from the website is never translated: the page's own text, URLs, selectors, class and tag names, CSS values, page titles and file names.
 - Switching back to English restores the exact original text, without rebuilding anything, so results, typed text and the scroll position stay as they are.
 - A rare message that has no Japanese yet is simply shown in English.
@@ -152,9 +165,9 @@ A real same-origin crawl of the **rendered** DOM (not downloaded HTML):
 | `activeTab` | Lets the toolbar click inspect the current page without a prompt where Chrome allows it. It is temporary, so it is not relied on alone. |
 | `scripting` | Inject the scanner into the page on demand (there are no always-on content scripts). |
 | `tabs` | Read the active tab's URL/title, and open/close the temporary tabs when you choose that crawl mode. |
-| `offscreen` | Create the hidden document that renders pages of a site crawl invisibly (no tabs). It exists only while a crawl runs. |
+| `offscreen` | Hidden document for the invisible site crawl. |
 | `storage` | Remember your settings and the ids of temporary tabs (to clean up orphans). |
-| optional `http://*/*`, `https://*/*` | Requested **at runtime for one origin only**, when you click Find, so the panel can keep scanning and the crawl can open background tabs on that site. |
+| optional `http://*/*`, `https://*/*`, `<all_urls>` | Find asks **at runtime for one origin only**. Screenshot Taker asks for `<all_urls>` once, because Chrome will not photograph a tab without that (or a fresh toolbar click). Nothing is uploaded. |
 
 No data is sent anywhere; there are no network calls made by the extension itself.
 
@@ -178,6 +191,11 @@ content/                        injected on demand
   font-scanner.js, font-source.js  Font Find scan and its CSS source resolver
   width-scanner.js, width-marks.js  Half/Full Width Text scan and the red marks (CSS Custom Highlight API)
   image-inspector.js            Image Resolution hover inspector (card, outline, background painting hit test)
+  screenshot.js                 Screenshot Taker: start / cancel a capture and open the editor
+  screenshot-capture.js         current screen, selected area, full-page stitch
+  screenshot-editor.js          in-page editor (draw, copy, save) in a closed shadow root
+  screenshot-selector.js        Select Area overlay
+  screenshot-icons.js, screenshot-ui.js
   run-scan.js                   picks the color, text, phone, link, font or width scanner for a target
   element-registry.js           element ids for highlight requests
 services/                       pure/shared logic
@@ -189,6 +207,9 @@ services/                       pure/shared logic
   font-matcher.js               Font Find rules (font lists, names, @font-face / Google Fonts parsing)
   width-matcher.js              Half/Full Width Text rules (kinds of characters, runs, conversion)
   image-geometry.js             Image Resolution maths (background size / position / repeat, ratio, wording)
+  screenshot-geometry.js        Screenshot Taker: slices, crop, layout, file name
+  screenshot-draw.js            drawing tools (pen, line, arrow, shapes, text)
+  capture-tab-service.js        service worker: photograph the visible tab
   theme.js                      dark / light / system theme helpers
   i18n.js, i18n-ja.js           interface language: translate() and the English -> Japanese dictionary and patterns
   message-service.js            typed messaging, request ids, timeouts, stale-response checks
@@ -207,6 +228,7 @@ sidepanel/                      UI (HTML/CSS/JS), components, lazy-loaded featur
   features/font-find/           the Font Find feature
   features/width-text/          the Half/Full Width Text feature
   features/image-resolution/    the Image Resolution tool
+  features/screenshot/          the Screenshot Taker tool
   features/search-feature.js    shared controller for the search tools (Text Find, Telephone, Link href, Font Find, Half/Full Width Text)
   features/scan-ui.js           status block, error text and live results shared by the tools
 tests/                          browser test runner, suites and fixtures
@@ -235,7 +257,7 @@ python3 -m http.server 8765
 ```
 
 `?filter=<suite name>` runs a single suite. Results are shown on the page and exposed as `window.__TEST_RESULTS__`.
-Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched), Image Resolution (CSS background layout, finding images under text and overlays, shadow roots, the card), the English / Japanese language switch (translation, page data left alone, exact restore to English, the header switch) and the dark / light switch.
+Suites: color parsing (including parity checks against Chrome's own color engine), color matching, CSS utils, DOM scanning (background, text, border, inline, variables, SVG, shadows, multiple properties, no-class elements, sources and line numbers, cross-origin sheets), URL normalization, results/validators, site crawler (with injected fake tabs: dedupe, limits, concurrency, failures, retries, cancel), DOM helpers, Text Find, Telephone Number, Link href, Font Find and Half/Full Width Text matching/scanning (formats, exact mode, +81/0, split tags, tel: links, address normalizing, buttons and forms, font lists, place in the list, @font-face files, CSS source, invisible renderer, character kinds, runs, conversion, red marks that leave the DOM untouched), Image Resolution (CSS background layout, finding images under text and overlays, shadow roots, the card), Screenshot Taker (page slices, crop, drawing tools, editor, select area, copy/save, English / Japanese), the English / Japanese language switch (translation, page data left alone, exact restore to English, the header switch) and the dark / light switch.
 
 A static fixture site for manual crawl testing is in `tests/fixtures/site/` (internal links, a logout link, a 404, external/mailto/tel/pdf links, `@import`, CSS variables, `@media`, `@layer`).
 
@@ -252,6 +274,7 @@ A static fixture site for manual crawl testing is in `tests/fixtures/site/` (int
 - Font Find reads the CSS, not the pixels: it cannot tell whether a font was really installed or loaded for a visitor, and fonts set by scripts after load, or inside images, canvas, closed shadow roots and cross-origin iframes, are not found. Stylesheets that block `cssRules` (cross-origin) hide their rules, so a source may be unavailable for them (the panel says how many); Google Fonts stylesheets are still recognised from their `family=` address.
 - Half/Full Width Text searches text nodes only. Marking needs Chrome 105+ (the list of results works without it), only the page you are viewing is marked while searching,. Text Chrome has translated is searched as it currently is.
 - Image Resolution looks at the top page only: images inside iframes are not inspected. CSS pictures in `::before`/`::after`, `border-image`, `mask-image`, `<video>` posters and `<canvas>` are not reported. For `<img>` the displayed size is the element's content box (with `object-fit` the picture itself may be drawn smaller or cropped). File size is shown only when the browser exposes it for that image (same-origin or CORS-enabled).
+- Screenshot Taker photographs the tab Chrome is showing (`tabs.captureVisibleTab`). Full Page cannot see inside a scrolling panel, and fixed/sticky bars appear once at the top. Pages longer than 24,000 px are cut off; huge captures are scaled down. Copy may be refused on non-secure pages (Save still works). Chrome pages cannot be captured. The first capture asks for `<all_urls>` because Chrome does not let an origin-only permission photograph a tab.
 - Chrome offers no API to set the side panel width. Resize it by dragging its edge; the grip on the left is only a hint.
 
 ## Roadmap

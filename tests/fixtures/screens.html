@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Screenshot fixture</title>
+  <style>
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font: 600 28px/1.2 system-ui, sans-serif; color: #fff; }
+    header { position: sticky; top: 0; z-index: 10; height: 56px; padding: 0 20px; display: flex; align-items: center; background: #111; font-size: 18px; }
+    .band { height: 500px; display: grid; place-items: center; font-size: 56px; }
+    .band:nth-of-type(1) { background: #e53935; }
+    .band:nth-of-type(2) { background: #fb8c00; }
+    .band:nth-of-type(3) { background: #fdd835; color: #222; }
+    .band:nth-of-type(4) { background: #43a047; }
+    .band:nth-of-type(5) { background: #1e88e5; }
+    .band:nth-of-type(6) { background: #8e24aa; }
+    .badge { position: fixed; right: 16px; bottom: 16px; width: 120px; height: 40px; display: grid; place-items: center; background: #ff00ff; font-size: 16px; z-index: 20; }
+  </style>
+</head>
+<body>
+  <header>STICKY HEADER</header>
+  <div class="band">1</div>
+  <div class="band">2</div>
+  <div class="band">3</div>
+  <div class="band">4</div>
+  <div class="band">5</div>
+  <div class="band">6</div>
+  <div class="badge">FIXED</div>
+</body>
+</html>

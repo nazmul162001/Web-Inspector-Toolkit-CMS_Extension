@@ -12,12 +12,16 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { clearMarksInTab, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
+import { clearMarksInTab, controlScreenshot, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
+import { captureForSender, markScreenshotTab } from '../services/capture-tab-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
 import { normalizeLanguage } from '../services/i18n.js';
+import { loadSettings } from '../services/settings-service.js';
+import { sanitizeCombo } from '../services/screenshot-hotkey.js';
+import { syncScreenshotHotkey } from '../services/screenshot-hotkey-service.js';
 import {
   cleanupOrphanedTempTabs,
   closeAllTempTabs,
@@ -35,7 +39,10 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error
 
 // A previous service-worker instance may have been killed mid-crawl.
 cleanupOrphanedTempTabs();
-closeOffscreen(); // a renderer left over from a previous worker instance
+closeOffscreen(); // a leftover hidden renderer from a previous worker is not needed at boot
+loadSettings()
+  .then((settings) => syncScreenshotHotkey(settings.screenshot.shortcut))
+  .catch(() => {});
 
 /* ----------------------------------------------------------- Scan state */
 
@@ -61,6 +68,7 @@ watchSessions({
       endScan(scanId);
     }
     stopInspectorOf(sessionId); // the panel closed: the hover inspector must not stay on in the page
+    stopScreenshotOf(sessionId); // stop a capture in progress; an open editor on the page is left
   },
 });
 
@@ -286,6 +294,75 @@ async function handleImageInspect({ tabId, enabled, options, sessionId } = {}) {
   return result;
 }
 
+/* ------------------------------------------------------ Screenshot Taker */
+
+const SHOT_MODES = ['area', 'current', 'full'];
+
+/** sessionId -> tabId of a screenshot that panel started. */
+const screenshotSessions = new Map();
+
+function stopScreenshotOf(sessionId) {
+  const tabId = screenshotSessions.get(sessionId);
+  screenshotSessions.delete(sessionId);
+  if (tabId !== undefined) handleScreenshotCancel({ tabId }).catch(() => {});
+}
+
+async function handleScreenshotStart({ tabId, mode, language, sessionId } = {}) {
+  if (!Number.isInteger(tabId) || !SHOT_MODES.includes(mode)) throw createError(ERR.INVALID_REQUEST, 'Invalid screenshot request.');
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab) throw createError(ERR.NO_TAB, 'The tab was closed.');
+  const restriction = checkRestrictedUrl(tab.url);
+  if (restriction.restricted) throw createError(ERR.RESTRICTED_PAGE, restriction.reason);
+  // Chrome photographs the tab the user is looking at; never switch tabs on their behalf.
+  if (!tab.active) throw createError(ERR.TAB_NOT_ACTIVE, 'Switch to the tab you want to capture and try again.');
+  await markScreenshotTab(tabId, true);
+  try {
+    const result = await controlScreenshot(tabId, 'start', { mode, language: normalizeLanguage(language) });
+    if (typeof sessionId === 'string') {
+      const previous = screenshotSessions.get(sessionId);
+      if (previous !== undefined && previous !== tabId) handleScreenshotCancel({ tabId: previous }).catch(() => {});
+      screenshotSessions.set(sessionId, tabId);
+    }
+    return result;
+  } catch (error) {
+    await markScreenshotTab(tabId, false);
+    throw error;
+  }
+}
+
+async function handleScreenshotCancel({ tabId } = {}) {
+  if (!Number.isInteger(tabId)) return { cancelled: false };
+  await markScreenshotTab(tabId, false);
+  try {
+    return await controlScreenshot(tabId, 'cancel');
+  } catch {
+    return { cancelled: false };
+  }
+}
+
+/** A saved shortcut on the page: Select Area on this tab, no side panel. */
+async function handleScreenshotHotkey(_payload, { sender } = {}) {
+  const tabId = sender?.tab?.id;
+  if (!Number.isInteger(tabId)) throw createError(ERR.INVALID_REQUEST, 'Invalid screenshot request.');
+  const settings = await loadSettings();
+  if (!settings.screenshot.shortcut) throw createError(ERR.INVALID_REQUEST, 'No screenshot shortcut is set.');
+  return handleScreenshotStart({ tabId, mode: 'area', language: settings.language, sessionId: 'hotkey' });
+}
+
+async function handleScreenshotSetHotkey({ shortcut } = {}) {
+  return syncScreenshotHotkey(sanitizeCombo(shortcut));
+}
+
+// The run is over (done, cancelled or failed): the tab may not be photographed any more.
+onEvent(MSG.SCREENSHOT_EVENT, (event, { sender } = {}) => {
+  if (!['done', 'cancelled', 'error'].includes(event?.state) || !Number.isInteger(sender?.tab?.id)) return;
+  markScreenshotTab(sender.tab.id, false);
+  for (const [sessionId, tabId] of screenshotSessions) {
+    if (tabId === sender.tab.id) screenshotSessions.delete(sessionId);
+  }
+});
+chrome.tabs.onRemoved.addListener((tabId) => markScreenshotTab(tabId, false));
+
 async function handleClearMarks({ tabId } = {}) {
   if (!Number.isInteger(tabId)) return { cleared: false };
   try {
@@ -306,4 +383,9 @@ registerHandlers({
   [MSG.HIGHLIGHT]: handleHighlight,
   [MSG.CLEAR_MARKS]: handleClearMarks,
   [MSG.IMAGE_INSPECT]: handleImageInspect,
+  [MSG.SCREENSHOT_START]: handleScreenshotStart,
+  [MSG.SCREENSHOT_CANCEL]: handleScreenshotCancel,
+  [MSG.SCREENSHOT_HOTKEY]: handleScreenshotHotkey,
+  [MSG.SCREENSHOT_SET_HOTKEY]: handleScreenshotSetHotkey,
+  [MSG.SCREENSHOT_CAPTURE]: (_payload, { sender }) => captureForSender(sender),
 });

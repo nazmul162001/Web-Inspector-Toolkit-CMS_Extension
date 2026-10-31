@@ -56,6 +56,43 @@ export async function ensureAccess(tabContext, scope) {
   return 'host';
 }
 
+/**
+ * Chrome will only photograph a tab if the extension has `<all_urls>`, or if
+ * the user just clicked the toolbar icon (`activeTab`). Access to this one
+ * origin (enough for Find) is not enough. Asked from a click; nothing is uploaded.
+ */
+const CAPTURE_ORIGINS = ['<all_urls>'];
+
+export async function ensureCaptureAccess(tabContext) {
+  if (!tabContext?.tab) throw createError(ERR.NO_TAB, 'No active tab was found.');
+  if (tabContext.restricted) throw createError(ERR.RESTRICTED_PAGE, tabContext.restrictionReason);
+
+  if (tabContext.fileUrl) return ensureAccess(tabContext, SCOPE.PAGE);
+
+  if (await chrome.permissions.contains({ origins: CAPTURE_ORIGINS })) return 'allHosts';
+
+  const granted = await chrome.permissions.request({ origins: CAPTURE_ORIGINS });
+  if (granted) return 'allHosts';
+
+  // They refused the broader permission. Photographing can still work if they
+  // opened the panel from the toolbar (activeTab) or already allowed this site.
+  const probe = await sendToBackground(MSG.CHECK_ACCESS, { tabId: tabContext.tab.id });
+  if (probe.ok) return 'activeTab';
+  throw createError(ERR.PERMISSION_DENIED, 'Chrome needs permission to photograph the tab. Nothing is uploaded.', {
+    origin: tabContext.origin,
+  });
+}
+
+/** The Select Area shortcut listens on every website, so it needs `<all_urls>`. */
+export async function ensureAllHostsAccess() {
+  if (await chrome.permissions.contains({ origins: CAPTURE_ORIGINS })) return 'allHosts';
+  const granted = await chrome.permissions.request({ origins: CAPTURE_ORIGINS });
+  if (!granted) {
+    throw createError(ERR.PERMISSION_DENIED, 'Allow access to websites first, then save the shortcut again.');
+  }
+  return 'allHosts';
+}
+
 /** Ask for access to one origin (used when a highlight action is denied). */
 export async function requestOrigin(url) {
   try {

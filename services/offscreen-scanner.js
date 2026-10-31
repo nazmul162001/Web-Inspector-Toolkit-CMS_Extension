@@ -25,8 +25,7 @@ export async function ensureOffscreen() {
       .createDocument({
         url: PAGE,
         reasons: ['IFRAME_SCRIPTING'],
-        justification:
-          'Render pages of the current website invisibly (sandboxed, without scripts) so their colors can be inspected without opening tabs.',
+        justification: 'Render pages of the current website invisibly so Entire Site can be scanned without opening tabs. Nothing is uploaded.',
       })
       .finally(() => {
         creating = null;

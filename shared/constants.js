@@ -32,6 +32,7 @@ export const FEATURES = Object.freeze([
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.ACTIVE },
   { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'screenshot', label: 'Screenshot Taker', icon: 'camera', status: FEATURE_STATUS.ACTIVE, usesScope: false },
 ]);
 
 /* -------------------------------------------------------------- Messages */
@@ -47,6 +48,10 @@ export const MSG = Object.freeze({
   HIGHLIGHT: 'wit/highlight',
   CLEAR_MARKS: 'wit/clear-marks',
   IMAGE_INSPECT: 'wit/image-inspect', // start / stop the hover inspector of Image Resolution in a tab
+  SCREENSHOT_START: 'wit/screenshot-start', // { tabId, mode: 'area' | 'current' | 'full', language }
+  SCREENSHOT_CANCEL: 'wit/screenshot-cancel', // { tabId }
+  SCREENSHOT_HOTKEY: 'wit/screenshot-hotkey', // content script: start Select Area on this tab, no side panel
+  SCREENSHOT_SET_HOTKEY: 'wit/screenshot-set-hotkey', // panel: persist the page listener for the saved combo
 
   // background -> side panel (events)
   TAB_CONTEXT_CHANGED: 'wit/tab-context-changed',
@@ -65,9 +70,12 @@ export const MSG = Object.freeze({
   CONTENT_HIGHLIGHT: 'wit/content/highlight',
   CONTENT_CLEAR_MARKS: 'wit/content/clear-marks',
   CONTENT_IMAGE_INSPECT: 'wit/content/image-inspect',
+  CONTENT_SCREENSHOT: 'wit/content/screenshot', // { action: 'start' | 'cancel', mode, language }
 
   // content script -> extension (events)
   CONTENT_PROGRESS: 'wit/content/progress',
+  SCREENSHOT_CAPTURE: 'wit/screenshot-capture', // content script -> service worker: photograph the visible tab
+  SCREENSHOT_EVENT: 'wit/screenshot-event', // { state: 'selecting' | 'capturing' | 'editing' | 'done' | 'cancelled' | 'error', ... }
   IMAGE_INSPECT_EVENT: 'wit/image-inspect-event', // { type: 'hover', info } | { type: 'stopped' }
 });
 
@@ -94,6 +102,8 @@ export const ERR = Object.freeze({
   NOT_FOUND: 'NOT_FOUND',
   NOT_VISIBLE: 'NOT_VISIBLE',
   INJECTION_FAILED: 'INJECTION_FAILED',
+  TAB_NOT_ACTIVE: 'TAB_NOT_ACTIVE',
+  CAPTURE_FAILED: 'CAPTURE_FAILED',
   UNKNOWN: 'UNKNOWN',
 });
 

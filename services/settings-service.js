@@ -6,6 +6,7 @@
 import { DEFAULT_CRAWL_OPTIONS, MATCH_MODE, STORAGE_KEYS } from '../shared/constants.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
 import { normalizeLanguage } from './i18n.js';
+import { sanitizeCombo } from './screenshot-hotkey.js';
 import { normalizeTheme } from './theme.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -66,6 +67,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
     includeInherited: false,
     groupMode: 'section',
   }),
+  screenshot: Object.freeze({
+    shortcut: null,
+  }),
 });
 
 /** Saved options of a "find in page text" tool: strings and booleans only, anything else falls back to the default. */
@@ -97,6 +101,7 @@ function sanitize(raw) {
     font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
     widthText: sanitizeSearchSettings(value.widthText, DEFAULT_SETTINGS.widthText),
     image: sanitizeSearchSettings(value.image, DEFAULT_SETTINGS.image),
+    screenshot: { shortcut: sanitizeCombo(value.screenshot && value.screenshot.shortcut) },
   };
 }
 
@@ -122,6 +127,7 @@ export async function saveSettings(patch) {
     font: { ...current.font, ...(patch.font || {}) },
     widthText: { ...current.widthText, ...(patch.widthText || {}) },
     image: { ...current.image, ...(patch.image || {}) },
+    screenshot: { ...current.screenshot, ...(patch.screenshot || {}) },
   });
   try {
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: next });

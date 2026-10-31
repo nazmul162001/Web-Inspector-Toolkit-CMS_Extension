@@ -24,6 +24,7 @@ const loaders = {
   'font-find': () => import('./font-find/font-find.js'),
   'width-text': () => import('./width-text/width-text.js'),
   'image-resolution': () => import('./image-resolution/image-resolution.js'),
+  screenshot: () => import('./screenshot/screenshot.js'),
 };
 
 export const hasFeature = (id) => Object.prototype.hasOwnProperty.call(loaders, id);
