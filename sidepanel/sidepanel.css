@@ -8,28 +8,33 @@
   /* Follows the system until the user picks a theme (data-theme on <html>). light-dark() = (light, dark). */
   color-scheme: dark light;
 
-  --bg: light-dark(#f5f6f9, #0d0f14);
-  --surface: light-dark(#ffffff, #14171e);
-  --surface-2: light-dark(#f1f3f7, #1a1e27);
-  --surface-3: light-dark(#e7eaf0, #232834);
-  --border: light-dark(#e0e4ec, #232833);
-  --border-strong: light-dark(#cdd3df, #323949);
-  --text: light-dark(#171a21, #e9ebf1);
-  --text-dim: light-dark(#4d566a, #a4abbd);
-  --text-faint: light-dark(#697286, #717a8e);
-  --accent: light-dark(#5b4bd8, #7c6cf6);
-  --accent-hover: light-dark(#4a3ac6, #9082f8);
+  /* Soft slate tones instead of pure black / white: easier on the eyes for long sessions. */
+  --bg: light-dark(#e9ecf3, #171b24);
+  --surface: light-dark(#f5f6fa, #1e232e);
+  --surface-2: light-dark(#eceff6, #252b38);
+  --surface-3: light-dark(#dfe3ee, #2e3544);
+  --border: light-dark(#d9deea, #2c3342);
+  --border-strong: light-dark(#c3cadb, #3b4357);
+  --text: light-dark(#202637, #dde1ec);
+  --text-dim: light-dark(#4b5370, #a6aec3);
+  --text-faint: light-dark(#687090, #8089a0);
+  --accent: light-dark(#5b47f0, #8272ff);
+  --accent-hover: light-dark(#4a36de, #988bff);
+  --accent-a: light-dark(#6a52f5, #917fff);
+  --accent-b: light-dark(#3d7bf2, #5b8dff);
   --accent-contrast: #ffffff;
-  --accent-soft: light-dark(rgba(91, 75, 216, 0.09), rgba(124, 108, 246, 0.16));
-  --danger: light-dark(#d9364d, #f2687a);
-  --danger-soft: light-dark(rgba(217, 54, 77, 0.08), rgba(242, 104, 122, 0.12));
-  --success: light-dark(#148a68, #43c59e);
-  --success-soft: light-dark(rgba(20, 138, 104, 0.09), rgba(67, 197, 158, 0.12));
+  --accent-soft: light-dark(rgba(91, 71, 240, 0.09), rgba(130, 114, 255, 0.16));
+  --danger: light-dark(#d8344b, #f2687a);
+  --danger-soft: light-dark(rgba(216, 52, 75, 0.08), rgba(242, 104, 122, 0.12));
+  --success: light-dark(#0f8a66, #43c59e);
+  --success-soft: light-dark(rgba(15, 138, 102, 0.09), rgba(67, 197, 158, 0.12));
   --warn: light-dark(#b27410, #f0b24a);
   --warn-soft: light-dark(rgba(178, 116, 16, 0.1), rgba(240, 178, 74, 0.12));
-  --shadow: 0 8px 24px light-dark(rgba(20, 24, 40, 0.14), rgba(0, 0, 0, 0.35));
-  --checker-a: light-dark(#e4e7ee, #2b303b);
-  --checker-b: light-dark(#f7f8fb, #1c2029);
+  --shadow: 0 10px 28px light-dark(rgba(25, 30, 70, 0.16), rgba(8, 10, 18, 0.4));
+  --checker-a: light-dark(#d9deea, #343b4a);
+  --checker-b: light-dark(#eef0f6, #252b38);
+  --glow: light-dark(rgba(106, 82, 245, 0.12), rgba(130, 114, 255, 0.16));
+  --grad: linear-gradient(135deg, var(--accent-a), var(--accent-b));
 
   --radius-sm: 6px;
   --radius: 9px;
@@ -37,7 +42,7 @@
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --ring: 0 0 0 1px var(--border);
+  --ring: 0 0 0 1px var(--border), 0 1px 3px light-dark(rgba(30, 35, 80, 0.08), rgba(8, 10, 18, 0.3));
   --space: 16px;
 }
 
@@ -64,7 +69,10 @@ body {
 body {
   font: 13px/1.45 var(--font);
   color: var(--text);
-  background: var(--bg);
+  background:
+    radial-gradient(560px 220px at 50% -70px, var(--glow), transparent 70%),
+    var(--bg);
+  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -123,8 +131,9 @@ code,
   gap: 10px;
   height: 52px;
   padding: 0 var(--space);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
 }
 
 .app-scroll {
@@ -398,18 +407,29 @@ code,
 .scope-tab[aria-selected="true"] {
   background: var(--surface-3);
   color: var(--text);
-  box-shadow: 0 0 0 1px var(--border-strong), 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 1px var(--border-strong), inset 0 -2px 0 var(--accent), 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 /* ---------------------------------------------------------- Feature nav */
 
 .section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 18px 0 0;
   color: var(--text-faint);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.section-label::before {
+  content: "";
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--grad);
 }
 
 .feature-nav {
@@ -433,7 +453,7 @@ code,
   background: var(--surface);
   box-shadow: var(--ring);
   color: var(--text-dim);
-  transition: box-shadow 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: box-shadow 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease), transform 0.15s var(--ease);
 }
 
 .feature-item svg {
@@ -459,20 +479,22 @@ code,
 }
 
 .feature-item:not(:disabled):hover {
-  box-shadow: 0 0 0 1px var(--border-strong);
+  box-shadow: 0 0 0 1px var(--border-strong), 0 4px 12px light-dark(rgba(30, 35, 80, 0.08), rgba(0, 0, 0, 0.3));
   background: var(--surface-2);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .feature-item[aria-current="true"] {
   color: var(--text);
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 1px var(--accent);
+  background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent-b) 8%, transparent)), var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent), 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .feature-item[aria-current="true"] svg {
-  background: var(--accent);
+  background: var(--grad);
   color: var(--accent-contrast);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .feature-item:disabled {
@@ -518,14 +540,14 @@ code,
 }
 
 .btn--primary {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
   border-color: transparent;
   color: var(--accent-contrast);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset, 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-hover) 88%, #fff), var(--accent-hover));
+  filter: brightness(1.08) saturate(1.05);
 }
 
 .btn--ghost {
@@ -614,7 +636,7 @@ code,
   inset: 0 auto 0 0;
   width: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
   transition: width 0.25s var(--ease);
 }
 
@@ -759,8 +781,9 @@ code,
 }
 
 .lang-switch__btn[aria-pressed="true"] {
-  background: var(--accent);
+  background: var(--grad);
   color: var(--accent-contrast);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 :lang(ja) {

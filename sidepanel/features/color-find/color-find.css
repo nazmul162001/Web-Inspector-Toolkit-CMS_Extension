@@ -339,6 +339,10 @@
 }
 
 .tile__value {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
