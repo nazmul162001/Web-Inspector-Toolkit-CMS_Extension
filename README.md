@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="./README.md"><strong>English</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="./README.ja.md">日本語</a>
+</p>
+
 # Web Inspector Toolkit
 
 A Chrome side-panel toolkit for inspecting real websites — colours, text, links, fonts, images and screenshots — **entirely on your device**. Nothing is uploaded.
@@ -14,24 +20,20 @@ A Chrome side-panel toolkit for inspecting real websites — colours, text, link
 
 ## Features
 
-- **Color Find** — locate every element that uses a colour, on this page or the whole site. Type HEX, `rgb()`, CSS names, or pick a colour.
-- **Text Find** — search any word or sentence in the text people actually read, not the HTML source.
-- **Telephone Number** — find a phone number in any format (`080-1234-5678`, `+81 80…`, full-width digits, `tel:` links).
-- **Link href** — find every link, button or form that points to an address (exact or contains).
-- **Font Find** — see which elements use a font family, including CSS source and `@font-face` files.
-- **Half / Full Width Text** — find full-width numbers, letters and symbols, and mark them in red on the page.
-- **Image Resolution** — hover any image or background and see its real pixel size vs how it is shown.
-- **Screenshot Taker** — capture the full page, the current screen, or a selected area, then mark it up.
-  - Drawing tools: pen, line, arrow, circle, rectangle, square, text
-  - Highlighter (pick a colour after you drag)
-  - Blur any area
-  - Numbered circles (click to place 1, 2, 3…)
-  - Copy to clipboard or save as PNG
-  - Optional keyboard shortcut for Select Area (works without opening the panel)
-- **This Page / Entire Site** — search tools can scan the tab you are on, or crawl the same site in the background.
-- **English / 日本語** — switch the whole interface; page content is never translated.
-- **Dark / light mode** — follows your system until you pick one.
-- **Private by design** — scans and screenshots stay on your computer. The extension makes no network calls of its own.
+| | |
+| :---: | --- |
+| <mark><strong>Color Find</strong></mark> | Locate every element that uses a colour, on this page or the whole site. Type HEX, `rgb()`, CSS names, or pick a colour. |
+| <mark><strong>Text Find</strong></mark> | Search any word or sentence in the text people actually read, not the HTML source. |
+| <mark><strong>Telephone Number</strong></mark> | Find a phone number in any format (`080-1234-5678`, `+81 80…`, full-width digits, `tel:` links). |
+| <mark><strong>Link href</strong></mark> | Find every link, button or form that points to an address (exact or contains). |
+| <mark><strong>Font Find</strong></mark> | See which elements use a font family, including CSS source and `@font-face` files. |
+| <mark><strong>Half / Full Width Text</strong></mark> | Find full-width numbers, letters and symbols, and mark them in red on the page. |
+| <mark><strong>Image Resolution</strong></mark> | Hover any image or background and see its real pixel size vs how it is shown. |
+| <mark><strong>Screenshot Taker</strong></mark> | Capture the full page, the current screen, or a selected area, then mark it up.<br>• Drawing tools: pen, line, arrow, circle, rectangle, square, text<br>• Highlighter (pick a colour after you drag)<br>• Blur any area<br>• Numbered circles (click to place 1, 2, 3…)<br>• Copy to clipboard or save as PNG<br>• Optional keyboard shortcut for Select Area (works without opening the panel) |
+| <mark><strong>This Page / Entire Site</strong></mark> | Search tools can scan the tab you are on, or crawl the same site in the background. |
+| <mark><strong>English / 日本語</strong></mark> | Switch the whole interface. Page content is never translated. |
+| <mark><strong>Dark / light mode</strong></mark> | Follows your system until you pick one. |
+| <mark><strong>Private by design</strong></mark> | Scans and screenshots stay on your computer. The extension makes no network calls of its own. |
 
 ---
 
