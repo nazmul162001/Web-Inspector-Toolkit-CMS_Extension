@@ -36,7 +36,7 @@ const MODES = [
 ];
 
 const SHORTCUTS = [
-  [['P', 'L', 'A', 'C', 'R', 'S', 'T'], 'Pen, Line, Arrow, Circle, Rectangle, Square, Text'],
+  [['P', 'L', 'A', 'C', 'R', 'S', 'T', 'H', 'B', 'N'], 'Pen, Line, Arrow, Circle, Rectangle, Square, Text, Highlighter, Blur, Number'],
   [['Shift'], 'Keeps a circle, a rectangle or a line straight'],
   [['Ctrl', 'Z'], 'Undo (add Shift to redo)'],
   [['Ctrl', 'C'], 'Copy to the clipboard'],

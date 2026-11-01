@@ -3,9 +3,9 @@
  * (Full Page, Current Screen and Select Area alike).
  *
  * The picture is shown with a tool palette (pen, line, arrow, circle / oval,
- * rectangle, square, text, colour and thickness, undo / redo) and an action
- * bar (copy to the clipboard, save as PNG, close). Nothing is uploaded or
- * shared anywhere.
+ * rectangle, square, text, highlighter, blur, number, colour and thickness, undo / redo) and
+ * an action bar (copy to the clipboard, save as PNG, close). Nothing is
+ * uploaded or shared anywhere.
  *
  * It is drawn in a closed shadow root under <html>, so the page's CSS cannot
  * touch it and it cannot touch the page. Annotations are kept as data (see
@@ -14,7 +14,8 @@
  */
 
 import { normalizeLanguage, translate } from '../services/i18n.js';
-import { COLORS, TEXT_FONT, TEXT_LINE_HEIGHT, TOOLS, WIDTHS, buildShape, drawAnnotation, drawAnnotations, drawSelection, hitTopAnnotation, isVisible, translateAnnotation } from '../services/screenshot-draw.js';
+import { COLORS, TEXT_FONT, TEXT_LINE_HEIGHT, TOOLS, WIDTHS, buildNumberMark, buildShape, drawAnnotation, drawAnnotations, drawSelection, hitTopAnnotation, isVisible, translateAnnotation } from '../services/screenshot-draw.js';
+import { HIGHLIGHT_COLORS, colorById, placeRingCenter, sanitizeHighlightColor, swatchOffset } from '../services/highlighter.js';
 import { LAYOUT, clampPoint, layoutEditor, screenshotFileName } from '../services/screenshot-geometry.js';
 import { createIcon } from './screenshot-icons.js';
 import { adoptCss, node } from './screenshot-ui.js';
@@ -23,6 +24,14 @@ export const EDITOR_HOST_ID = 'wit-screenshot-editor';
 /** The drawing layer is kept at or below this many pixels (the saved picture is always full size). */
 const MAX_LAYER_PIXELS = 20_000_000;
 const TOAST_MS = 2600;
+
+function normalizeHex(color) {
+  const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color || '').trim());
+  if (!match) return '';
+  let hex = match[1].toLowerCase();
+  if (hex.length === 3) hex = [...hex].map((digit) => digit + digit).join('');
+  return `#${hex}`;
+}
 
 const CSS = `
   :host { all: initial; }
@@ -41,6 +50,7 @@ const CSS = `
   .view.scrolls { overflow-y: auto; }
   .stage { position: relative; line-height: 0; cursor: crosshair; touch-action: none; }
   .stage.text-tool { cursor: text; }
+  .stage.number-tool { cursor: pointer; }
   .stage.over-mark { cursor: grab; }
   .stage.moving-mark { cursor: grabbing; }
   .stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
@@ -82,12 +92,15 @@ const CSS = `
   .bar-sep { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.14); margin: 0 2px; }
   .pop { display: grid; gap: 12px; width: 204px; padding: 12px; border-radius: 14px; z-index: 3; }
   .pop-title { margin: 0 0 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8d95ab; }
-  .colors { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+  .colors { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 2px; }
   .color {
     width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid transparent; background-clip: padding-box;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
   }
-  .color[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px #7c6cf6; }
+  .color[aria-pressed="true"] {
+    border-color: #fff; transform: scale(1.08);
+    box-shadow: 0 0 0 2px #7c6cf6, 0 0 0 4px rgba(124, 108, 246, 0.28);
+  }
   .custom { position: relative; overflow: hidden; background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e); }
   .custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
   .widths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -115,6 +128,13 @@ const CSS = `
     background: rgba(255, 255, 255, 0.06); overflow: hidden; white-space: pre; field-sizing: content; min-width: 3ch;
     font-weight: 600; line-height: ${TEXT_LINE_HEIGHT}; user-select: text;
   }
+  .hl-ring { position: absolute; width: 0; height: 0; z-index: 4; pointer-events: none; }
+  .hl-swatch {
+    position: absolute; width: 30px; height: 30px; padding: 0; border: 2px solid #fff; border-radius: 50%;
+    pointer-events: auto; cursor: pointer; transform: translate(-50%, -50%); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+  .hl-swatch[data-on="true"] { box-shadow: 0 0 0 3px #1b1f2b, 0 4px 14px rgba(0, 0, 0, 0.35); }
+  .hl-swatch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 `;
 
 /** Copy a picture to the clipboard. Throws when the page does not allow it. */
@@ -176,6 +196,8 @@ export function openEditor(options) {
     redo: [],
     selected: -1,
     draft: null, // what is being drawn right now
+    pending: null, // highlight box waiting for a colour
+    highlightColor: HIGHLIGHT_COLORS[0].id,
     textInput: null,
     closed: false,
     busy: false,
@@ -198,7 +220,27 @@ export function openEditor(options) {
   layer.height = Math.max(1, Math.round(H * layerScale));
   const layerCtx = layer.getContext('2d');
 
-  const stage = node('div', { class: 'stage' }, canvas, layer);
+  const ring = node('div', { class: 'hl-ring', hidden: true, role: 'toolbar', 'aria-label': tr('Highlight colour') });
+  for (const item of HIGHLIGHT_COLORS) {
+    const offset = swatchOffset(HIGHLIGHT_COLORS.indexOf(item));
+    const swatch = node('button', {
+      class: 'hl-swatch',
+      type: 'button',
+      title: tr(item.label),
+      'aria-label': tr(item.label),
+      'data-color': item.id,
+      onPointerDown: (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        pickHighlight(item.id);
+      },
+    });
+    swatch.style.background = item.hex;
+    swatch.style.left = `${offset.x}px`;
+    swatch.style.top = `${offset.y}px`;
+    ring.append(swatch);
+  }
+  const stage = node('div', { class: 'stage' }, canvas, layer, ring);
   const view = node('div', { class: 'view' }, stage);
   const label = node('div', { class: 'panel label' }, `${W} × ${H}`);
   const toolButtons = new Map();
@@ -246,6 +288,7 @@ export function openEditor(options) {
     label.classList.toggle('inside', plan.label.inside);
     paletteOnRight = plan.palette.left >= plan.view.left + plan.view.w;
     if (popover) placePopover();
+    if (state.pending) placeRing(state.pending);
     return plan;
   }
   let paletteOnRight = true;
@@ -257,8 +300,8 @@ export function openEditor(options) {
     layerCtx.setTransform(1, 0, 0, 1, 0, 0);
     layerCtx.clearRect(0, 0, layer.width, layer.height);
     layerCtx.setTransform(layerScale, 0, 0, layerScale, 0, 0);
-    drawAnnotations(layerCtx, state.annotations);
-    if (state.draft) drawAnnotation(layerCtx, state.draft);
+    drawAnnotations(layerCtx, state.annotations, canvas);
+    if (state.draft) drawAnnotation(layerCtx, state.draft, canvas);
     else if (state.selected >= 0 && state.annotations[state.selected]) drawSelection(layerCtx, state.annotations[state.selected]);
   }
   const scheduleRedraw = () => {
@@ -268,23 +311,65 @@ export function openEditor(options) {
   function refreshButtons() {
     for (const [id, button] of toolButtons) button.setAttribute('aria-pressed', String(id === state.tool));
     stage.classList.toggle('text-tool', state.tool === 'text');
+    stage.classList.toggle('number-tool', state.tool === 'number');
     swatchDot.style.background = state.color;
     undoButton.disabled = state.history.length === 0;
     redoButton.disabled = state.redo.length === 0;
   }
 
+  function highlightStyle() {
+    return { color: colorById(state.highlightColor).hex, width: lineWidth() };
+  }
+
+  function hideRing() {
+    ring.hidden = true;
+  }
+
+  function placeRing(box) {
+    const shown = (stage.clientWidth || 1) / W;
+    const display = { x: box.x * shown, y: box.y * shown, w: box.w * shown, h: box.h * shown };
+    const center = placeRingCenter(display, { w: stage.clientWidth || display.w, h: stage.clientHeight || display.h });
+    ring.style.left = `${center.x}px`;
+    ring.style.top = `${center.y}px`;
+    ring.hidden = false;
+    for (const swatch of ring.querySelectorAll('.hl-swatch')) {
+      swatch.setAttribute('data-on', swatch.getAttribute('data-color') === state.highlightColor ? 'true' : 'false');
+    }
+  }
+
+  function cancelPending() {
+    if (!state.pending) return;
+    state.pending = null;
+    state.draft = null;
+    hideRing();
+    scheduleRedraw();
+  }
+
+  function pickHighlight(id) {
+    const pending = state.pending;
+    if (!pending) return;
+    state.highlightColor = sanitizeHighlightColor(id);
+    state.pending = null;
+    hideRing();
+    commit({ ...pending, type: 'highlight', color: colorById(state.highlightColor).hex });
+  }
+
   function setTool(id) {
     if (!toolButtons.has(id)) return;
     commitText();
+    cancelPending();
     state.tool = id;
     state.selected = -1;
     refreshButtons();
     scheduleRedraw();
   }
   function setColor(color) {
-    state.color = color;
-    if (state.textInput) state.textInput.element.style.color = color;
+    const next = normalizeHex(color);
+    if (!next) return;
+    state.color = next;
+    if (state.textInput) state.textInput.element.style.color = next;
     refreshButtons();
+    syncPopover();
   }
   function setWidth(id) {
     if (!WIDTHS.some((item) => item.id === id)) return;
@@ -359,11 +444,13 @@ export function openEditor(options) {
   stage.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || state.closed) return;
     closePopover();
+    if (event.target.closest?.('.hl-ring')) return;
     if (state.textInput) {
       commitText(); // the click that ends a text only ends it
       event.preventDefault();
       return;
     }
+    cancelPending();
     const point = toImage(event);
     const hit = hitTopAnnotation(state.annotations, point, state.selected);
     if (hit >= 0) {
@@ -382,9 +469,14 @@ export function openEditor(options) {
       scheduleRedraw();
       return;
     }
+    if (state.tool === 'number') {
+      event.preventDefault();
+      commit(buildNumberMark(point, state.annotations, { color: state.color, width: lineWidth() }));
+      return;
+    }
     capturePointer(event);
     start = point;
-    const style = { color: state.color, width: lineWidth() };
+    const style = state.tool === 'highlight' ? highlightStyle() : { color: state.color, width: lineWidth() };
     state.draft = state.tool === 'pen' ? { type: 'pen', points: [point], ...style } : null;
     scheduleRedraw();
   });
@@ -399,7 +491,7 @@ export function openEditor(options) {
       stage.classList.toggle('over-mark', hitTopAnnotation(state.annotations, point, state.selected) >= 0);
       return;
     }
-    const style = { color: state.color, width: lineWidth() };
+    const style = state.tool === 'highlight' ? highlightStyle() : { color: state.color, width: lineWidth() };
     if (state.tool === 'pen') {
       const points = state.draft.points;
       const previous = points[points.length - 1];
@@ -433,6 +525,13 @@ export function openEditor(options) {
     const finished = state.draft;
     start = null;
     state.draft = null;
+    if (keep && finished && finished.type === 'highlight') {
+      state.pending = finished;
+      state.draft = finished;
+      placeRing(finished);
+      scheduleRedraw();
+      return;
+    }
     if (keep && finished) commit(finished);
     else scheduleRedraw();
   };
@@ -496,15 +595,15 @@ export function openEditor(options) {
       button.style.backgroundColor = color;
       return button;
     });
-    const picker = node('input', { type: 'color', 'aria-label': tr('Custom color'), value: '#ef4444' });
+    const picker = node('input', { type: 'color', 'aria-label': tr('Custom color'), value: state.color });
     picker.addEventListener('input', () => setColor(picker.value));
-    const custom = node('span', { class: 'color custom', title: tr('Custom color') }, picker);
+    const custom = node('span', { class: 'color custom', title: tr('Custom color'), 'aria-pressed': 'false' }, picker);
     const widthButtons = WIDTHS.map((item) => {
       const bar = node('i');
       bar.style.height = `${item.px}px`;
       return node('button', { class: 'width', type: 'button', title: tr(item.label), 'aria-label': tr(item.label), 'aria-pressed': 'false', onClick: () => setWidth(item.id) }, bar);
     });
-    popoverButtons = { colorButtons, widthButtons };
+    popoverButtons = { colorButtons, widthButtons, custom, picker };
     return node(
       'div',
       { class: 'panel pop', role: 'group', 'aria-label': tr('Color and thickness') },
@@ -514,7 +613,14 @@ export function openEditor(options) {
   }
   function syncPopover() {
     if (!popoverButtons) return;
-    popoverButtons.colorButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(COLORS[index] === state.color)));
+    let matched = false;
+    popoverButtons.colorButtons.forEach((button, index) => {
+      const on = COLORS[index] === state.color;
+      button.setAttribute('aria-pressed', String(on));
+      if (on) matched = true;
+    });
+    if (popoverButtons.custom) popoverButtons.custom.setAttribute('aria-pressed', String(!matched));
+    if (popoverButtons.picker && /^#[0-9a-f]{6}$/i.test(state.color)) popoverButtons.picker.value = state.color;
     popoverButtons.widthButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(WIDTHS[index].id === state.width)));
   }
   function placePopover() {
@@ -558,12 +664,13 @@ export function openEditor(options) {
   /** The picture with every annotation painted on it, at full size. */
   function exportCanvas() {
     commitText();
+    if (state.pending) pickHighlight(state.highlightColor);
     const out = document.createElement('canvas');
     out.width = W;
     out.height = H;
     const ctx = out.getContext('2d');
     ctx.drawImage(canvas, 0, 0);
-    drawAnnotations(ctx, state.annotations);
+    drawAnnotations(ctx, state.annotations, canvas);
     return out;
   }
   function exportBlob() {
@@ -617,6 +724,7 @@ export function openEditor(options) {
   }
   function requestClose() {
     commitText();
+    cancelPending();
     if (state.annotations.length === 0) return close();
     if (dialog) return undefined;
     const keep = node('button', { class: 'act', type: 'button', onClick: closeDialog }, tr('Keep editing'));
@@ -652,6 +760,7 @@ export function openEditor(options) {
       stop(event);
       if (dialog) closeDialog();
       else if (popover) closePopover();
+      else if (state.pending) cancelPending();
       else requestClose();
       return;
     }

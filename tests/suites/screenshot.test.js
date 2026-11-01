@@ -17,7 +17,7 @@ import {
   snapEnd,
   squareEnd,
 } from '../../services/screenshot-geometry.js';
-import { COLORS, TOOLS, WIDTHS, annotationBounds, buildShape, drawAnnotation, hitTopAnnotation, hitsAnnotation, isVisible, translateAnnotation } from '../../services/screenshot-draw.js';
+import { COLORS, TOOLS, WIDTHS, annotationBounds, buildNumberMark, buildShape, drawAnnotation, hitTopAnnotation, hitsAnnotation, isVisible, nextNumber, translateAnnotation } from '../../services/screenshot-draw.js';
 import { dataUrlToBlob } from '../../content/screenshot-capture.js';
 import { copyImageToClipboard, openEditor } from '../../content/screenshot-editor.js';
 import { selectArea } from '../../content/screenshot-selector.js';
@@ -258,7 +258,7 @@ const style = { color: '#ef4444', width: 6 };
 describe('Screenshot: drawing tools', () => {
   it('has every tool the user asked for', () => {
     const ids = TOOLS.map((tool) => tool.id);
-    for (const id of ['pen', 'line', 'arrow', 'ellipse', 'rect', 'square', 'text']) assert.ok(ids.includes(id), id);
+    for (const id of ['pen', 'line', 'arrow', 'ellipse', 'rect', 'square', 'text', 'highlight', 'blur', 'number']) assert.ok(ids.includes(id), id);
     assert.equal(new Set(TOOLS.map((tool) => tool.key)).size, TOOLS.length, 'shortcut keys are unique');
     assert.ok(COLORS.length >= 6 && WIDTHS.length === 3);
   });
@@ -291,6 +291,51 @@ describe('Screenshot: drawing tools', () => {
     assert.ok(isRed(pixel(canvas, 20, 40)), 'left edge');
     assert.ok(isWhite(pixel(canvas, 50, 40)), 'inside stays clear');
     assert.ok(isWhite(pixel(canvas, 5, 5)));
+  });
+
+  it('paints a highlighter as a translucent fill', () => {
+    const canvas = makeCanvas(100, 100);
+    drawAnnotation(canvas.getContext('2d'), { type: 'highlight', x: 20, y: 20, w: 60, h: 40, color: '#ffe56b' });
+    const [r, g, b, a] = pixel(canvas, 50, 40);
+    assert.ok(r > 240 && g > 200 && b < 230 && g > b && a > 0, `inside is tinted yellow, got ${r},${g},${b},${a}`);
+    assert.ok(isWhite(pixel(canvas, 5, 5)));
+    const shape = buildShape('highlight', { x: 10, y: 10 }, { x: 80, y: 50 }, style);
+    assert.equal(shape.type, 'highlight');
+    assert.equal(shape.w, 70);
+    assert.equal(isVisible(shape), true);
+  });
+
+  it('paints a blur by sampling the original picture', () => {
+    const src = makeCanvas(100, 100);
+    const painted = src.getContext('2d');
+    painted.fillStyle = '#ffffff';
+    painted.fillRect(0, 0, 50, 100);
+    painted.fillStyle = '#000000';
+    painted.fillRect(50, 0, 50, 100);
+    const out = makeCanvas(100, 100);
+    out.getContext('2d').drawImage(src, 0, 0);
+    drawAnnotation(out.getContext('2d'), { type: 'blur', x: 20, y: 20, w: 60, h: 60, radius: 10 }, src);
+    const [r] = pixel(out, 50, 50);
+    assert.ok(r > 20 && r < 235, `the edge is softened, got ${r}`);
+    assert.ok(isWhite(pixel(out, 5, 5)), 'outside the box is unchanged');
+    const shape = buildShape('blur', { x: 10, y: 10 }, { x: 80, y: 50 }, style);
+    assert.equal(shape.type, 'blur');
+    assert.ok(shape.radius >= 6);
+  });
+
+  it('paints a numbered circle in the chosen colour', () => {
+    const canvas = makeCanvas(100, 100);
+    const mark = buildNumberMark({ x: 50, y: 50 }, [], { color: '#22c55e', width: 4 });
+    assert.equal(mark.type, 'number');
+    assert.equal(mark.n, 1);
+    assert.equal(nextNumber([mark]), 2);
+    drawAnnotation(canvas.getContext('2d'), mark);
+    const [r, g, b] = pixel(canvas, 50, 38);
+    assert.ok(g > 140 && g > r && g > b, `the disk is green, got ${r},${g},${b}`);
+    assert.ok(isWhite(pixel(canvas, 5, 5)), 'outside the circle is unchanged');
+    assert.equal(isVisible(mark), true);
+    assert.equal(hitsAnnotation(mark, { x: 50, y: 50 }), true);
+    assert.equal(hitsAnnotation(mark, { x: 5, y: 5 }), false);
   });
 
   it('paints a circle outline', () => {
@@ -354,6 +399,9 @@ describe('Screenshot: drawing tools', () => {
     assert.equal(hitsAnnotation(rect, { x: 50, y: 40 }, { selected: true }), true, 'a selected rectangle can be grabbed from the inside');
     assert.equal(hitTopAnnotation([arrow, rect], { x: 20, y: 20 }), 1);
     assert.ok(annotationBounds(arrow).w >= 80);
+    const blur = { type: 'blur', x: 20, y: 20, w: 60, h: 40, radius: 12 };
+    assert.equal(hitsAnnotation(blur, { x: 50, y: 40 }), true, 'a blur is grabbed from the inside');
+    assert.equal(hitsAnnotation(blur, { x: 5, y: 5 }), false);
   });
 });
 
@@ -380,7 +428,7 @@ describe('Screenshot: reading a photo from Chrome', () => {
 
 describe('Screenshot: icons for the page', () => {
   it('builds svg elements without innerHTML', () => {
-    for (const name of ['pen', 'line', 'arrow', 'ellipse', 'rect', 'square', 'text', 'undo', 'redo', 'copy', 'save', 'close', 'check', 'alert']) {
+    for (const name of ['pen', 'line', 'arrow', 'ellipse', 'rect', 'square', 'text', 'highlight', 'blur', 'number', 'undo', 'redo', 'copy', 'save', 'close', 'check', 'alert']) {
       const svg = createIcon(name, 20);
       assert.equal(svg.namespaceURI, 'http://www.w3.org/2000/svg');
       assert.ok(svg.childElementCount > 0, name);
@@ -404,7 +452,8 @@ describe('Screenshot: tool entry', () => {
 
   it('translates every text of the panel and the editor', () => {
     const texts = [
-      'Full Page', 'Current Screen', 'Select Area', 'Pen', 'Straight line', 'Arrow', 'Circle / oval', 'Rectangle', 'Square', 'Text',
+      'Full Page', 'Current Screen', 'Select Area', 'Pen', 'Straight line', 'Arrow', 'Circle / oval', 'Rectangle', 'Square', 'Text', 'Highlighter', 'Blur', 'Number',
+      'Drag an area, then pick a colour', 'Drag an area to blur it', 'Click to place a numbered circle', 'Highlight colour', 'Yellow highlight', 'Green highlight',
       'Color and thickness', 'Undo', 'Redo', 'Copy', 'Save', 'Close', 'Thin', 'Medium', 'Thick', 'Copied to the clipboard.',
       'Could not copy the picture. Use Save instead.', 'Could not save the picture.', 'Keep editing', 'Discard', 'Discard this screenshot?',
       'Drag to select an area', 'to cancel', 'Hold Shift for a perfect circle', 'Hold Shift for a square',
@@ -590,6 +639,49 @@ describe('Screenshot editor: drawing', () => {
     assert.equal(square.w, square.h);
   });
 
+  it('shows a colour circle after a highlighter box, then paints that colour', () => {
+    const { editor } = launch();
+    editor.setTool('highlight');
+    drag(editor, { x: 40, y: 40 }, { x: 180, y: 140 });
+    assert.equal(editor.annotations.length, 0, 'the mark waits for a colour');
+    const ring = q(editor, '.hl-ring');
+    assert.ok(ring && !ring.hidden, 'the colour circle is in the centre of the box');
+    assert.equal(qa(editor, '.hl-swatch').length, 5);
+    q(editor, '.hl-swatch[data-color="green"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true, button: 0, pointerId: 8 }));
+    assert.equal(editor.annotations.length, 1);
+    assert.equal(editor.annotations[0].type, 'highlight');
+    assert.equal(editor.annotations[0].color, '#7bed9f');
+    assert.equal(ring.hidden, true);
+  });
+
+  it('blurs an area as soon as the box is drawn', () => {
+    const { editor } = launch();
+    editor.setTool('blur');
+    drag(editor, { x: 40, y: 40 }, { x: 180, y: 140 });
+    assert.equal(editor.annotations.length, 1);
+    assert.equal(editor.annotations[0].type, 'blur');
+    assert.ok(editor.annotations[0].w >= 8);
+    assert.ok(editor.annotations[0].radius >= 6);
+  });
+
+  it('places numbered circles in order where you click', () => {
+    const { editor } = launch();
+    editor.setTool('number');
+    editor.setColor('#22c55e');
+    pointer(editor, 'pointerdown', 80, 80);
+    pointer(editor, 'pointerup', 80, 80);
+    pointer(editor, 'pointerdown', 200, 90);
+    pointer(editor, 'pointerup', 200, 90);
+    assert.deepEqual(editor.annotations.map((item) => [item.type, item.n, item.color]), [
+      ['number', 1, '#22c55e'],
+      ['number', 2, '#22c55e'],
+    ]);
+    editor.undo();
+    pointer(editor, 'pointerdown', 220, 160);
+    pointer(editor, 'pointerup', 220, 160);
+    assert.equal(editor.annotations[1].n, 2, 'undoing the last number reuses that number');
+  });
+
   it('draws a freehand pen line', () => {
     const { editor } = launch();
     editor.setTool('pen');
@@ -772,7 +864,12 @@ describe('Screenshot editor: colour and thickness', () => {
     assert.ok(pop);
     assert.ok(qa(editor, '.pop .color').length >= COLORS.length);
     assert.equal(qa(editor, '.pop .width').length, 3);
-    qa(editor, '.pop .color')[3].click();
+    const swatches = qa(editor, '.pop .color').filter((item) => !item.classList.contains('custom'));
+    assert.equal(swatches[0].getAttribute('aria-pressed'), 'true', 'the current colour starts selected');
+    swatches[3].click();
+    assert.equal(swatches[3].getAttribute('aria-pressed'), 'true', 'the colour you click is selected');
+    assert.equal(swatches[0].getAttribute('aria-pressed'), 'false');
+    assert.ok(q(editor, '.pop'), 'the panel stays open so the choice is visible');
     assert.equal(editor.annotations.length, 0);
     editor.setTool('rect');
     drag(editor, { x: 20, y: 20 }, { x: 80, y: 60 });

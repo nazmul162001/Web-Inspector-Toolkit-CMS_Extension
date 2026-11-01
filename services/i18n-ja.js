@@ -21,6 +21,7 @@ export const EXACT_JA = {
   'Font Find': 'フォント検索',
   'Half/Full Width Text': '全角・半角テキスト',
   'Image Resolution': '画像解像度',
+  'Screenshot Taker': 'スクリーンショット',
   Soon: '近日公開',
   'Coming Soon': '近日公開',
   'This tool is coming soon.': 'このツールは近日公開予定です。',
@@ -488,6 +489,14 @@ export const EXACT_JA = {
   'No screenshot shortcut is set.': 'スクリーンショットのショートカットが設定されていません。',
   'Clear': 'クリア',
   'Pen, Line, Arrow, Circle, Rectangle, Square, Text': 'ペン、直線、矢印、円、長方形、正方形、テキスト',
+  'Pen, Line, Arrow, Circle, Rectangle, Square, Text, Highlighter': 'ペン、直線、矢印、円、長方形、正方形、テキスト、ハイライト',
+  'Pen, Line, Arrow, Circle, Rectangle, Square, Text, Highlighter, Blur': 'ペン、直線、矢印、円、長方形、正方形、テキスト、ハイライト、ぼかし',
+  'Pen, Line, Arrow, Circle, Rectangle, Square, Text, Highlighter, Blur, Number': 'ペン、直線、矢印、円、長方形、正方形、テキスト、ハイライト、ぼかし、番号',
+  Highlighter: 'ハイライト',
+  Blur: 'ぼかし',
+  'Drag an area, then pick a colour': '範囲をドラッグしてから色を選びます',
+  'Drag an area to blur it': '範囲をドラッグしてぼかします',
+  'Click to place a numbered circle': 'クリックして番号付きの円を置きます',
   'Keeps a circle, a rectangle or a line straight': '円・長方形・直線をきれいな形（正円・正方形・斜め45度刻み）に保ちます',
   'Undo (add Shift to redo)': '元に戻す（Shiftを加えるとやり直し）',
   'Copy to clipboard': 'クリップボードにコピー',
@@ -537,6 +546,31 @@ export const EXACT_JA = {
   'This page is very long, so the picture stops at 24,000 px.': 'このページは非常に長いため、画像は24,000 pxで途切れています。',
   'The picture was reduced in size because the page is very large.': 'ページが非常に大きいため、画像は縮小されています。',
   'This page scrolls inside a panel, so only the visible part was captured.': 'このページはパネル内でスクロールするため、見えている部分のみ撮影されました。',
+
+  /* ------------------------------------------------ Text Highlighter */
+  'Drag an area on the page, then pick a colour. The mark stays on the text like a highlighter.': 'ページ上で範囲をドラッグしてから色を選びます。マーカーのようにテキストの上に残ります。',
+  'Highlighting on the page': 'ページ上でハイライト中',
+  'Drag a box over the text. Pick a colour from the circle in the centre.': 'テキストの上で範囲をドラッグします。中央の円から色を選んでください。',
+  '1 highlight on this page. Drag another area, or click a highlight to change its colour.': 'このページにハイライトが 1 件あります。別の範囲をドラッグするか、ハイライトをクリックして色を変更できます。',
+  'No page to highlight': 'ハイライトできるページがありません',
+  "This page can't be highlighted": 'このページはハイライトできません',
+  "Couldn't start the highlighter": 'ハイライトを開始できませんでした',
+  "Couldn't clear the highlights": 'ハイライトを消去できませんでした',
+  'Try again on this page.': 'このページでもう一度お試しください。',
+  'Recommended colours': 'おすすめの色',
+  'After you select an area, five colours appear in a circle in the centre.': '範囲を選ぶと、中央に5色が円状に表示されます。',
+  'Click a colour to apply it. Click a highlight later to change it.': '色をクリックして適用します。あとからハイライトをクリックすると色を変更できます。',
+  'Esc cancels the current box. Highlights stay until you clear them or leave the page.': 'Esc で現在の範囲をキャンセルします。ハイライトは消去するかページを離れるまで残ります。',
+  'Clear all': 'すべて消去',
+  'Highlight colour': 'ハイライトの色',
+  'Pick a colour. Esc cancels.': '色を選んでください。Esc でキャンセルします。',
+  'Drag to highlight an area. Click a highlight to change its colour.': 'ドラッグして範囲をハイライトします。ハイライトをクリックすると色を変更できます。',
+  'Yellow highlight': '黄色のハイライト',
+  'Green highlight': '緑のハイライト',
+  'Orange highlight': 'オレンジのハイライト',
+  'Pink highlight': 'ピンクのハイライト',
+  'Blue highlight': '青のハイライト',
+  'Invalid highlighter request.': '無効なハイライトのリクエストです。',
 };
 
 /** Build the pattern rules. `tr` translates a part of a sentence (a tool name, a label). */
@@ -641,6 +675,12 @@ export function makePatternsJa(tr) {
 
     /* Screenshot Taker */
     rule(new RegExp(`^Capturing the page… ${N} of ${N}$`), 'ページをキャプチャ中… $2 枚中 $1 枚目'),
+
+    /* Text Highlighter */
+    rule(
+      new RegExp(`^${N} highlights on this page\\. Drag another area, or click a highlight to change its colour\\.$`),
+      'このページにハイライトが $1 件あります。別の範囲をドラッグするか、ハイライトをクリックして色を変更できます。',
+    ),
   ];
 }
 
