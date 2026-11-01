@@ -1,5 +1,5 @@
 <p align="center">
-  <mark><strong>To open 日本語 in a new tab:</strong> hold <kbd>⌘</kbd> (Mac) or <kbd>Ctrl</kbd> (Windows) and click <strong>日本語</strong>.</mark>
+  <img src="docs/setup/open-new-tab-en.svg" width="920" alt="To open 日本語 in a new tab: hold ⌘ (Mac) or Ctrl (Windows) and click 日本語." />
 </p>
 
 <p align="center">

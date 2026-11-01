@@ -1,5 +1,5 @@
 <p align="center">
-  <mark><strong>English を新しいタブで開くには：</strong> <kbd>⌘</kbd>（Mac）または <kbd>Ctrl</kbd>（Windows）を押しながら <strong>English</strong> をクリックしてください。</mark>
+  <img src="docs/setup/open-new-tab-ja.svg" width="920" alt="English を新しいタブで開くには、⌘（Mac）または Ctrl（Windows）を押しながら English をクリックしてください。" />
 </p>
 
 <p align="center">
