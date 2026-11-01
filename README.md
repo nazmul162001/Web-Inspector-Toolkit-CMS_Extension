@@ -1,19 +1,13 @@
 <p align="center">
   <strong>English</strong>
   &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="./README.ja.md" target="_blank" rel="noopener noreferrer">日本語</a>
+  <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.ja.md" target="_blank" rel="noopener noreferrer">日本語</a>
 </p>
 
 # Web Inspector Toolkit
 
-A Chrome side-panel toolkit for inspecting real websites — colours, text, links, fonts, images and screenshots — **entirely on your device**. Nothing is uploaded.
-
 <p align="center">
   <img src="icons/icon128.png" width="72" alt="Web Inspector Toolkit" />
-</p>
-
-<p align="center">
-  <strong>Chrome 123+</strong> &nbsp;·&nbsp; <strong>No build step</strong> &nbsp;·&nbsp; <strong>English / 日本語</strong> &nbsp;·&nbsp; <strong>Dark & light</strong>
 </p>
 
 ---

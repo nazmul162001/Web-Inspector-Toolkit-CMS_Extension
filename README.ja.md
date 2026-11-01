@@ -1,19 +1,13 @@
 <p align="center">
-  <a href="./README.md" target="_blank" rel="noopener noreferrer">English</a>
+  <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.md" target="_blank" rel="noopener noreferrer">English</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <strong>日本語</strong>
 </p>
 
 # Web Inspector Toolkit
 
-Chromeのサイドパネルで、実際のウェブサイトを調べるツールです。色・テキスト・リンク・フォント・画像・スクリーンショットを、**すべて自分の端末の中だけ**で扱います。アップロードはしません。
-
 <p align="center">
   <img src="icons/icon128.png" width="72" alt="Web Inspector Toolkit" />
-</p>
-
-<p align="center">
-  <strong>Chrome 123+</strong> &nbsp;·&nbsp; <strong>ビルド不要</strong> &nbsp;·&nbsp; <strong>English / 日本語</strong> &nbsp;·&nbsp; <strong>ダーク / ライト</strong>
 </p>
 
 ---
