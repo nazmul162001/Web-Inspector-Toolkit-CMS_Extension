@@ -1,6 +1,6 @@
-<table>
+<table align="center">
   <tr>
-    <td bgcolor="#FFE56B">
+    <td bgcolor="#FFE56B" align="center">
       <strong><font color="#111827">English を新しいタブで開くには： ⌘（Mac）または Ctrl（Windows）を押しながら English をクリックしてください。</font></strong>
     </td>
   </tr>

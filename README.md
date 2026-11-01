@@ -1,6 +1,6 @@
-<table>
+<table align="center">
   <tr>
-    <td bgcolor="#FFE56B">
+    <td bgcolor="#FFE56B" align="center">
       <strong><font color="#111827">To open 日本語 in a new tab: hold ⌘ (Mac) or Ctrl (Windows) and click 日本語.</font></strong>
     </td>
   </tr>
