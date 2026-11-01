@@ -1,5 +1,11 @@
-> [!WARNING]
-> **To open 日本語 in a new tab:** hold **⌘** (Mac) or **Ctrl** (Windows) and click **日本語**.
+<table>
+  <tr>
+    <td bgcolor="#FFE56B">
+      <strong><font color="#111827">To open 日本語 in a new tab: hold ⌘ (Mac) or Ctrl (Windows) and click 日本語.</font></strong>
+    </td>
+  </tr>
+</table>
+
 
 <p align="center">
   <strong>English</strong>

@@ -1,5 +1,11 @@
-> [!WARNING]
-> **English を新しいタブで開くには：** **⌘**（Mac）または **Ctrl**（Windows）を押しながら **English** をクリックしてください。
+<table>
+  <tr>
+    <td bgcolor="#FFE56B">
+      <strong><font color="#111827">English を新しいタブで開くには： ⌘（Mac）または Ctrl（Windows）を押しながら English をクリックしてください。</font></strong>
+    </td>
+  </tr>
+</table>
+
 
 <p align="center">
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.md" target="_blank" rel="noopener noreferrer">English</a>
