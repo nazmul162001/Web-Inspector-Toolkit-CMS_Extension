@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.md" target="_blank" rel="noopener noreferrer">English</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
-  <strong>日本語</strong>
+  <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.ja.md" target="_blank" rel="noopener noreferrer">日本語</a>
 </p>
 
 # Web Inspector Toolkit
