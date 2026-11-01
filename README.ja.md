@@ -1,6 +1,5 @@
-<p align="center">
-  <img src="docs/setup/open-new-tab-ja.svg" width="920" alt="English を新しいタブで開くには、⌘（Mac）または Ctrl（Windows）を押しながら English をクリックしてください。" />
-</p>
+> [!WARNING]
+> **English を新しいタブで開くには：** **⌘**（Mac）または **Ctrl**（Windows）を押しながら **English** をクリックしてください。
 
 <p align="center">
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.md" target="_blank" rel="noopener noreferrer">English</a>
