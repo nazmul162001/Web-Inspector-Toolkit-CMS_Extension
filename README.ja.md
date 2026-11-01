@@ -1,4 +1,8 @@
 <p align="center">
+  <mark><strong>English を新しいタブで開くには：</strong> <kbd>⌘</kbd>（Mac）または <kbd>Ctrl</kbd>（Windows）を押しながら <strong>English</strong> をクリックしてください。</mark>
+</p>
+
+<p align="center">
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.md" target="_blank" rel="noopener noreferrer">English</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.ja.md" target="_blank" rel="noopener noreferrer">日本語</a>

@@ -1,4 +1,8 @@
 <p align="center">
+  <mark><strong>To open 日本語 in a new tab:</strong> hold <kbd>⌘</kbd> (Mac) or <kbd>Ctrl</kbd> (Windows) and click <strong>日本語</strong>.</mark>
+</p>
+
+<p align="center">
   <strong>English</strong>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://github.com/nazmul162001/Web-Inspector-Toolkit-CMS_Extension/blob/main/README.ja.md" target="_blank" rel="noopener noreferrer">日本語</a>
