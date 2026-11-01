@@ -101,73 +101,16 @@
 
 .shot-help {
   margin-top: 16px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
   font-size: 12px;
 }
 
-.shot-help summary {
-  padding: 10px 12px;
-  color: var(--text-dim);
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: var(--radius-lg);
-}
-
-.shot-help summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.shot-keys {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 7px 12px;
-  align-items: center;
-  margin: 0;
-  padding: 2px 12px 8px;
-}
-
-.shot-keys dt,
-.shot-keys__keys {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.shot-keys dd {
-  margin: 0;
-}
-
-.shot-keys__keys {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.shot-keys dd {
-  color: var(--text-dim);
-}
-
-.shot-keys kbd,
-.shot-hotkey kbd {
-  display: inline-block;
-  padding: 2px 7px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text);
-  font: 600 11px/1.4 var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  white-space: nowrap;
-}
-
 .shot-hotkey {
   display: grid;
   gap: 8px;
-  margin: 4px 12px 4px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
 
 .shot-hotkey__title {
@@ -175,7 +118,6 @@
   color: var(--text);
 }
 
-.shot-hotkey__text,
 .shot-hotkey__hint {
   margin: 0;
   color: var(--text-dim);
@@ -225,10 +167,4 @@
 
 .shot-hotkey__capture[data-listening="true"] {
   border-color: var(--accent);
-}
-
-.shot-note {
-  margin: 0;
-  padding: 0 12px 12px;
-  color: var(--text-faint);
 }

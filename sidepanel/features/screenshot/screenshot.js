@@ -35,15 +35,6 @@ const MODES = [
   { id: 'area', icon: 'crop', title: 'Select Area', text: 'Drag a rectangle over the part of the page you want.' },
 ];
 
-const SHORTCUTS = [
-  [['P', 'L', 'A', 'C', 'R', 'S', 'T', 'H', 'B', 'N'], 'Pen, Line, Arrow, Circle, Rectangle, Square, Text, Highlighter, Blur, Number'],
-  [['Shift'], 'Keeps a circle, a rectangle or a line straight'],
-  [['Ctrl', 'Z'], 'Undo (add Shift to redo)'],
-  [['Ctrl', 'C'], 'Copy to the clipboard'],
-  [['Ctrl', 'S'], 'Save as a PNG file'],
-  [['Esc'], 'Close'],
-];
-
 export function createFeature(ctx) {
   let refs = null;
   let busy = false; // a capture is running or the editor is open
@@ -319,7 +310,7 @@ export function createFeature(ctx) {
       spellcheck: 'false',
       autocomplete: 'off',
       placeholder: 'Click here, then press a shortcut',
-      'aria-label': 'Select Area shortcut',
+      'aria-label': 'Shortcut',
       onFocus: beginListening,
       onBlur: endListening,
       onKeyDown: onShortcutCapture,
@@ -328,19 +319,15 @@ export function createFeature(ctx) {
     const clear = el('button', { class: 'btn btn--sm', type: 'button', onClick: clearShortcut }, 'Clear');
     const hint = el('p', { class: 'shot-hotkey__hint', hidden: true });
     const shortcuts = el(
-      'details',
+      'div',
       { class: 'shot-help' },
-      el('summary', {}, 'Editor tools and shortcuts'),
-      el('dl', { class: 'shot-keys' }, SHORTCUTS.flatMap(([keys, text]) => [el('dt', { class: 'shot-keys__keys' }, keys.map((key) => el('kbd', {}, key))), el('dd', {}, text)])),
       el(
         'div',
         { class: 'shot-hotkey' },
-        el('div', { class: 'shot-hotkey__title' }, 'Select Area shortcut'),
-        el('p', { class: 'shot-hotkey__text' }, 'Works on any website without opening this panel. Select an area, then Copy or Save. The overlay closes; this panel stays closed.'),
+        el('div', { class: 'shot-hotkey__title' }, 'Shortcut'),
         el('div', { class: 'shot-hotkey__row' }, capture, save, clear),
         hint,
       ),
-      el('p', { class: 'shot-note' }, 'Full Page shows fixed and sticky bars once. Pages that scroll inside a panel are captured as you see them.'),
     );
 
     container.replaceChildren(

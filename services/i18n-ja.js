@@ -475,6 +475,7 @@ export const EXACT_JA = {
   'Chrome does not let extensions capture this page.': 'Chromeはこのページでの拡張機能によるキャプチャを許可していません。',
   'Editor tools and shortcuts': 'エディターのツールとショートカット',
   'Select Area shortcut': '範囲選択のショートカット',
+  Shortcut: 'ショートカット',
   'Works on any website without opening this panel. Select an area, then Copy or Save. The overlay closes; this panel stays closed.': 'このパネルを開かなくても、どのWebサイトでも使えます。範囲を選んでコピーまたは保存すると、オーバーレイは閉じます。このパネルは開きません。',
   'Press a shortcut': 'ショートカットを押す',
   'Press keys…': 'キーを押してください…',

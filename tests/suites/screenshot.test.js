@@ -463,7 +463,7 @@ describe('Screenshot: tool entry', () => {
       'Chrome needs permission to photograph the tab. Nothing is uploaded.',
       'Drag the area to move it, or a handle to resize', 'Drag to resize', 'to capture', 'Drag a rectangle, then drag it to adjust. Enter or a tool takes the picture.',
       'Draw on the picture. Copy or Save also closes the editor.',
-      'Select Area shortcut', 'Works on any website without opening this panel. Select an area, then Copy or Save. The overlay closes; this panel stays closed.',
+      'Shortcut',
       'Press a shortcut', 'Press keys…', 'No shortcut set', 'Click here, then press a shortcut',
       'Press the key or combination you want, then click Save.', 'Click Save to use this shortcut on any website.',
       'Shortcut saved. Press it on a website to select an area.', 'Could not save the shortcut.',
