@@ -112,6 +112,18 @@ export const EXACT_JA = {
   'Those files are not PNG, JPG, WebP or SVG images.': 'それらのファイルは PNG・JPG・WebP・SVG 画像ではありません。',
   'The images could not be converted.': '画像を変換できませんでした。',
   'The images could not be resized.': '画像をリサイズできませんでした。',
+  'Remove background': '背景を除去',
+  'Removing…': '除去中…',
+  'Choose another image': '別の画像を選ぶ',
+  'Choose an image': '画像を選択',
+  'Choose an image first.': '先に画像を選んでください。',
+  'Drop an image here': '画像をここにドロップ',
+  'PNG, JPG or WebP. The result is a PNG with a transparent background.':
+    'PNG・JPG・WebP。結果は透明背景の PNG です。',
+  'Cut the subject out of a photo. Download a PNG with a transparent background.':
+    '写真から被写体を切り抜きます。透明背景の PNG でダウンロードできます。',
+  'The background could not be removed.': '背景を除去できませんでした。',
+  'Background removed.': '背景を除去しました。',
   'Pick the original format, then the format to save. One file downloads directly; several files download as a zip. Quality is kept.':
     '元の形式を選び、保存する形式を指定します。1枚ならそのまま、複数ならZIPでダウンロードします。画質は保たれます。',
   'Width starts at 800 and height stays auto unless you change them. One file downloads directly; several files download as a zip.':

@@ -35,7 +35,7 @@ export const FEATURES = Object.freeze([
   { id: 'official-image', label: 'Official Icon', icon: 'badge-check', status: FEATURE_STATUS.ACTIVE, usesScope: false },
   { id: 'image-convert', label: 'Image Convert', icon: 'convert', status: FEATURE_STATUS.ACTIVE, usesScope: false },
   { id: 'image-resize', label: 'Image Resize', icon: 'resize', status: FEATURE_STATUS.ACTIVE, usesScope: false },
-  { id: 'remove-background', label: 'Remove Background', icon: 'eraser', status: FEATURE_STATUS.SOON, usesScope: false },
+  { id: 'remove-background', label: 'Remove Background', icon: 'eraser', status: FEATURE_STATUS.ACTIVE, usesScope: false },
   { id: 'screenshot', label: 'Screenshot Taker', icon: 'camera', status: FEATURE_STATUS.ACTIVE, usesScope: false },
 ]);
 

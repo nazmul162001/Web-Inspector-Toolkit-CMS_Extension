@@ -18,6 +18,7 @@ import './suites/width-find.test.js';
 import './suites/image-resolution.test.js';
 import './suites/official-image.test.js';
 import './suites/image-batch.test.js';
+import './suites/remove-background.test.js';
 import './suites/screenshot.test.js';
 import './suites/i18n.test.js';
 

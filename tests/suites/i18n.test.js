@@ -70,6 +70,9 @@ describe('Language: translate()', () => {
     assert.equal(ja('3 images selected'), '3 件の画像を選択中');
     assert.equal(ja('Choose at least one image.'), '画像を1枚以上選んでください。');
     assert.equal(ja('Remove Background'), '背景除去');
+    assert.equal(ja('Remove background'), '背景を除去');
+    assert.equal(ja('Background removed.'), '背景を除去しました。');
+    assert.equal(ja('Drop an image here'), '画像をここにドロップ');
     assert.equal(ja('Image coming soon'), '画像準備中');
     assert.ok(ja('Thumbnails are 50×50. Download saves each file at its original size.').includes('50'));
     assert.equal(ja('Original size'), 'オリジナルサイズ');

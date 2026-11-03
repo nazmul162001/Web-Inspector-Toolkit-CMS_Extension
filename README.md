@@ -35,7 +35,7 @@
 | <mark><strong>Official Icon</strong></mark> | A library of official icons. Thumbnails are 50×50; Download saves the original file. |
 | <mark><strong>Image Convert</strong></mark> | Convert PNG, JPG, WebP or SVG. Pick the original format first so the file picker only accepts that type. One file downloads directly; several files download as a zip. Quality is kept. |
 | <mark><strong>Image Resize</strong></mark> | Resize one or more images. Width starts at 800px and height stays auto unless you set it. One file downloads directly; several files download as a zip. |
-| <mark><strong>Remove Background</strong></mark> | Coming soon. |
+| <mark><strong>Remove Background</strong></mark> | Cut the subject out of a photo on this device. A wipe shows the transparent result, then you download a PNG. |
 | <mark><strong>Screenshot Taker</strong></mark> | Capture the full page, the current screen, or a selected area, then mark it up.<br>• Drawing tools: pen, line, arrow, circle, rectangle, square, text<br>• Highlighter (pick a colour after you drag)<br>• Blur any area<br>• Numbered circles (click to place 1, 2, 3…)<br>• Copy to clipboard or save as PNG<br>• Optional keyboard shortcut for Select Area (works without opening the panel) |
 | <mark><strong>This Page / Entire Site</strong></mark> | Search tools can scan the tab you are on, or crawl the same site in the background. |
 | <mark><strong>English / 日本語</strong></mark> | Switch the whole interface. Page content is never translated. |
