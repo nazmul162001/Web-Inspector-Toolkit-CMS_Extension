@@ -1,0 +1,134 @@
+/* ==========================================================================
+   Image Convert / Image Resize - shared upload UI
+   ========================================================================== */
+
+.ib-formats,
+.ib-size {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ib-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ib-field .field-label {
+  margin-bottom: 0;
+}
+
+.ib-field .select,
+.ib-field .input {
+  height: 34px;
+}
+
+.ib-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.ib-drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 22px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-dim);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.12s var(--ease), background 0.12s var(--ease), color 0.12s var(--ease);
+}
+
+.ib-drop:hover,
+.ib-drop:focus-visible,
+.ib-drop[data-over="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+}
+
+.ib-drop[data-has-files="true"] {
+  padding: 14px 12px;
+}
+
+.ib-drop__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.ib-drop__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.ib-files {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.ib-file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ib-file__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
+.ib-file__size {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ib-file__remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.ib-file__remove:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ib-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ib-actions .btn--primary {
+  flex: 1;
+  height: 38px;
+}

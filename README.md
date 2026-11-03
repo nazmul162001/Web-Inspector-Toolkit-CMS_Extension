@@ -31,10 +31,10 @@
 | <mark><strong>Link href</strong></mark> | Find every link, button or form that points to an address (exact or contains). |
 | <mark><strong>Font Find</strong></mark> | See which elements use a font family, including CSS source and `@font-face` files. |
 | <mark><strong>Half / Full Width Text</strong></mark> | Find full-width numbers, letters and symbols, and mark them in red on the page. |
-| <mark><strong>Image Related</strong></mark> | Hover any image or background and see its real pixel size vs how it is shown. |
+| <mark><strong>Inspect/Download image</strong></mark> | Hover any image or background and see its real pixel size vs how it is shown. |
 | <mark><strong>Official Icon</strong></mark> | A library of official icons. Thumbnails are 50×50; Download saves the original file. |
-| <mark><strong>Image Convert</strong></mark> | Coming soon. |
-| <mark><strong>Image Resize</strong></mark> | Coming soon. |
+| <mark><strong>Image Convert</strong></mark> | Convert PNG, JPG, WebP or SVG. Pick the original format first so the file picker only accepts that type. One file downloads directly; several files download as a zip. Quality is kept. |
+| <mark><strong>Image Resize</strong></mark> | Resize one or more images. Width starts at 800px and height stays auto unless you set it. One file downloads directly; several files download as a zip. |
 | <mark><strong>Remove Background</strong></mark> | Coming soon. |
 | <mark><strong>Screenshot Taker</strong></mark> | Capture the full page, the current screen, or a selected area, then mark it up.<br>• Drawing tools: pen, line, arrow, circle, rectangle, square, text<br>• Highlighter (pick a colour after you drag)<br>• Blur any area<br>• Numbered circles (click to place 1, 2, 3…)<br>• Copy to clipboard or save as PNG<br>• Optional keyboard shortcut for Select Area (works without opening the panel) |
 | <mark><strong>This Page / Entire Site</strong></mark> | Search tools can scan the tab you are on, or crawl the same site in the background. |

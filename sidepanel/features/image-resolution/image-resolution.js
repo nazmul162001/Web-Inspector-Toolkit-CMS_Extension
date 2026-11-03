@@ -54,6 +54,7 @@ export function createFeature(ctx) {
   let last = null; // the last image reported by the page
   let lastTabKey = '';
   let downloading = false;
+  let previewSeq = 0;
   let downloadPrefs = { sizeMode: 'original', customWidth: '', customHeight: 'auto' };
   const disposers = [];
 
@@ -152,24 +153,50 @@ export function createFeature(ctx) {
   const row = (label, value, { mono = false, tone = '' } = {}) =>
     value ? el('div', { class: 'ir-row' }, el('span', {}, label), el('span', { class: `${mono ? 'mono' : ''} ${tone ? `ir-tone--${tone}` : ''}`.trim() }, value)) : null;
 
+  function previewSrc(info) {
+    if (!info?.url || isTruncatedUrl(info.url) || /^blob:/i.test(info.url)) return '';
+    return info.url;
+  }
+
   function renderLast() {
     if (!last) {
       refs.last.hidden = true;
+      previewSeq += 1;
       return;
     }
     refs.last.hidden = false;
     const { display, natural } = last;
     const known = natural.w > 0 && natural.h > 0;
     const shortUrl = last.isData ? 'Inline image (data URL)' : last.url;
+    const src = previewSrc(last);
+    const thumb = el('img', { alt: last.alt || last.name || '', draggable: 'false' });
+    const preview = el('div', { class: 'ir-preview', hidden: !options.preview });
+    const hideBroken = () => {
+      preview.hidden = true;
+    };
+    if (src) {
+      thumb.addEventListener('error', hideBroken);
+      thumb.src = src;
+    }
+    preview.append(thumb);
     setChildren(
       refs.lastBody,
       el(
         'div',
-        { class: 'ir-last__top' },
-        el('span', { class: 'ir-kind' }, last.kind),
-        el('span', { class: 'ir-last__name', title: last.name }, last.name),
+        { class: 'ir-last__head' },
+        el(
+          'div',
+          { class: 'ir-last__meta' },
+          el(
+            'div',
+            { class: 'ir-last__top' },
+            el('span', { class: 'ir-kind' }, last.kind),
+            el('span', { class: 'ir-last__name', title: last.name }, last.name),
+          ),
+          el('div', { class: 'ir-size' }, formatSize(known ? natural.w : display.w, known ? natural.h : display.h), el('small', {}, known ? 'px actual size' : 'px displayed')),
+        ),
+        preview,
       ),
-      el('div', { class: 'ir-size' }, formatSize(known ? natural.w : display.w, known ? natural.h : display.h), el('small', {}, known ? 'px actual size' : 'px displayed')),
       el(
         'div',
         { class: 'ir-rows' },
@@ -184,6 +211,26 @@ export function createFeature(ctx) {
     );
     if (refs.format) refs.format.value = preferredDownloadFormat(last.format);
     syncCustomPanel();
+    if (options.preview && !src) fillPreview(thumb, preview);
+  }
+
+  async function fillPreview(thumb, preview) {
+    const mine = ++previewSeq;
+    try {
+      const url = await sourceUrl();
+      if (mine !== previewSeq || !refs || !last || !options.preview) return;
+      if (!url || isTruncatedUrl(url) || /^blob:/i.test(url)) {
+        preview.hidden = true;
+        return;
+      }
+      thumb.addEventListener('error', () => {
+        preview.hidden = true;
+      });
+      thumb.src = url;
+      preview.hidden = false;
+    } catch {
+      if (mine === previewSeq) preview.hidden = true;
+    }
   }
 
   function persistDownloadPrefs() {
@@ -315,6 +362,7 @@ export function createFeature(ctx) {
       box.addEventListener('change', () => {
         options = { ...options, [option.name]: box.checked };
         saveSettings({ image: options });
+        if (option.name === 'preview') renderLast();
         if (enabled && inspectedTabId !== null) apply();
       });
       return el('label', { class: 'cf-check', for: `ir-${option.name}`, title: option.help }, box, el('span', {}, option.label));
@@ -383,7 +431,7 @@ export function createFeature(ctx) {
         el(
           'div',
           { class: 'cf-head' },
-          el('h2', { id: 'ir-title', class: 'cf-title' }, 'Image Related'),
+          el('h2', { id: 'ir-title', class: 'cf-title' }, 'Inspect/Download image'),
           el('p', { class: 'cf-lead' }, 'Hover any image on the page to see its width and height.'),
         ),
         state,

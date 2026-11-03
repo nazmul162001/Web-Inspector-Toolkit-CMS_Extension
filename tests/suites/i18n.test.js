@@ -59,8 +59,16 @@ describe('Language: translate()', () => {
     assert.equal(ja('Half-width'), '半角');
     assert.equal(ja('Download'), 'ダウンロード');
     assert.equal(ja('Official Icon'), '公式アイコン');
+    assert.equal(ja('Inspect/Download image'), '画像の検査/ダウンロード');
     assert.equal(ja('Image Convert'), '画像変換');
     assert.equal(ja('Image Resize'), '画像リサイズ');
+    assert.equal(ja('Convert'), '変換');
+    assert.equal(ja('Resize'), 'リサイズ');
+    assert.equal(ja('From'), '変換元');
+    assert.equal(ja('Drop PNG images here'), 'PNG 画像をここにドロップ');
+    assert.equal(ja('Saved 3 images as a zip.'), '3 件の画像をZIPで保存しました。');
+    assert.equal(ja('3 images selected'), '3 件の画像を選択中');
+    assert.equal(ja('Choose at least one image.'), '画像を1枚以上選んでください。');
     assert.equal(ja('Remove Background'), '背景除去');
     assert.equal(ja('Image coming soon'), '画像準備中');
     assert.ok(ja('Thumbnails are 50×50. Download saves each file at its original size.').includes('50'));

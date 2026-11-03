@@ -19,7 +19,7 @@ const ATTRIBUTES = ['placeholder', 'title', 'aria-label'];
 const SKIP = [
   'code, pre, textarea, script, style, [data-i18n-skip], .mono, .tsnip, .tmark',
   '.tag-chip, .rcard__selector:not(.rcard__selector--none), .prop, .hex, .page-block__title, .page-block__path, .page-group__path',
-  '.context-bar__title, .context-bar__host, .ir-last__name, .ir-url, .kv__code, .chip',
+  '.context-bar__title, .context-bar__host, .ir-last__name, .ir-url, .kv__code, .chip, .ib-file__name',
 ].join(', ');
 
 /** Text node -> { orig, shown } ; element -> Map(attribute -> { orig, shown }) */

@@ -31,10 +31,10 @@ export const FEATURES = Object.freeze([
   { id: 'link-href', label: 'Link href', icon: 'link', status: FEATURE_STATUS.ACTIVE },
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.ACTIVE },
-  { id: 'image-resolution', label: 'Image Related', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'image-resolution', label: 'Inspect/Download image', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
   { id: 'official-image', label: 'Official Icon', icon: 'badge-check', status: FEATURE_STATUS.ACTIVE, usesScope: false },
-  { id: 'image-convert', label: 'Image Convert', icon: 'convert', status: FEATURE_STATUS.SOON, usesScope: false },
-  { id: 'image-resize', label: 'Image Resize', icon: 'resize', status: FEATURE_STATUS.SOON, usesScope: false },
+  { id: 'image-convert', label: 'Image Convert', icon: 'convert', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'image-resize', label: 'Image Resize', icon: 'resize', status: FEATURE_STATUS.ACTIVE, usesScope: false },
   { id: 'remove-background', label: 'Remove Background', icon: 'eraser', status: FEATURE_STATUS.SOON, usesScope: false },
   { id: 'screenshot', label: 'Screenshot Taker', icon: 'camera', status: FEATURE_STATUS.ACTIVE, usesScope: false },
 ]);

@@ -25,6 +25,8 @@ const loaders = {
   'width-text': () => import('./width-text/width-text.js'),
   'image-resolution': () => import('./image-resolution/image-resolution.js'),
   'official-image': () => import('./official-image/official-image.js'),
+  'image-convert': () => import('./image-convert/image-convert.js'),
+  'image-resize': () => import('./image-resize/image-resize.js'),
   screenshot: () => import('./screenshot/screenshot.js'),
 };
 

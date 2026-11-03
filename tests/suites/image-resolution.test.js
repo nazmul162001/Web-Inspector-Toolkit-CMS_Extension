@@ -483,6 +483,7 @@ describe('Image Resolution: plumbing', () => {
     const tool = FEATURES.find((f) => f.id === 'image-resolution');
     assert.equal(tool.status, FEATURE_STATUS.ACTIVE);
     assert.equal(tool.usesScope, false);
+    assert.equal(tool.label, 'Inspect/Download image');
     assert.deepEqual(
       { ...DEFAULT_SETTINGS.image },
       { backgrounds: true, outline: true, preview: true, sizeMode: 'original', customWidth: '', customHeight: 'auto' },

@@ -73,6 +73,14 @@ export const DEFAULT_SETTINGS = Object.freeze({
   screenshot: Object.freeze({
     shortcut: null,
   }),
+  imageResize: Object.freeze({
+    width: '800',
+    height: 'auto',
+  }),
+  imageConvert: Object.freeze({
+    from: 'png',
+    to: 'webp',
+  }),
 });
 
 /** Saved options of a "find in page text" tool: strings and booleans only, anything else falls back to the default. */
@@ -111,6 +119,29 @@ function sanitizeImageSettings(raw) {
   };
 }
 
+function sanitizeImageFormat(value, fallback) {
+  const key = String(value || '').toLowerCase();
+  if (key === 'jpeg') return 'jpg';
+  return ['png', 'jpg', 'webp', 'svg'].includes(key) ? key : fallback;
+}
+
+function sanitizeImageResize(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  const width = sanitizePixelSetting(value.width ?? DEFAULT_SETTINGS.imageResize.width) || DEFAULT_SETTINGS.imageResize.width;
+  return {
+    width,
+    height: sanitizeHeightSetting(value.height ?? DEFAULT_SETTINGS.imageResize.height),
+  };
+}
+
+function sanitizeImageConvert(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  return {
+    from: sanitizeImageFormat(value.from, DEFAULT_SETTINGS.imageConvert.from),
+    to: sanitizeImageFormat(value.to, DEFAULT_SETTINGS.imageConvert.to),
+  };
+}
+
 function sanitize(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -127,6 +158,8 @@ function sanitize(raw) {
     font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
     widthText: sanitizeSearchSettings(value.widthText, DEFAULT_SETTINGS.widthText),
     image: sanitizeImageSettings(value.image),
+    imageResize: sanitizeImageResize(value.imageResize),
+    imageConvert: sanitizeImageConvert(value.imageConvert),
     screenshot: { shortcut: sanitizeCombo(value.screenshot && value.screenshot.shortcut) },
   };
 }
@@ -153,6 +186,8 @@ export async function saveSettings(patch) {
     font: { ...current.font, ...(patch.font || {}) },
     widthText: { ...current.widthText, ...(patch.widthText || {}) },
     image: { ...current.image, ...(patch.image || {}) },
+    imageResize: { ...current.imageResize, ...(patch.imageResize || {}) },
+    imageConvert: { ...current.imageConvert, ...(patch.imageConvert || {}) },
     screenshot: { ...current.screenshot, ...(patch.screenshot || {}) },
   });
   try {
