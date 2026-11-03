@@ -19,8 +19,16 @@ import {
   splitSpaces,
   splitTopLevel,
 } from '../../services/image-geometry.js';
-import { imageAtPoint, isInspectorRunning, startInspector, stopInspector } from '../../content/image-inspector.js';
+import { imageAtPoint, inspectedImageSource, isInspectorRunning, startInspector, stopInspector } from '../../content/image-inspector.js';
 import { DEFAULT_SETTINGS } from '../../services/settings-service.js';
+import {
+  DOWNLOAD_FORMATS,
+  downloadFilename,
+  exportImage,
+  isTruncatedUrl,
+  preferredDownloadFormat,
+  sanitizeExportSize,
+} from '../../services/image-export.js';
 import { FEATURES, FEATURE_STATUS } from '../../shared/constants.js';
 
 const svg = (w, h, fill = '#c33') => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="${fill}"/></svg>`)}`;
@@ -190,6 +198,76 @@ describe('Image Resolution: wording', () => {
     assert.equal(dataUrlBytes('data:image/png;base64,QUJD'), 3);
     assert.equal(dataUrlBytes('data:image/svg+xml,%3Csvg%3E'), 5);
     assert.equal(dataUrlBytes('https://x.test/a.png'), 0);
+  });
+});
+
+describe('Image Resolution: download', () => {
+  it('picks a format and a file name from the hovered picture', () => {
+    assert.deepEqual([...DOWNLOAD_FORMATS], ['png', 'jpg', 'webp', 'svg']);
+    assert.equal(preferredDownloadFormat('JPEG'), 'jpg');
+    assert.equal(preferredDownloadFormat('PNG'), 'png');
+    assert.equal(preferredDownloadFormat('WebP'), 'webp');
+    assert.equal(preferredDownloadFormat('SVG'), 'svg');
+    assert.equal(preferredDownloadFormat('GIF'), 'png');
+    assert.equal(downloadFilename('hero@2x.webp', 'png'), 'hero@2x.png');
+    assert.equal(downloadFilename('photo.JPG', 'jpg'), 'photo.jpg');
+    assert.equal(downloadFilename('Inline image (data URL)', 'png'), 'image.png');
+    assert.equal(downloadFilename('a/b:c?.png', 'webp'), 'a_b_c_.webp');
+    assert.ok(isTruncatedUrl(`${'https://x.test/a.png'.padEnd(80, 'x')}…`));
+    assert.ok(!isTruncatedUrl('https://x.test/a.png'));
+  });
+
+  it('saves an SVG as SVG markup and can rasterise it to PNG', async () => {
+    const url = svg(8, 4, '#0a0');
+    const asSvg = await exportImage(url, 'svg', { name: 'box.svg' });
+    assert.equal(asSvg.filename, 'box.svg');
+    assert.equal(asSvg.blob.type, 'image/svg+xml');
+    assert.ok((await asSvg.blob.text()).includes('<svg'));
+
+    const asPng = await exportImage(url, 'png', { name: 'box.svg' });
+    assert.equal(asPng.filename, 'box.png');
+    assert.equal(asPng.blob.type, 'image/png');
+    assert.ok(asPng.blob.size > 0);
+  });
+
+  it('wraps a raster picture in SVG when that type is chosen', async () => {
+    const png = await exportImage(svg(6, 6), 'png', { name: 'dot' });
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(png.blob);
+    });
+    const asSvg = await exportImage(dataUrl, 'svg', { name: 'dot.png' });
+    const text = await asSvg.blob.text();
+    assert.equal(asSvg.filename, 'dot.svg');
+    assert.ok(text.includes('<svg'));
+    assert.ok(text.includes('image/png'));
+  });
+
+  it('refuses a truncated address', async () => {
+    await assert.rejects(exportImage('https://x.test/very-long…', 'png'));
+  });
+
+  it('accepts a custom pixel size and resizes the file to it', async () => {
+    assert.equal(sanitizeExportSize('', ''), null);
+    assert.equal(sanitizeExportSize(0, 10), null);
+    assert.deepEqual(sanitizeExportSize('800', '600'), { w: 800, h: 600, autoHeight: false });
+    assert.deepEqual(sanitizeExportSize(99999, 10), { w: 8192, h: 10, autoHeight: false });
+    assert.deepEqual(sanitizeExportSize('800', 'auto', { sourceWidth: 1600, sourceHeight: 900 }), { w: 800, h: 450, autoHeight: true });
+    assert.equal(sanitizeExportSize('800', 'auto').autoHeight, true);
+    const { blob } = await exportImage(svg(40, 20), 'png', { name: 'box', width: 10, height: 8 });
+    const bitmap = await createImageBitmap(blob);
+    assert.equal(bitmap.width, 10);
+    assert.equal(bitmap.height, 8);
+    bitmap.close();
+  });
+
+  it('keeps height auto from the width and the picture ratio', async () => {
+    const { blob } = await exportImage(svg(40, 20), 'png', { name: 'box', width: 10, height: 'auto' });
+    const bitmap = await createImageBitmap(blob);
+    assert.equal(bitmap.width, 10);
+    assert.equal(bitmap.height, 5);
+    bitmap.close();
   });
 });
 
@@ -383,6 +461,21 @@ describe('Image Resolution: the card on the page', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     assert.ok(!isInspectorRunning());
   });
+
+  it('keeps the last picture so it can be downloaded after the pointer moves on', async () => {
+    const holder = place(`<img src="${svg(200, 100)}" width="100" height="50">`);
+    await holder.querySelector('img').decode();
+    startInspector({});
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 60, bubbles: true }));
+    await sleep(150);
+    const source = await inspectedImageSource();
+    assert.ok(source);
+    assert.ok(source.url.startsWith('data:image/svg'));
+    stopInspector();
+    const afterStop = await inspectedImageSource();
+    assert.ok(afterStop);
+    assert.equal(afterStop.url, source.url);
+  });
 });
 
 describe('Image Resolution: plumbing', () => {
@@ -390,6 +483,9 @@ describe('Image Resolution: plumbing', () => {
     const tool = FEATURES.find((f) => f.id === 'image-resolution');
     assert.equal(tool.status, FEATURE_STATUS.ACTIVE);
     assert.equal(tool.usesScope, false);
-    assert.deepEqual({ ...DEFAULT_SETTINGS.image }, { backgrounds: true, outline: true, preview: true });
+    assert.deepEqual(
+      { ...DEFAULT_SETTINGS.image },
+      { backgrounds: true, outline: true, preview: true, sizeMode: 'original', customWidth: '', customHeight: 'auto' },
+    );
   });
 });

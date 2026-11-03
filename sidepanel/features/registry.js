@@ -24,6 +24,7 @@ const loaders = {
   'font-find': () => import('./font-find/font-find.js'),
   'width-text': () => import('./width-text/width-text.js'),
   'image-resolution': () => import('./image-resolution/image-resolution.js'),
+  'official-image': () => import('./official-image/official-image.js'),
   screenshot: () => import('./screenshot/screenshot.js'),
 };
 

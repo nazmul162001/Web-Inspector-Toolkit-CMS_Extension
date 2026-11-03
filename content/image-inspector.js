@@ -35,6 +35,7 @@ import {
   layoutBackgroundLayer,
   splitTopLevel,
 } from '../services/image-geometry.js';
+import { blobToDataUrl } from '../services/image-export.js';
 
 const HOST_ID = 'wit-image-inspector';
 const MAX_CACHE = 300;
@@ -42,6 +43,7 @@ const MAX_STACK = 60;
 const MAX_URL_SENT = 2000;
 
 let session = null; // the running inspector, or null
+let lastHit = null; // last picture under the pointer; kept after stop so Download still works
 
 /* ------------------------------------------------------- Image sizes */
 
@@ -656,6 +658,7 @@ export function startInspector(options = {}) {
       return;
     }
     paintCard(card, hit, state.point, state.options);
+    lastHit = hit;
     if (hit.key !== state.lastKey) {
       state.lastKey = hit.key;
       broadcast(MSG.IMAGE_INSPECT_EVENT, { type: 'hover', info: summary(hit) });
@@ -716,3 +719,30 @@ export function stopInspector() {
 }
 
 export const isInspectorRunning = () => session !== null;
+
+function absoluteUrl(url) {
+  if (!url || /^data:/i.test(url) || /^blob:/i.test(url)) return url;
+  try {
+    return new URL(url, document.baseURI).href;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * The last hovered picture, with a full address the side panel can fetch.
+ * blob: URLs are turned into data URLs because the panel cannot read them.
+ */
+export async function inspectedImageSource() {
+  if (!lastHit) return null;
+  let url = absoluteUrl(lastHit.url);
+  if (/^blob:/i.test(url)) {
+    try {
+      const blob = await fetch(url).then((response) => response.blob());
+      url = await blobToDataUrl(blob);
+    } catch {
+      /* keep the blob URL; the panel will report the failure */
+    }
+  }
+  return { url, name: lastHit.name, format: lastHit.format };
+}

@@ -31,7 +31,11 @@ export const FEATURES = Object.freeze([
   { id: 'link-href', label: 'Link href', icon: 'link', status: FEATURE_STATUS.ACTIVE },
   { id: 'font-find', label: 'Font Find', icon: 'font', status: FEATURE_STATUS.ACTIVE },
   { id: 'width-text', label: 'Half/Full Width Text', icon: 'width', status: FEATURE_STATUS.ACTIVE },
-  { id: 'image-resolution', label: 'Image Resolution', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'image-resolution', label: 'Image Related', icon: 'image', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'official-image', label: 'Official Icon', icon: 'badge-check', status: FEATURE_STATUS.ACTIVE, usesScope: false },
+  { id: 'image-convert', label: 'Image Convert', icon: 'convert', status: FEATURE_STATUS.SOON, usesScope: false },
+  { id: 'image-resize', label: 'Image Resize', icon: 'resize', status: FEATURE_STATUS.SOON, usesScope: false },
+  { id: 'remove-background', label: 'Remove Background', icon: 'eraser', status: FEATURE_STATUS.SOON, usesScope: false },
   { id: 'screenshot', label: 'Screenshot Taker', icon: 'camera', status: FEATURE_STATUS.ACTIVE, usesScope: false },
 ]);
 
@@ -48,6 +52,7 @@ export const MSG = Object.freeze({
   HIGHLIGHT: 'wit/highlight',
   CLEAR_MARKS: 'wit/clear-marks',
   IMAGE_INSPECT: 'wit/image-inspect', // start / stop the hover inspector of Image Resolution in a tab
+  IMAGE_SOURCE: 'wit/image-source', // full URL of the last hovered image (Download needs the untruncated address)
   SCREENSHOT_START: 'wit/screenshot-start', // { tabId, mode: 'area' | 'current' | 'full', language }
   SCREENSHOT_CANCEL: 'wit/screenshot-cancel', // { tabId }
   SCREENSHOT_EDITOR: 'wit/screenshot-editor', // { tabId, action: 'copy' | 'save' } while the overlay is open
@@ -71,6 +76,7 @@ export const MSG = Object.freeze({
   CONTENT_HIGHLIGHT: 'wit/content/highlight',
   CONTENT_CLEAR_MARKS: 'wit/content/clear-marks',
   CONTENT_IMAGE_INSPECT: 'wit/content/image-inspect',
+  CONTENT_IMAGE_SOURCE: 'wit/content/image-source', // last hovered image, full URL (or a data URL for blob:)
   CONTENT_SCREENSHOT: 'wit/content/screenshot', // { action: 'start' | 'cancel' | 'copy' | 'save', mode, language }
 
   // content script -> extension (events)

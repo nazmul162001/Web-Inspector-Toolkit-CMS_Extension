@@ -57,6 +57,18 @@ describe('Language: translate()', () => {
     assert.equal(ja('Page'), 'ページ');
     assert.equal(ja('Search first 5 articles'), '最初の5件の記事を検索');
     assert.equal(ja('Half-width'), '半角');
+    assert.equal(ja('Download'), 'ダウンロード');
+    assert.equal(ja('Official Icon'), '公式アイコン');
+    assert.equal(ja('Image Convert'), '画像変換');
+    assert.equal(ja('Image Resize'), '画像リサイズ');
+    assert.equal(ja('Remove Background'), '背景除去');
+    assert.equal(ja('Image coming soon'), '画像準備中');
+    assert.ok(ja('Thumbnails are 50×50. Download saves each file at its original size.').includes('50'));
+    assert.equal(ja('Original size'), 'オリジナルサイズ');
+    assert.equal(ja('Auto'), '自動');
+    assert.equal(ja('Enter a width.'), '幅を入力してください。');
+    assert.equal(ja('Custom size saved.'), 'カスタムサイズを保存しました。');
+    assert.equal(ja('Image saved.'), '画像を保存しました。');
     assert.equal(ja('Copied'), 'コピーしました');
     assert.ok(ja('When this is enabled, Entire Site searches only the first 5 article pages under /blog, /column, /news and /gallery, plus each listing page. Disable it to search every article. Other pages are not limited.').includes('最初の5件'));
     assert.equal(ja('Checking the site: 3 of 40 pages'), 'サイトを処理中: 40 ページ中 3 ページ');

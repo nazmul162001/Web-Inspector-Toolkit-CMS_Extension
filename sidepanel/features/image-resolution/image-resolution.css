@@ -230,6 +230,56 @@
 
 .ir-last__actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 10px;
+}
+
+.ir-download {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.ir-format__select,
+.ir-size-select {
+  width: auto;
+  min-width: 76px;
+  height: 28px;
+  padding: 0 6px;
+}
+
+.ir-size-select {
+  min-width: 118px;
+}
+
+.ir-custom {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.ir-custom[hidden] {
+  display: none;
+}
+
+.ir-custom__field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ir-custom__field .field-label {
+  margin-bottom: 0;
+}
+
+.ir-custom__input {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: var(--mono);
 }

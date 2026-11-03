@@ -103,6 +103,12 @@ export async function setImageInspector(tabId, enabled, options = {}) {
   return sendToTab(tabId, MSG.CONTENT_IMAGE_INSPECT, { enabled, options }, { timeoutMs: 4000 });
 }
 
+/** Full address of the last image Image Resolution hovered in `tabId`, or null. */
+export async function getInspectedImageSource(tabId) {
+  if (!(await pingTab(tabId, 500))) return null;
+  return sendToTab(tabId, MSG.CONTENT_IMAGE_SOURCE, null, { timeoutMs: 20000 });
+}
+
 /**
  * Start or cancel a Screenshot Taker run in a tab. Cancelling never injects
  * anything: a page that never ran it has nothing to cancel.

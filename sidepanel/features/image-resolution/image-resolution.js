@@ -11,7 +11,17 @@ import { copyToClipboard, el, setChildren } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
 import { getLanguage } from '../../../services/i18n.js';
-import { formatBytes, formatPixels, formatSize } from '../../../services/image-geometry.js';
+import { formatBytes, formatSize } from '../../../services/image-geometry.js';
+import {
+  DOWNLOAD_FORMAT_LABELS,
+  DOWNLOAD_FORMATS,
+  exportImage,
+  isTruncatedUrl,
+  preferredDownloadFormat,
+  isAutoHeight,
+  sanitizeExportSize,
+  saveBlob,
+} from '../../../services/image-export.js';
 import { ensureAccess } from '../../permissions.js';
 import { describeError } from '../scan-ui.js';
 import { icon } from '../../components/icons.js';
@@ -43,6 +53,8 @@ export function createFeature(ctx) {
   let sequence = 0;
   let last = null; // the last image reported by the page
   let lastTabKey = '';
+  let downloading = false;
+  let downloadPrefs = { sizeMode: 'original', customWidth: '', customHeight: 'auto' };
   const disposers = [];
 
   /* ------------------------------------------------------------- Status */
@@ -170,11 +182,110 @@ export function createFeature(ctx) {
       ),
       el('div', { class: 'ir-url', title: last.isData ? '' : last.url }, shortUrl),
     );
+    if (refs.format) refs.format.value = preferredDownloadFormat(last.format);
+    syncCustomPanel();
+  }
+
+  function persistDownloadPrefs() {
+    saveSettings({
+      image: {
+        sizeMode: downloadPrefs.sizeMode,
+        customWidth: downloadPrefs.customWidth,
+        customHeight: downloadPrefs.customHeight,
+      },
+    });
+  }
+
+  function syncCustomPanel() {
+    if (!refs?.custom) return;
+    const custom = downloadPrefs.sizeMode === 'custom';
+    refs.sizeMode.value = custom ? 'custom' : 'original';
+    refs.custom.hidden = !last || !custom;
+  }
+
+  function readCustomSize() {
+    const natural = last?.natural;
+    if (!sanitizeExportSize(refs.width?.value, 'auto')) return { error: 'Enter a width.' };
+    const size = sanitizeExportSize(refs.width.value, refs.height?.value, {
+      sourceWidth: natural?.w,
+      sourceHeight: natural?.h,
+    });
+    if (!size) return { error: 'Enter a valid height, or leave it as auto.' };
+    return { size };
+  }
+
+  function rememberCustomSize(size) {
+    downloadPrefs.customWidth = String(size.w);
+    downloadPrefs.customHeight = size.autoHeight || isAutoHeight(refs.height?.value) ? 'auto' : String(size.h);
+    if (refs.width) refs.width.value = downloadPrefs.customWidth;
+    if (refs.height) refs.height.value = downloadPrefs.customHeight;
+    persistDownloadPrefs();
+  }
+
+  function saveCustomSize() {
+    const { size, error } = readCustomSize();
+    if (!size) {
+      ctx.notify.error(error);
+      return;
+    }
+    rememberCustomSize(size);
+    ctx.notify.success('Custom size saved.');
+  }
+
+  function onSizeModeChange() {
+    downloadPrefs.sizeMode = refs.sizeMode.value === 'custom' ? 'custom' : 'original';
+    persistDownloadPrefs();
+    syncCustomPanel();
   }
 
   async function copy(text, noun) {
     if (await copyToClipboard(text)) ctx.notify.success(`${noun} copied.`);
     else ctx.notify.error('Could not copy to the clipboard.');
+  }
+
+  async function sourceUrl() {
+    const tabId = ctx.getTabContext()?.tab?.id;
+    if (Number.isInteger(tabId)) {
+      try {
+        const source = await sendToBackground(MSG.IMAGE_SOURCE, { tabId }, { timeoutMs: 20000 });
+        if (source?.url) return source.url;
+      } catch {
+        /* inspector not running in this tab; use what the panel already has */
+      }
+    }
+    return last.url;
+  }
+
+  async function downloadLast() {
+    if (!last || downloading) return;
+    downloading = true;
+    if (refs.download) refs.download.disabled = true;
+    try {
+      const url = await sourceUrl();
+      if (isTruncatedUrl(url)) {
+        throw new Error('The image address is incomplete. Hover the image again and try downloading.');
+      }
+      const format = DOWNLOAD_FORMATS.includes(refs.format?.value) ? refs.format.value : preferredDownloadFormat(last.format);
+      let size = null;
+      if (downloadPrefs.sizeMode === 'custom') {
+        const read = readCustomSize();
+        if (!read.size) throw new Error(read.error);
+        size = read.size;
+        rememberCustomSize(size);
+      }
+      const { blob, filename } = await exportImage(url, format, {
+        name: last.name,
+        width: size?.w,
+        height: size?.autoHeight ? 'auto' : size?.h,
+      });
+      saveBlob(blob, filename);
+      ctx.notify.success('Image saved.');
+    } catch (error) {
+      ctx.notify.error(error?.message || 'The image could not be downloaded.');
+    } finally {
+      downloading = false;
+      if (refs?.download) refs.download.disabled = false;
+    }
   }
 
   /* -------------------------------------------------------------- Mount */
@@ -196,6 +307,7 @@ export function createFeature(ctx) {
 
     const settings = (await loadSettings()).image;
     options = { backgrounds: settings.backgrounds, outline: settings.outline, preview: settings.preview };
+    downloadPrefs = { sizeMode: settings.sizeMode, customWidth: settings.customWidth, customHeight: settings.customHeight };
 
     const optionBoxes = OPTIONS.map((option) => {
       const box = el('input', { type: 'checkbox', id: `ir-${option.name}` });
@@ -209,6 +321,47 @@ export function createFeature(ctx) {
     });
 
     const lastBody = el('div', { class: 'ir-last__body' });
+    const formatSelect = el(
+      'select',
+      { class: 'select ir-format__select', 'aria-label': 'Download format', 'data-i18n-skip': true },
+      ...DOWNLOAD_FORMATS.map((value) => el('option', { value }, DOWNLOAD_FORMAT_LABELS[value])),
+    );
+    const sizeSelect = el(
+      'select',
+      { class: 'select ir-size-select', 'aria-label': 'Download size', onChange: () => onSizeModeChange() },
+      el('option', { value: 'original' }, 'Original size'),
+      el('option', { value: 'custom' }, 'Custom'),
+    );
+    sizeSelect.value = downloadPrefs.sizeMode === 'custom' ? 'custom' : 'original';
+    const widthInput = el('input', {
+      class: 'input ir-custom__input',
+      type: 'number',
+      min: '1',
+      max: '8192',
+      step: '1',
+      inputmode: 'numeric',
+      'aria-label': 'Width',
+      placeholder: 'Width',
+      value: downloadPrefs.customWidth,
+    });
+    const heightInput = el('input', {
+      class: 'input ir-custom__input',
+      type: 'text',
+      inputmode: 'numeric',
+      'aria-label': 'Height',
+      placeholder: 'Auto',
+      value: downloadPrefs.customHeight || 'auto',
+      spellcheck: 'false',
+    });
+    const saveSizeBtn = el('button', { class: 'btn btn--sm', type: 'button', onClick: () => saveCustomSize() }, 'Save');
+    const customPanel = el(
+      'div',
+      { class: 'ir-custom', hidden: true },
+      el('label', { class: 'ir-custom__field' }, el('span', { class: 'field-label' }, 'Width'), widthInput),
+      el('label', { class: 'ir-custom__field' }, el('span', { class: 'field-label' }, 'Height'), heightInput),
+      saveSizeBtn,
+    );
+    const downloadBtn = el('button', { class: 'btn btn--sm', type: 'button', onClick: () => downloadLast() }, icon('download', 14), 'Download');
     const last_ = el(
       'div',
       { class: 'ir-last', hidden: true },
@@ -217,9 +370,10 @@ export function createFeature(ctx) {
       el(
         'div',
         { class: 'ir-last__actions' },
-        el('button', { class: 'btn btn--sm', type: 'button', onClick: () => last && copy(last.natural.w > 0 ? `${last.natural.w}x${last.natural.h}` : `${formatPixels(last.display.w)}x${formatPixels(last.display.h)}`, 'Size') }, icon('copy', 14), 'Copy size'),
         el('button', { class: 'btn btn--sm', type: 'button', onClick: () => last && copy(last.url, 'Image address') }, icon('copy', 14), 'Copy address'),
+        el('div', { class: 'ir-download' }, downloadBtn, formatSelect, sizeSelect),
       ),
+      customPanel,
     );
 
     container.replaceChildren(
@@ -229,7 +383,7 @@ export function createFeature(ctx) {
         el(
           'div',
           { class: 'cf-head' },
-          el('h2', { id: 'ir-title', class: 'cf-title' }, 'Image Resolution'),
+          el('h2', { id: 'ir-title', class: 'cf-title' }, 'Image Related'),
           el('p', { class: 'cf-lead' }, 'Hover any image on the page to see its width and height.'),
         ),
         state,
@@ -245,7 +399,21 @@ export function createFeature(ctx) {
       ),
     );
 
-    refs = { state, stateTitle, stateDetail, stateActions, toggle, last: last_, lastBody };
+    refs = {
+      state,
+      stateTitle,
+      stateDetail,
+      stateActions,
+      toggle,
+      last: last_,
+      lastBody,
+      download: downloadBtn,
+      format: formatSelect,
+      sizeMode: sizeSelect,
+      custom: customPanel,
+      width: widthInput,
+      height: heightInput,
+    };
 
     toggle.addEventListener('click', () => {
       enabled = !enabled;

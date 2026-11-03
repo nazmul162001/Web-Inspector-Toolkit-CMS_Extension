@@ -58,6 +58,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
     backgrounds: true,
     outline: true,
     preview: true,
+    sizeMode: 'original',
+    customWidth: '',
+    customHeight: 'auto',
   }),
   font: Object.freeze({
     query: '',
@@ -85,6 +88,29 @@ function sanitizeSearchSettings(raw, defaults) {
   return out;
 }
 
+function sanitizePixelSetting(value) {
+  const n = Math.round(Number(String(value ?? '').trim()));
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return String(Math.min(8192, n));
+}
+
+function sanitizeHeightSetting(value) {
+  const text = String(value ?? '').trim().toLowerCase();
+  if (!text || text === 'auto') return 'auto';
+  return sanitizePixelSetting(value);
+}
+
+function sanitizeImageSettings(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  const base = sanitizeSearchSettings(value, DEFAULT_SETTINGS.image);
+  return {
+    ...base,
+    sizeMode: value.sizeMode === 'custom' || base.sizeMode === 'custom' ? 'custom' : 'original',
+    customWidth: sanitizePixelSetting(value.customWidth ?? base.customWidth),
+    customHeight: sanitizeHeightSetting(value.customHeight ?? base.customHeight),
+  };
+}
+
 function sanitize(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -100,7 +126,7 @@ function sanitize(raw) {
     href: sanitizeSearchSettings(value.href, DEFAULT_SETTINGS.href),
     font: sanitizeSearchSettings(value.font, DEFAULT_SETTINGS.font),
     widthText: sanitizeSearchSettings(value.widthText, DEFAULT_SETTINGS.widthText),
-    image: sanitizeSearchSettings(value.image, DEFAULT_SETTINGS.image),
+    image: sanitizeImageSettings(value.image),
     screenshot: { shortcut: sanitizeCombo(value.screenshot && value.screenshot.shortcut) },
   };
 }

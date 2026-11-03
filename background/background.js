@@ -12,7 +12,7 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { clearMarksInTab, controlScreenshot, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
+import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
 import { captureForSender, markScreenshotTab } from '../services/capture-tab-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
@@ -294,6 +294,11 @@ async function handleImageInspect({ tabId, enabled, options, sessionId } = {}) {
   return result;
 }
 
+async function handleImageSource({ tabId } = {}) {
+  if (!Number.isInteger(tabId)) throw createError(ERR.INVALID_REQUEST, 'Missing tab.');
+  return getInspectedImageSource(tabId);
+}
+
 /* ------------------------------------------------------ Screenshot Taker */
 
 const SHOT_MODES = ['area', 'current', 'full'];
@@ -466,6 +471,7 @@ registerHandlers({
   [MSG.HIGHLIGHT]: handleHighlight,
   [MSG.CLEAR_MARKS]: handleClearMarks,
   [MSG.IMAGE_INSPECT]: handleImageInspect,
+  [MSG.IMAGE_SOURCE]: handleImageSource,
   [MSG.SCREENSHOT_START]: handleScreenshotStart,
   [MSG.SCREENSHOT_CANCEL]: handleScreenshotCancel,
   [MSG.SCREENSHOT_EDITOR]: handleScreenshotEditor,
