@@ -318,6 +318,7 @@ async function handleScreenshotStart({ tabId, mode, language, sessionId } = {}) 
   await markScreenshotTab(tabId, true);
   try {
     const result = await controlScreenshot(tabId, 'start', { mode, language: normalizeLanguage(language) });
+    await injectEditorKeyHook(tabId);
     if (typeof sessionId === 'string') {
       const previous = screenshotSessions.get(sessionId);
       if (previous !== undefined && previous !== tabId) handleScreenshotCancel({ tabId: previous }).catch(() => {});
@@ -353,12 +354,94 @@ async function handleScreenshotSetHotkey({ shortcut } = {}) {
   return syncScreenshotHotkey(sanitizeCombo(shortcut));
 }
 
-// The run is over (done, cancelled or failed): the tab may not be photographed any more.
+async function handleScreenshotEditor({ tabId, action } = {}) {
+  if (!Number.isInteger(tabId) || (action !== 'copy' && action !== 'save')) {
+    throw createError(ERR.INVALID_REQUEST, 'Invalid screenshot request.');
+  }
+  return controlScreenshot(tabId, action);
+}
+
+/**
+ * Chrome handles ⌘S / ⌘C in the browser UI. A listener in the page's own
+ * world can cancel that and tell the editor (isolated world) to copy or save.
+ */
+function injectEditorKeyHook(tabId) {
+  return chrome.scripting
+    .executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      func: () => {
+        if (window.__witShotEditorKeys) return;
+        window.__witShotEditorKeys = true;
+        const activate = () => {
+          const host = document.getElementById('wit-screenshot-editor');
+          if (!host || document.activeElement === host) return;
+          host.tabIndex = -1;
+          try {
+            window.focus();
+          } catch {
+            /* the tab may not take focus */
+          }
+          host.focus({ preventScroll: true });
+        };
+        window.addEventListener('pointermove', activate, true);
+        window.addEventListener('pointerdown', activate, true);
+        window.addEventListener(
+          'keydown',
+          (event) => {
+            if (!document.getElementById('wit-screenshot-editor')) return;
+            activate();
+            if (event.repeat || !(event.ctrlKey || event.metaKey)) return;
+            const code = event.code || '';
+            const letter =
+              code.startsWith('Key') && code.length === 4
+                ? code.slice(3).toLowerCase()
+                : event.key && event.key.length === 1
+                  ? event.key.toLowerCase()
+                  : '';
+            if (letter !== 's' && letter !== 'c') return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            window.dispatchEvent(new CustomEvent('wit-screenshot-key', { bubbles: true, detail: { letter } }));
+          },
+          true,
+        );
+      },
+    })
+    .catch(() => {});
+}
+
+async function focusEditorTab(tabId) {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab) return;
+  if (Number.isInteger(tab.windowId)) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+  await chrome.tabs.update(tabId, { active: true }).catch(() => {});
+  await chrome.scripting
+    .executeScript({
+      target: { tabId },
+      func: () => {
+        window.focus();
+        const host = document.getElementById('wit-screenshot-editor');
+        if (!host) return;
+        host.tabIndex = -1;
+        host.focus({ preventScroll: true });
+      },
+    })
+    .catch(() => {});
+}
+
 onEvent(MSG.SCREENSHOT_EVENT, (event, { sender } = {}) => {
-  if (!['done', 'cancelled', 'error'].includes(event?.state) || !Number.isInteger(sender?.tab?.id)) return;
-  markScreenshotTab(sender.tab.id, false);
-  for (const [sessionId, tabId] of screenshotSessions) {
-    if (tabId === sender.tab.id) screenshotSessions.delete(sessionId);
+  const tabId = sender?.tab?.id;
+  if (!Number.isInteger(tabId)) return;
+  if (event?.state === 'editing') {
+    focusEditorTab(tabId).catch(() => {});
+    return;
+  }
+  if (!['done', 'cancelled', 'error'].includes(event.state)) return;
+  markScreenshotTab(tabId, false);
+  for (const [sessionId, id] of screenshotSessions) {
+    if (id === tabId) screenshotSessions.delete(sessionId);
   }
 });
 chrome.tabs.onRemoved.addListener((tabId) => markScreenshotTab(tabId, false));
@@ -385,6 +468,7 @@ registerHandlers({
   [MSG.IMAGE_INSPECT]: handleImageInspect,
   [MSG.SCREENSHOT_START]: handleScreenshotStart,
   [MSG.SCREENSHOT_CANCEL]: handleScreenshotCancel,
+  [MSG.SCREENSHOT_EDITOR]: handleScreenshotEditor,
   [MSG.SCREENSHOT_HOTKEY]: handleScreenshotHotkey,
   [MSG.SCREENSHOT_SET_HOTKEY]: handleScreenshotSetHotkey,
   [MSG.SCREENSHOT_CAPTURE]: (_payload, { sender }) => captureForSender(sender),

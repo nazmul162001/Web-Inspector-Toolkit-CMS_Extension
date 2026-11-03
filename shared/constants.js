@@ -50,6 +50,7 @@ export const MSG = Object.freeze({
   IMAGE_INSPECT: 'wit/image-inspect', // start / stop the hover inspector of Image Resolution in a tab
   SCREENSHOT_START: 'wit/screenshot-start', // { tabId, mode: 'area' | 'current' | 'full', language }
   SCREENSHOT_CANCEL: 'wit/screenshot-cancel', // { tabId }
+  SCREENSHOT_EDITOR: 'wit/screenshot-editor', // { tabId, action: 'copy' | 'save' } while the overlay is open
   SCREENSHOT_HOTKEY: 'wit/screenshot-hotkey', // content script: start Select Area on this tab, no side panel
   SCREENSHOT_SET_HOTKEY: 'wit/screenshot-set-hotkey', // panel: persist the page listener for the saved combo
 
@@ -70,7 +71,7 @@ export const MSG = Object.freeze({
   CONTENT_HIGHLIGHT: 'wit/content/highlight',
   CONTENT_CLEAR_MARKS: 'wit/content/clear-marks',
   CONTENT_IMAGE_INSPECT: 'wit/content/image-inspect',
-  CONTENT_SCREENSHOT: 'wit/content/screenshot', // { action: 'start' | 'cancel', mode, language }
+  CONTENT_SCREENSHOT: 'wit/content/screenshot', // { action: 'start' | 'cancel' | 'copy' | 'save', mode, language }
 
   // content script -> extension (events)
   CONTENT_PROGRESS: 'wit/content/progress',

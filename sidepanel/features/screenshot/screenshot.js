@@ -190,6 +190,21 @@ export function createFeature(ctx) {
     }
   }
 
+  function editorCommandLetter(event) {
+    if (event.code && event.code.startsWith('Key') && event.code.length === 4) return event.code.slice(3).toLowerCase();
+    return event.key.length === 1 ? event.key.toLowerCase() : '';
+  }
+
+  function onEditorKeys(event) {
+    if (phase !== 'editing' || runTabId === null || listening || event.repeat) return;
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const letter = editorCommandLetter(event);
+    if (letter !== 'c' && letter !== 's') return;
+    event.preventDefault();
+    event.stopPropagation();
+    sendToBackground(MSG.SCREENSHOT_EDITOR, { tabId: runTabId, action: letter === 's' ? 'save' : 'copy' }, { timeoutMs: 20000 }).catch(() => {});
+  }
+
   async function cancel() {
     const tabId = runTabId;
     if (tabId === null) return;
@@ -263,6 +278,8 @@ export function createFeature(ctx) {
         break;
       case 'editing':
         showStatus('on', 'The editor is open on the page', 'Draw on the picture. Copy or Save also closes the editor.', { actions: cancelAction.map((action) => ({ ...action, label: 'Close editor' })) });
+        refs.cards.forEach((card) => card.blur());
+        if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
         break;
       case 'done':
         finish();
@@ -342,6 +359,8 @@ export function createFeature(ctx) {
     );
 
     refs = { state, stateTitle, stateDetail, stateActions, stateIcon, progress, cards, capture, save, clear, hint, blocked: null, blockedShown: false };
+    window.addEventListener('keydown', onEditorKeys, true);
+    disposers.push(() => window.removeEventListener('keydown', onEditorKeys, true));
     disposers.push(onEvent(MSG.SCREENSHOT_EVENT, onShotEvent));
     applyTabState(ctx.getTabContext());
     loadSettings()

@@ -110,7 +110,8 @@ export async function setImageInspector(tabId, enabled, options = {}) {
 export async function controlScreenshot(tabId, action, options = {}) {
   if (action === 'start') await ensureContentScript(tabId);
   else if (!(await pingTab(tabId, 500))) return { cancelled: false };
-  return sendToTab(tabId, MSG.CONTENT_SCREENSHOT, { action, ...options }, { timeoutMs: 5000 });
+  const timeoutMs = action === 'copy' || action === 'save' ? 20000 : 5000;
+  return sendToTab(tabId, MSG.CONTENT_SCREENSHOT, { action, ...options }, { timeoutMs });
 }
 
 /** Remove the character marks of Half/Full Width Text from a tab (nothing to do when the scanner never ran there). */

@@ -121,6 +121,15 @@ export function cancelScreenshot({ force = false } = {}) {
   return { cancelled: true };
 }
 
+/** Copy or save from the side panel (⌘C / ⌘S) while the editor is open. */
+export function commandScreenshot(action) {
+  const editor = session?.editor;
+  if (!editor || editor.isClosed) return { ok: false };
+  if (action === 'copy') return Promise.resolve(editor.copy()).then(() => ({ ok: true }));
+  if (action === 'save') return Promise.resolve(editor.save()).then(() => ({ ok: true }));
+  return { ok: false };
+}
+
 /** The test hook: the editor of the run in progress. */
 export function currentEditor() {
   return session?.editor || null;

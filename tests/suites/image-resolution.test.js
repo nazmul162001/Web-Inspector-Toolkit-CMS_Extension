@@ -306,6 +306,56 @@ describe('Image Resolution: finding images under the pointer', () => {
     assert.ok(hit);
     assert.equal(hit.display.w, 80);
   });
+
+  it('finds a picture drawn with ::before background-image', async () => {
+    const url = svg(240, 160);
+    const holder = place('<div id="ir-before" style="position:relative;width:120px;height:80px;"></div>');
+    const sheet = document.createElement('style');
+    sheet.textContent = `#ir-before::before{content:"";position:absolute;inset:0;background:url("${url}") center / cover no-repeat;}`;
+    holder.append(sheet);
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, '::before image');
+    assert.deepEqual(hit.natural, { w: 240, h: 160 });
+    assert.ok(hit.display.w >= 100, hit.display.w);
+    assert.ok(hit.display.h >= 60, hit.display.h);
+  });
+
+  it('finds a picture drawn with ::after content:url()', async () => {
+    const url = svg(100, 50);
+    const holder = place('<div id="ir-after" style="position:relative;width:100px;height:50px;"></div>');
+    const sheet = document.createElement('style');
+    sheet.textContent = `#ir-after::after{content:url("${url}");position:absolute;left:0;top:0;}`;
+    holder.append(sheet);
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, '::after image');
+    assert.deepEqual(hit.natural, { w: 100, h: 50 });
+  });
+
+  it('prefers ::after over the element\'s own background', async () => {
+    const behind = svg(10, 10, '#111');
+    const front = svg(120, 80, '#0a0');
+    const holder = place(`<div id="ir-stack" style="position:relative;width:120px;height:80px;background:url('${behind}')"></div>`);
+    const sheet = document.createElement('style');
+    sheet.textContent = `#ir-stack::after{content:"";position:absolute;inset:0;background:url("${front}") center / cover no-repeat;}`;
+    holder.append(sheet);
+    const hit = await lookup(70, 70);
+    assert.ok(hit);
+    assert.equal(hit.kind, '::after image');
+    assert.deepEqual(hit.natural, { w: 120, h: 80 });
+  });
+
+  it('still finds content:url() on ::before when backgrounds are turned off', async () => {
+    const url = svg(80, 40);
+    const holder = place('<div id="ir-content" style="position:relative;width:80px;height:40px;"></div>');
+    const sheet = document.createElement('style');
+    sheet.textContent = `#ir-content::before{content:url("${url}");position:absolute;left:0;top:0;}`;
+    holder.append(sheet);
+    const hit = await lookup(60, 55, { backgrounds: false });
+    assert.ok(hit);
+    assert.equal(hit.kind, '::before image');
+  });
 });
 
 describe('Image Resolution: the card on the page', () => {

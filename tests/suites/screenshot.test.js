@@ -446,7 +446,7 @@ describe('Screenshot: tool entry', () => {
     assert.equal(shot.usesScope, false);
     assert.equal(translate('Screenshot Taker', 'ja'), 'スクリーンショット');
     assert.equal(FEATURES[FEATURES.length - 1].id, 'screenshot');
-    for (const type of ['SCREENSHOT_START', 'SCREENSHOT_CANCEL', 'SCREENSHOT_CAPTURE', 'CONTENT_SCREENSHOT', 'SCREENSHOT_EVENT', 'SCREENSHOT_HOTKEY', 'SCREENSHOT_SET_HOTKEY']) assert.ok(MSG[type], type);
+    for (const type of ['SCREENSHOT_START', 'SCREENSHOT_CANCEL', 'SCREENSHOT_EDITOR', 'SCREENSHOT_CAPTURE', 'CONTENT_SCREENSHOT', 'SCREENSHOT_EVENT', 'SCREENSHOT_HOTKEY', 'SCREENSHOT_SET_HOTKEY']) assert.ok(MSG[type], type);
     assert.equal(DEFAULT_SETTINGS.screenshot.shortcut, null);
   });
 
@@ -620,6 +620,37 @@ describe('Screenshot editor: opening', () => {
     const labels = qa(editor, '.actions .act').map((button) => button.textContent.trim() || button.getAttribute('aria-label'));
     assert.deepEqual(labels, ['コピー', '保存', '閉じる']);
     assert.ok(qa(editor, '.palette .tool').some((button) => button.getAttribute('aria-label') === '矢印'));
+  });
+
+  it('shows an instant tooltip on a tool', () => {
+    const { editor } = launch();
+    const pen = qa(editor, '.palette .tool').find((button) => button.getAttribute('aria-label') === 'Pen');
+    assert.equal(pen.hasAttribute('title'), false);
+    assert.ok(pen.getAttribute('data-tip').includes('Pen'));
+    assert.ok(pen.getAttribute('data-tip').includes('P'));
+    const label = pen.parentElement.querySelector('.tip-text');
+    assert.ok(label.textContent.includes('Pen'));
+    assert.ok(label.textContent.includes('P'));
+    pen.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+    const tip = q(editor, '.tip');
+    assert.equal(tip.hidden, false);
+    assert.ok(tip.textContent.includes('Pen'));
+    assert.ok(tip.textContent.includes('P'));
+    pen.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, composed: true }));
+    assert.equal(tip.hidden, false);
+    pen.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    assert.equal(tip.hidden, false);
+    pen.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }));
+    assert.equal(tip.hidden, true);
+  });
+
+  it('shows the Japanese tooltip at once', () => {
+    const { editor } = launch({ language: 'ja' });
+    const copy = qa(editor, '.actions .act')[0];
+    assert.ok(copy.getAttribute('data-tip').includes('コピー'));
+    assert.ok(copy.parentElement.querySelector('.tip-text').textContent.includes('コピー'));
+    copy.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    assert.ok(q(editor, '.tip').textContent.includes('コピー'));
   });
 });
 
@@ -941,7 +972,15 @@ describe('Screenshot editor: copy and save', () => {
 
   it('saves with Ctrl+S and closes', async () => {
     const { editor, calls } = launch();
-    press('s', { ctrlKey: true });
+    press('s', { ctrlKey: true, code: 'KeyS' });
+    await sleep(80);
+    assert.equal(calls.saved.length, 1);
+    assert.equal(editor.isClosed, true);
+  });
+
+  it('saves with ⌘S and closes', async () => {
+    const { editor, calls } = launch();
+    press('s', { metaKey: true, code: 'KeyS' });
     await sleep(80);
     assert.equal(calls.saved.length, 1);
     assert.equal(editor.isClosed, true);
@@ -949,10 +988,38 @@ describe('Screenshot editor: copy and save', () => {
 
   it('copies with Ctrl+C and closes', async () => {
     const { editor, calls } = launch();
-    press('c', { ctrlKey: true });
+    press('c', { ctrlKey: true, code: 'KeyC' });
     await sleep(80);
     assert.equal(calls.copied.length, 1);
     assert.equal(editor.isClosed, true);
+  });
+
+  it('copies with ⌘C and closes', async () => {
+    const { editor, calls } = launch();
+    press('c', { metaKey: true, code: 'KeyC' });
+    await sleep(80);
+    assert.equal(calls.copied.length, 1);
+    assert.equal(editor.isClosed, true);
+  });
+
+  it('copies when the page world sends the editor key', async () => {
+    const { editor, calls } = launch();
+    window.dispatchEvent(new CustomEvent('wit-screenshot-key', { detail: { letter: 'c' } }));
+    await sleep(80);
+    assert.equal(calls.copied.length, 1);
+    assert.equal(editor.isClosed, true);
+  });
+
+  it('puts an instant tooltip on every editor-bar control', () => {
+    const { editor } = launch();
+    const controls = [...qa(editor, '.palette .tool'), ...qa(editor, '.actions .act')];
+    assert.ok(controls.length >= 13);
+    for (const control of controls) {
+      assert.equal(control.hasAttribute('title'), false);
+      assert.ok(control.getAttribute('data-tip'), control.getAttribute('aria-label'));
+      const label = control.parentElement.querySelector('.tip-text');
+      assert.equal(label.textContent, control.getAttribute('data-tip'));
+    }
   });
 
   it('commits unfinished text before copying', async () => {

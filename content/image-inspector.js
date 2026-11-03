@@ -10,6 +10,7 @@
  *   - CSS background images, including several layers, `background-size`,
  *     `-position`, `-repeat`, `-origin` and `-clip`, so the point must really be
  *     over the painted picture, not just over the element that owns it
+ *   - pictures on ::before / ::after (`content: url(...)` and background-image)
  *
  * Nothing on the page is changed: the card and the outline are drawn in a
  * closed shadow root under <html> that ignores the pointer, and are removed
@@ -193,19 +194,98 @@ function realImageAt(element) {
   });
 }
 
-/** CSS background images of one element: the first picture really painted under the point. */
-function backgroundImageAt(element, x, y) {
-  const style = getComputedStyle(element);
+/** Quoted empty `content` still creates a ::before / ::after box; `none` / `normal` do not. */
+function pseudoExists(style) {
+  const content = String(style.content || '').trim();
+  if (!content || content === 'none' || content === 'normal') return false;
+  if (style.display === 'none' || style.visibility !== 'visible') return false;
+  if (Number(style.opacity) === 0) return false;
+  return true;
+}
+
+/** Alt text from `content: url("…") / "label"`. */
+function contentAlt(content) {
+  const match = /\/\s*"((?:[^"\\]|\\.)*)"\s*$/.exec(String(content || ''));
+  return match ? match[1].replace(/\\(.)/g, '$1') : '';
+}
+
+/** border / padding / content boxes of a rectangle already in viewport coordinates. */
+function boxesFromRect(rect, style) {
+  const border = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+  const bl = px(style.borderLeftWidth);
+  const bt = px(style.borderTopWidth);
+  const br = px(style.borderRightWidth);
+  const bb = px(style.borderBottomWidth);
+  const padding = { x: border.x + bl, y: border.y + bt, w: Math.max(0, border.w - bl - br), h: Math.max(0, border.h - bt - bb) };
+  const content = {
+    x: padding.x + px(style.paddingLeft),
+    y: padding.y + px(style.paddingTop),
+    w: Math.max(0, padding.w - px(style.paddingLeft) - px(style.paddingRight)),
+    h: Math.max(0, padding.h - px(style.paddingTop) - px(style.paddingBottom)),
+  };
+  return { 'border-box': border, 'padding-box': padding, 'content-box': content };
+}
+
+/**
+ * Viewport box of ::before / ::after. Absolute / fixed boxes are resolved from
+ * the host; static ones sit at the start (::before) or end (::after) of the content box.
+ */
+function pseudoRect(element, pseudoName, style) {
+  const hostStyle = getComputedStyle(element);
+  const host = boxesOf(element, hostStyle);
+  const w = Math.max(0, px(style.width));
+  const h = Math.max(0, px(style.height));
+  const ml = px(style.marginLeft);
+  const mr = px(style.marginRight);
+  const mt = px(style.marginTop);
+  const mb = px(style.marginBottom);
+  const top = style.top === 'auto' ? null : px(style.top);
+  const right = style.right === 'auto' ? null : px(style.right);
+  const bottom = style.bottom === 'auto' ? null : px(style.bottom);
+  const left = style.left === 'auto' ? null : px(style.left);
+  const position = style.position;
+
+  if (position === 'absolute' || position === 'fixed') {
+    const area =
+      position === 'fixed'
+        ? { x: 0, y: 0, w: document.documentElement.clientWidth, h: document.documentElement.clientHeight }
+        : host['padding-box'];
+    let width = w;
+    let height = h;
+    if (!(width > 0) && left !== null && right !== null) width = Math.max(0, area.w - left - right - ml - mr);
+    if (!(height > 0) && top !== null && bottom !== null) height = Math.max(0, area.h - top - bottom - mt - mb);
+    if (!(width > 0 && height > 0)) return null;
+    let x;
+    let y;
+    if (left !== null) x = area.x + left + ml;
+    else if (right !== null) x = area.x + area.w - right - width - mr;
+    else x = area.x + ml;
+    if (top !== null) y = area.y + top + mt;
+    else if (bottom !== null) y = area.y + area.h - bottom - height - mb;
+    else y = area.y + mt;
+    return { x, y, w: width, h: height };
+  }
+
+  const content = host['content-box'];
+  const width = w > 0 ? w : content.w;
+  const height = h > 0 ? h : content.h;
+  if (!(width > 0 && height > 0)) return null;
+  const ox = left !== null ? left : right !== null ? -right : 0;
+  const oy = top !== null ? top : bottom !== null ? -bottom : 0;
+  if (pseudoName === '::after') {
+    return { x: content.x + Math.max(0, content.w - width) - mr + ox, y: content.y + mt + oy, w: width, h: height };
+  }
+  return { x: content.x + ml + ox, y: content.y + mt + oy, w: width, h: height };
+}
+
+/** CSS background images using a computed style and its boxes (the element itself or a pseudo). */
+function backgroundLayersAt(element, x, y, style, own, kind, paintsCanvas) {
   if (style.visibility !== 'visible' || style.backgroundImage === 'none') return null;
   const layers = splitTopLevel(style.backgroundImage);
   if (!layers.some((layer) => extractImageUrl(layer))) return null;
 
   const root = document.documentElement;
   const rootStyle = element === root ? style : getComputedStyle(root);
-  // A background on <html>, or on <body> when <html> has none, paints the whole canvas.
-  const rootIsPlain = rootStyle.backgroundImage === 'none' && /^(transparent|rgba\(\s*0,\s*0,\s*0,\s*0\s*\))$/.test(rootStyle.backgroundColor);
-  const paintsCanvas = element === root || (element === document.body && rootIsPlain);
-  const own = boxesOf(element, style);
   const positioning = paintsCanvas ? boxesOf(root, rootStyle) : own;
   const canvas = { x: 0, y: 0, w: root.clientWidth, h: root.clientHeight };
 
@@ -243,7 +323,7 @@ function backgroundImageAt(element, x, y) {
 
     const painted = { x: origin.x + tile.x, y: origin.y + tile.y, w: tile.w, h: tile.h };
     return makeHit({
-      kind: 'Background image',
+      kind,
       url,
       display: { w: tile.w, h: tile.h },
       natural: { w: natural.w, h: natural.h },
@@ -255,12 +335,64 @@ function backgroundImageAt(element, x, y) {
   return null;
 }
 
+/** CSS background images of one element: the first picture really painted under the point. */
+function backgroundImageAt(element, x, y) {
+  const style = getComputedStyle(element);
+  if (style.visibility !== 'visible' || style.backgroundImage === 'none') return null;
+  const root = document.documentElement;
+  const rootStyle = element === root ? style : getComputedStyle(root);
+  // A background on <html>, or on <body> when <html> has none, paints the whole canvas.
+  const rootIsPlain = rootStyle.backgroundImage === 'none' && /^(transparent|rgba\(\s*0,\s*0,\s*0,\s*0\s*\))$/.test(rootStyle.backgroundColor);
+  const paintsCanvas = element === root || (element === document.body && rootIsPlain);
+  return backgroundLayersAt(element, x, y, style, boxesOf(element, style), 'Background image', paintsCanvas);
+}
+
+/** `content: url()` or background-image on ::before / ::after. */
+function pseudoImageAt(element, x, y, pseudoName, { backgrounds = true } = {}) {
+  let style;
+  try {
+    style = getComputedStyle(element, pseudoName);
+  } catch {
+    return null;
+  }
+  if (!pseudoExists(style)) return null;
+  const kind = pseudoName === '::before' ? '::before image' : '::after image';
+  const rect = pseudoRect(element, pseudoName, style);
+  if (!rect) return null;
+
+  const contentUrl = extractImageUrl(style.content);
+  if (contentUrl && contains(rect, x, y) && !(rect.w <= 2 && rect.h <= 2)) {
+    const natural = naturalSizeOf(contentUrl);
+    if (natural.state === 'ok') {
+      return makeHit({
+        kind,
+        url: contentUrl,
+        display: { w: rect.w, h: rect.h },
+        natural: { w: natural.w, h: natural.h },
+        outline: rect,
+        box: { w: rect.w, h: rect.h },
+        alt: contentAlt(style.content),
+      });
+    }
+    if (natural.state === 'loading') return null;
+  }
+
+  if (!backgrounds) return null;
+  if (!contains(rect, x, y)) return null;
+  return backgroundLayersAt(element, x, y, style, boxesFromRect(rect, style), kind, false);
+}
+
 /** The picture under a point, or null. Elements on top (text, links, overlays) are looked through. */
 export function imageAtPoint(x, y, { backgrounds = true } = {}) {
   for (const element of stackAt(document, x, y)) {
     if (element.id === HOST_ID) continue;
+    // Painting order, top to bottom: ::after, the element's own picture, ::before, then its background.
+    const after = pseudoImageAt(element, x, y, '::after', { backgrounds });
+    if (after) return after;
     const real = realImageAt(element);
     if (real) return real;
+    const before = pseudoImageAt(element, x, y, '::before', { backgrounds });
+    if (before) return before;
     if (backgrounds) {
       const background = backgroundImageAt(element, x, y);
       if (background) return background;

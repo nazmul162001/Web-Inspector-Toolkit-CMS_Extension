@@ -41,9 +41,9 @@ const CSS = `
     font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
     -webkit-font-smoothing: antialiased; user-select: none; color-scheme: dark;
   }
-  .backdrop { position: absolute; inset: 0; background: rgba(9, 11, 18, 0.62); }
+  .backdrop { position: absolute; inset: 0; z-index: 0; background: rgba(9, 11, 18, 0.62); }
   .view {
-    position: absolute; overflow-x: hidden; overflow-y: hidden; overscroll-behavior: contain;
+    position: absolute; z-index: 1; overflow-x: hidden; overflow-y: hidden; overscroll-behavior: contain;
     background: #12141c; border-radius: 3px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28), 0 18px 50px rgba(0, 0, 0, 0.55);
   }
@@ -59,28 +59,31 @@ const CSS = `
     box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
   }
   .label {
-    display: flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 8px;
+    display: flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 8px; z-index: 2;
     font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; pointer-events: none;
   }
   .label.inside { background: rgba(15, 18, 27, 0.8); }
   .palette {
     display: flex; flex-direction: column; align-items: center; gap: 3px; width: 52px; padding: 6px; border-radius: 15px;
-    max-height: calc(100vh - 16px); overflow: auto; scrollbar-width: none;
+    max-height: calc(100vh - 16px); overflow: visible; z-index: 20;
   }
   .sep { width: 26px; height: 1px; margin: 4px 0; background: rgba(255, 255, 255, 0.12); flex: none; }
-  button { font: inherit; color: inherit; cursor: pointer; }
+  button { font: inherit; color: inherit; cursor: pointer; overflow: visible; }
   button:focus-visible, input:focus-visible { outline: 2px solid #8f80ff; outline-offset: 1px; }
   .tool {
-    flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 10px;
+    position: relative; flex: none; display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 10px;
     background: transparent; color: #b4bbd0; transition: background 0.12s, color 0.12s;
   }
-  .tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.09); color: #fff; }
+  .tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.09); color: #fff; z-index: 4; }
   .tool:disabled { opacity: 0.35; cursor: default; }
   .tool[aria-pressed="true"] { background: linear-gradient(135deg, #7c6cf6, #4f8cff); color: #fff; box-shadow: 0 3px 10px rgba(91, 100, 240, 0.45); }
   .swatch-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
-  .actions { display: flex; align-items: center; gap: 6px; height: 46px; padding: 6px; border-radius: 14px; }
+  .actions { display: flex; align-items: center; gap: 6px; height: 46px; padding: 6px; border-radius: 14px; overflow: visible; z-index: 20; }
+  .tool-wrap, .act-wrap { position: relative; flex: none; overflow: visible; }
+  .tool-wrap { display: grid; place-items: center; width: 38px; height: 38px; }
+  .act-wrap { display: inline-flex; align-items: center; }
   .act {
-    display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border: 0; border-radius: 10px;
+    position: relative; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border: 0; border-radius: 10px;
     background: rgba(255, 255, 255, 0.09); color: #f1f3fa; font-weight: 600; font-size: 12.5px; white-space: nowrap;
     transition: background 0.12s, filter 0.12s;
   }
@@ -135,6 +138,26 @@ const CSS = `
   }
   .hl-swatch[data-on="true"] { box-shadow: 0 0 0 3px #1b1f2b, 0 4px 14px rgba(0, 0, 0, 0.35); }
   .hl-swatch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .tip-text {
+    position: absolute; z-index: 50; display: none; padding: 7px 10px; border-radius: 9px;
+    background: #11141c; color: #f4f6ff; border: 1px solid rgba(255, 255, 255, 0.16);
+    font: 650 12px/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    white-space: pre; width: max-content; max-width: 240px; pointer-events: none;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+  .tool-wrap:hover > .tip-text, .act-wrap:hover > .tip-text,
+  .tool-wrap:focus-within > .tip-text, .act-wrap:focus-within > .tip-text { display: block; }
+  .palette .tip-text { right: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+  .palette[data-side="left"] .tip-text { right: auto; left: calc(100% + 8px); transform: translateY(-50%); }
+  .actions .tip-text { left: 50%; right: auto; top: auto; bottom: calc(100% + 8px); transform: translateX(-50%); white-space: nowrap; }
+  .tip {
+    position: absolute; z-index: 40; display: none; padding: 7px 10px; border-radius: 9px; pointer-events: none;
+    background: #11141c; color: #f4f6ff; border: 1px solid rgba(255, 255, 255, 0.16);
+    font: 650 12px/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    white-space: pre-wrap; width: max-content; max-width: min(260px, calc(100vw - 16px));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+  .tip.is-on { display: block; }
 `;
 
 /** Copy a picture to the clipboard. Throws when the page does not allow it. */
@@ -209,6 +232,8 @@ export function openEditor(options) {
   /* ------------------------------------------------------------- DOM */
   const host = document.createElement('div');
   host.id = EDITOR_HOST_ID;
+  host.tabIndex = -1;
+  host.setAttribute('autofocus', '');
   host.style.cssText = 'all: initial; position: fixed; inset: 0; z-index: 2147483647;';
   const shadow = host.attachShadow({ mode: shadowMode });
   adoptCss(shadow, CSS); // adopted sheets are not blocked by a page's style-src policy
@@ -246,25 +271,125 @@ export function openEditor(options) {
   const toolButtons = new Map();
   const palette = node('div', { class: 'panel palette', role: 'toolbar', 'aria-label': tr('Drawing tools') });
   const actions = node('div', { class: 'panel actions', role: 'toolbar', 'aria-label': tr('Screenshot actions') });
-  const root = node('div', { class: 'root', tabindex: '-1', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Screenshot editor') }, node('div', { class: 'backdrop' }), view, label, palette, actions);
+  const tip = node('div', { class: 'tip', hidden: true, role: 'tooltip' });
+  const root = node('div', { class: 'root', tabindex: '-1', autofocus: '', role: 'dialog', 'aria-modal': 'true', 'aria-label': tr('Screenshot editor') }, node('div', { class: 'backdrop' }), view, label, palette, actions, tip);
   shadow.append(root);
 
+  function hideTip() {
+    tip.hidden = true;
+    tip.classList.remove('is-on');
+    tip.style.display = 'none';
+  }
+  function showTip(anchor, text) {
+    if (!text) return;
+    tip.textContent = text;
+    tip.hidden = false;
+    tip.classList.add('is-on');
+    tip.style.cssText = [
+      'position:absolute',
+      'z-index:40',
+      'display:block',
+      'padding:7px 10px',
+      'border-radius:9px',
+      'pointer-events:none',
+      'background:#11141c',
+      'color:#f4f6ff',
+      'border:1px solid rgba(255,255,255,0.16)',
+      'font:650 12px/1.35 ui-sans-serif,system-ui,sans-serif',
+      'white-space:pre-wrap',
+      'width:max-content',
+      'max-width:min(260px, calc(100vw - 16px))',
+      'box-shadow:0 10px 28px rgba(0,0,0,0.45)',
+    ].join(';');
+    const pad = 8;
+    const origin = root.getBoundingClientRect();
+    const box = anchor.getBoundingClientRect();
+    const size = tip.getBoundingClientRect();
+    let left;
+    let top;
+    if (palette.contains(anchor)) {
+      left = box.left - size.width - pad;
+      top = box.top + (box.height - size.height) / 2;
+      if (left < origin.left + pad) left = box.right + pad;
+    } else {
+      left = box.left + (box.width - size.width) / 2;
+      top = box.top - size.height - pad;
+      if (top < origin.top + pad) top = box.bottom + pad;
+    }
+    const maxLeft = origin.left + origin.width - size.width - pad;
+    const maxTop = origin.top + origin.height - size.height - pad;
+    tip.style.left = `${Math.max(pad, Math.min(maxLeft, left)) - origin.left}px`;
+    tip.style.top = `${Math.max(pad, Math.min(maxTop, top)) - origin.top}px`;
+  }
+  function activateEditor() {
+    if (state.closed || state.textInput) return;
+    const active = shadow.activeElement;
+    if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT' || active.closest?.('.dialog-wrap'))) return;
+    try {
+      window.focus();
+    } catch {
+      /* the tab may not be allowed to take focus */
+    }
+    host.focus({ preventScroll: true });
+    if (!shadow.activeElement) root.focus({ preventScroll: true });
+  }
+  function tipFromEvent(event) {
+    for (const node of event.composedPath()) {
+      if (node?.getAttribute?.('data-tip')) return node;
+    }
+    return null;
+  }
+  function onPointerMove(event) {
+    activateEditor();
+    const hit = tipFromEvent(event);
+    if (hit) showTip(hit, hit.getAttribute('data-tip'));
+    else hideTip();
+  }
+  function withTip(element, text) {
+    element.setAttribute('data-tip', text);
+    const wrap = node('div', { class: element.classList.contains('act') ? 'act-wrap' : 'tool-wrap' });
+    wrap.append(element, node('span', { class: 'tip-text' }, text));
+    const show = () => showTip(element, text);
+    wrap.addEventListener('pointerenter', show);
+    wrap.addEventListener('pointerover', show);
+    wrap.addEventListener('mouseenter', show);
+    wrap.addEventListener('pointerleave', hideTip);
+    wrap.addEventListener('mouseleave', hideTip);
+    element.addEventListener('pointerenter', show);
+    element.addEventListener('mouseenter', show);
+    element.addEventListener('pointerleave', hideTip);
+    element.addEventListener('focus', show);
+    element.addEventListener('blur', hideTip);
+    return wrap;
+  }
+
   for (const tool of TOOLS) {
-    const title = `${tr(tool.label)} (${tool.key.toUpperCase()})${tool.hint ? `\n${tr(tool.hint)}` : ''}`;
-    const button = node('button', { class: 'tool', type: 'button', title, 'aria-label': tr(tool.label), 'aria-pressed': 'false', onClick: () => setTool(tool.id) }, createIcon(tool.id, 19));
+    const text = `${tr(tool.label)} (${tool.key.toUpperCase()})${tool.hint ? `\n${tr(tool.hint)}` : ''}`;
+    const button = node('button', { class: 'tool', type: 'button', 'aria-label': tr(tool.label), 'aria-pressed': 'false', onClick: () => setTool(tool.id) }, createIcon(tool.id, 19));
     toolButtons.set(tool.id, button);
-    palette.append(button);
+    palette.append(withTip(button, text));
   }
   const swatchDot = node('span', { class: 'swatch-dot' });
-  const styleButton = node('button', { class: 'tool', type: 'button', title: tr('Color and thickness'), 'aria-label': tr('Color and thickness'), 'aria-haspopup': 'true', 'aria-expanded': 'false', onClick: () => togglePopover() }, swatchDot);
-  const undoButton = node('button', { class: 'tool', type: 'button', title: `${tr('Undo')} (Ctrl+Z)`, 'aria-label': tr('Undo'), onClick: () => undo() }, createIcon('undo', 19));
-  const redoButton = node('button', { class: 'tool', type: 'button', title: `${tr('Redo')} (Ctrl+Shift+Z)`, 'aria-label': tr('Redo'), onClick: () => redo() }, createIcon('redo', 19));
-  palette.append(node('div', { class: 'sep' }), styleButton, node('div', { class: 'sep' }), undoButton, redoButton);
+  const styleButton = node('button', { class: 'tool', type: 'button', 'aria-label': tr('Color and thickness'), 'aria-haspopup': 'true', 'aria-expanded': 'false', onClick: () => togglePopover() }, swatchDot);
+  const undoButton = node('button', { class: 'tool', type: 'button', 'aria-label': tr('Undo'), onClick: () => undo() }, createIcon('undo', 19));
+  const redoButton = node('button', { class: 'tool', type: 'button', 'aria-label': tr('Redo'), onClick: () => redo() }, createIcon('redo', 19));
+  palette.append(
+    node('div', { class: 'sep' }),
+    withTip(styleButton, tr('Color and thickness')),
+    node('div', { class: 'sep' }),
+    withTip(undoButton, `${tr('Undo')} (⌘Z / Ctrl+Z)`),
+    withTip(redoButton, `${tr('Redo')} (⌘⇧Z / Ctrl+Shift+Z)`),
+  );
 
-  const copyButton = node('button', { class: 'act', type: 'button', title: `${tr('Copy to clipboard')} (Ctrl+C)`, onClick: () => copy() }, createIcon('copy', 16), tr('Copy'));
-  const saveButton = node('button', { class: 'act primary', type: 'button', title: `${tr('Save as PNG')} (Ctrl+S)`, onClick: () => save() }, createIcon('save', 16), tr('Save'));
-  const closeButton = node('button', { class: 'act icon-only', type: 'button', title: `${tr('Close')} (Esc)`, 'aria-label': tr('Close'), onClick: () => requestClose() }, createIcon('close', 17));
-  actions.append(copyButton, saveButton, node('span', { class: 'bar-sep' }), closeButton);
+  const copyButton = node('button', { class: 'act', type: 'button', onClick: () => copy() }, createIcon('copy', 16), tr('Copy'));
+  const saveButton = node('button', { class: 'act primary', type: 'button', onClick: () => save() }, createIcon('save', 16), tr('Save'));
+  const closeButton = node('button', { class: 'act icon-only', type: 'button', 'aria-label': tr('Close'), onClick: () => requestClose() }, createIcon('close', 17));
+  actions.append(
+    withTip(copyButton, `${tr('Copy')} (⌘C / Ctrl+C)`),
+    withTip(saveButton, `${tr('Save')} (⌘S / Ctrl+S)`),
+    node('span', { class: 'bar-sep' }),
+    withTip(closeButton, `${tr('Close')} (Esc)`),
+  );
 
   /* ------------------------------------------------------------ Layout */
   function applyLayout() {
@@ -287,6 +412,7 @@ export function openEditor(options) {
     Object.assign(label.style, { left: `${plan.label.left}px`, top: `${plan.label.top}px` });
     label.classList.toggle('inside', plan.label.inside);
     paletteOnRight = plan.palette.left >= plan.view.left + plan.view.w;
+    palette.dataset.side = paletteOnRight ? 'right' : 'left';
     if (popover) placePopover();
     if (state.pending) placeRing(state.pending);
     return plan;
@@ -744,17 +870,35 @@ export function openEditor(options) {
     state.closed = true;
     cancelAnimationFrame(frame);
     clearTimeout(toastTimer);
-    window.removeEventListener('keydown', onKey, true);
+    for (const [target, type, handler, capture] of keyBindings) target.removeEventListener(type, handler, capture);
     window.removeEventListener('resize', onResize);
     host.remove();
     onClose();
   }
 
   /* ---------------------------------------------------------- Keyboard */
+  function commandLetter(event) {
+    if (event.code && event.code.startsWith('Key') && event.code.length === 4) return event.code.slice(3).toLowerCase();
+    const key = event.key || event.detail?.letter || '';
+    return key.length === 1 ? key.toLowerCase() : '';
+  }
+  function runCopyOrSave(letter) {
+    hideTip();
+    if (letter === 's') save();
+    else copy();
+  }
   function onKey(event) {
     if (state.closed) return;
+    if (event._witShotKey) return;
+    event._witShotKey = true;
     const mod = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
+    const letter = commandLetter(event);
+    if (mod && (letter === 's' || letter === 'c')) {
+      stop(event);
+      if (event.repeat) return;
+      runCopyOrSave(letter);
+      return;
+    }
     if (state.textInput) return; // the text box handles its own keys
     if (event.key === 'Escape') {
       stop(event);
@@ -769,32 +913,46 @@ export function openEditor(options) {
       stop(event);
       return;
     }
-    if (mod && key === 'z') {
+    if (mod && letter === 'z') {
       stop(event);
       if (event.shiftKey) redo();
       else undo();
-    } else if (mod && key === 'y') {
+    } else if (mod && letter === 'y') {
       stop(event);
       redo();
-    } else if (mod && key === 's') {
+    } else if (!mod && !event.altKey && TOOLS.some((item) => item.key === letter)) {
       stop(event);
-      save();
-    } else if (mod && key === 'c') {
-      stop(event);
-      copy();
-    } else if (!mod && !event.altKey && TOOLS.some((item) => item.key === key)) {
-      stop(event);
-      setTool(TOOLS.find((item) => item.key === key).id);
+      setTool(TOOLS.find((item) => item.key === letter).id);
     } else {
       event.stopPropagation(); // keys typed here are not for the page behind
     }
   }
+  function onBridgeKey(event) {
+    if (state.closed) return;
+    const letter = event.detail?.letter;
+    if (letter === 's' || letter === 'c') runCopyOrSave(letter);
+  }
+  function onCopy(event) {
+    if (state.closed || state.textInput) return;
+    stop(event);
+    copy();
+  }
   const stop = (event) => {
     event.preventDefault();
+    event.stopPropagation();
     event.stopImmediatePropagation();
   };
   const onResize = () => applyLayout();
-  window.addEventListener('keydown', onKey, true);
+  const keyBindings = [
+    [window, 'keydown', onKey, true],
+    [document, 'keydown', onKey, true],
+    [host, 'keydown', onKey, true],
+    [root, 'keydown', onKey, true],
+    [window, 'wit-screenshot-key', onBridgeKey, false],
+    [window, 'copy', onCopy, true],
+    [document, 'copy', onCopy, true],
+  ];
+  for (const [target, type, handler, capture] of keyBindings) target.addEventListener(type, handler, capture);
   window.addEventListener('resize', onResize);
 
   // Scrolling inside the editor must not scroll the page behind it.
@@ -811,7 +969,10 @@ export function openEditor(options) {
   refreshButtons();
   applyLayout();
   redraw();
-  root.focus({ preventScroll: true });
+  root.addEventListener('pointermove', onPointerMove);
+  host.addEventListener('pointermove', onPointerMove);
+  host.addEventListener('pointerdown', activateEditor);
+  activateEditor();
 
   return {
     host,

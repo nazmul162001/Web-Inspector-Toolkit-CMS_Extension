@@ -14,7 +14,7 @@ import { clearHighlight, highlightElement } from './element-highlighter.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
 import { clearMarks, markPage } from './width-marks.js';
 import { startInspector, stopInspector } from './image-inspector.js';
-import { cancelScreenshot, startScreenshot } from './screenshot.js';
+import { cancelScreenshot, commandScreenshot, startScreenshot } from './screenshot.js';
 
 /** scanId -> { cancelled } for scans currently running in this page. */
 const runningScans = new Map();
@@ -94,7 +94,11 @@ export function init() {
     },
     [MSG.CONTENT_HIGHLIGHT]: handleHighlight,
     [MSG.CONTENT_IMAGE_INSPECT]: ({ enabled, options } = {}) => (enabled ? startInspector(options) : stopInspector()),
-    [MSG.CONTENT_SCREENSHOT]: ({ action, mode, language } = {}) => (action === 'start' ? startScreenshot({ mode, language }) : cancelScreenshot()),
+    [MSG.CONTENT_SCREENSHOT]: ({ action, mode, language } = {}) => {
+      if (action === 'start') return startScreenshot({ mode, language });
+      if (action === 'copy' || action === 'save') return commandScreenshot(action);
+      return cancelScreenshot();
+    },
     [MSG.CONTENT_CLEAR_MARKS]: () => {
       clearMarks();
       return { cleared: true };
