@@ -9,6 +9,7 @@ import {
   SECTION_LABELS,
   SECTION_ORDER,
 } from '../../../shared/constants.js';
+import { isSectionIndex, sectionPath } from '../../../services/url-normalizer.js';
 
 const PROPERTY_ORDER = new Map(COLOR_PROPERTIES.map((descriptor, index) => [descriptor.property, index]));
 
@@ -75,11 +76,14 @@ export function collectFacets(items) {
   return { tags: toList(tags), classes: toList(classes) };
 }
 
-export function filterItems(items, { tag = '', cls = '' } = {}) {
-  if (!tag && !cls) return items;
-  return items.filter(
-    (item) => (!tag || item.element.tag === tag) && (!cls || item.element.classes.includes(cls)),
-  );
+export function filterItems(items, { tag = '', cls = '', section = '' } = {}) {
+  if (!tag && !cls && !section) return items;
+  return items.filter((item) => {
+    if (tag && item.element.tag !== tag) return false;
+    if (cls && !item.element.classes.includes(cls)) return false;
+    if (section && sectionPath(item.page.url) !== section) return false;
+    return true;
+  });
 }
 
 const compareOrder = (a, b) => {
@@ -147,6 +151,83 @@ export function groupByPage(items) {
     pages.get(item.pageIndex).items.push(item);
   }
   return Array.from(pages.values()).sort((a, b) => a.pageIndex - b.pageIndex);
+}
+
+const compareSection = (a, b) => {
+  if (a === '/') return -1;
+  if (b === '/') return 1;
+  return a.localeCompare(b);
+};
+
+/** Values for the Entire Site page filter, home first then A–Z. */
+export function collectSectionFacets(items) {
+  const counts = new Map();
+  for (const item of items) {
+    const key = sectionPath(item.page.url);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) => compareSection(a.value, b.value));
+}
+
+/**
+ * Group matches by first path segment (`/`, `/blog`, `/menu`).
+ * Listing pages (`/blog`) sort ahead of article URLs (`/blog/id`).
+ */
+export function groupBySection(items) {
+  const sections = new Map();
+  for (const item of items) {
+    const key = sectionPath(item.page.url);
+    let group = sections.get(key);
+    if (!group) {
+      group = { section: key, pages: new Map(), itemCount: 0 };
+      sections.set(key, group);
+    }
+    group.itemCount += 1;
+    let bucket = group.pages.get(item.pageIndex);
+    if (!bucket) {
+      bucket = {
+        page: item.page,
+        pageIndex: item.pageIndex,
+        items: [],
+        isIndex: isSectionIndex(item.page.url),
+      };
+      group.pages.set(item.pageIndex, bucket);
+    }
+    bucket.items.push(item);
+  }
+
+  return Array.from(sections.values())
+    .map((group) => {
+      const pages = Array.from(group.pages.values()).sort((a, b) => {
+        if (a.isIndex !== b.isIndex) return a.isIndex ? -1 : 1;
+        return a.pageIndex - b.pageIndex;
+      });
+      const indexCount = pages.reduce((count, page) => count + (page.isIndex ? 1 : 0), 0);
+      return {
+        section: group.section,
+        pages,
+        itemCount: group.itemCount,
+        pageCount: pages.length,
+        indexCount,
+        subCount: pages.length - indexCount,
+      };
+    })
+    .sort((a, b) => compareSection(a.section, b.section));
+}
+
+/**
+ * Expanded listing: the section index plus the first article.
+ * `showAllSubpages` reveals the rest of `/blog/id`, `/news/id`, …
+ */
+export function pagesShownInGroup(group, showAllSubpages = false) {
+  if (showAllSubpages || group.subCount <= 1) {
+    return { pages: group.pages, hidden: 0, subCount: group.subCount };
+  }
+  return {
+    pages: group.pages.slice(0, group.indexCount + 1),
+    hidden: group.subCount - 1,
+    subCount: group.subCount,
+  };
 }
 
 /** Human-readable "where is this declared" label. */

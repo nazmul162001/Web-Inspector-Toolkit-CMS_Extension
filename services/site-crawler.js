@@ -15,10 +15,10 @@
  *   because of the limit, and cancellation are all reported.
  */
 
-import { CRAWL_MODE, ERR } from '../shared/constants.js';
+import { CRAWL_MODE, ERR, LISTING_ARTICLE_LIMIT, LISTING_ARTICLE_SECTIONS } from '../shared/constants.js';
 import { createError, isCancelled, sleep, throttle } from '../shared/helpers.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
-import { extractInternalLinks, isSameOrigin, normalizeUrl } from './url-normalizer.js';
+import { extractInternalLinks, isListingArticle, isSameOrigin, normalizeUrl, sectionPath } from './url-normalizer.js';
 import { scanTab } from './page-scan-service.js';
 import { scanUrl } from './offscreen-scanner.js';
 import { closeTempTab, openTempTab, waitForTabComplete } from './temp-tab-manager.js';
@@ -67,8 +67,23 @@ export async function crawlSite({
   const scannedKeys = new Set();
   const inFlight = new Map(); // url -> true
   const waiters = [];
+  const articleCounts = new Map();
   let attempted = 0;
   let matchCount = 0;
+
+  function noteListingArticle(url) {
+    if (!options.limitListingArticles || !isListingArticle(url, LISTING_ARTICLE_SECTIONS)) return;
+    const section = sectionPath(url);
+    articleCounts.set(section, (articleCounts.get(section) || 0) + 1);
+  }
+
+  function acceptLink(link) {
+    if (!options.limitListingArticles || !isListingArticle(link.url, LISTING_ARTICLE_SECTIONS)) return true;
+    const section = sectionPath(link.url);
+    if ((articleCounts.get(section) || 0) >= LISTING_ARTICLE_LIMIT) return false;
+    noteListingArticle(link.url);
+    return true;
+  }
 
   const wake = () => waiters.splice(0).forEach((resolve) => resolve());
   const waitForWork = () =>
@@ -99,6 +114,7 @@ export async function crawlSite({
     if (!links?.length) return;
     for (const link of extractInternalLinks(links, pageUrl, origin)) {
       if (seen.has(link.key) || seen.size >= MAX_DISCOVERED_URLS) continue;
+      if (!acceptLink(link)) continue;
       seen.add(link.key);
       queue.push(link);
     }
@@ -139,6 +155,7 @@ export async function crawlSite({
     seen.add(startKey);
     scannedKeys.add(startKey);
   }
+  noteListingArticle(startUrl);
   attempted += 1;
   inFlight.set(startUrl, true);
   try {

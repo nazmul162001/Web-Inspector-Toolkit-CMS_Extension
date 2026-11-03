@@ -125,3 +125,43 @@ export function displayPath(url) {
     return url;
   }
 }
+
+function pathnameSegments(url) {
+  const pathname = new URL(url).pathname.replace(/\/+$/, '') || '/';
+  return pathname === '/' ? [] : pathname.split('/').filter(Boolean);
+}
+
+/**
+ * First path segment used as the site section: `/`, `/blog`, `/menu`.
+ * `/blog/article-id` belongs to `/blog`.
+ */
+export function sectionPath(url) {
+  try {
+    const segments = pathnameSegments(url);
+    return segments.length ? `/${segments[0]}` : '/';
+  } catch {
+    return '/';
+  }
+}
+
+/** True for `/`, `/blog`, `/blog/` — the listing page, not `/blog/article`. */
+export function isSectionIndex(url) {
+  try {
+    return pathnameSegments(url).length <= 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Article URL under /blog, /column, /news or /gallery (`/blog/post-id`),
+ * not the listing page itself.
+ */
+export function isListingArticle(url, sections) {
+  try {
+    const section = sectionPath(url);
+    return sections.includes(section) && !isSectionIndex(url);
+  } catch {
+    return false;
+  }
+}

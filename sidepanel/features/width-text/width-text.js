@@ -6,10 +6,14 @@
  */
 
 import { MSG } from '../../../shared/constants.js';
+import { copyToClipboard } from '../../../shared/helpers.js';
 import { sendToBackground } from '../../../services/message-service.js';
-import { WIDTH_CATEGORIES, describeWidthQuery, parseWidthInput } from '../../../services/width-matcher.js';
+import { WIDTH_CATEGORIES, describeWidthQuery, parseWidthInput, uniqueWidthReplacements } from '../../../services/width-matcher.js';
+import { icon } from '../../components/icons.js';
 import { createSearchFeature } from '../search-feature.js';
 import { createTextResults } from '../text-find/text-results.js';
+
+let convertBox = null;
 
 async function clearMarks(ctx) {
   const tabId = ctx.getTabContext()?.tab?.id;
@@ -19,6 +23,51 @@ async function clearMarks(ctx) {
   } catch {
     /* the page is gone or was never searched: there is nothing to remove */
   }
+}
+
+function bindConvertBox(container, ctx) {
+  const box = container.querySelector('#wd-convert');
+  const input = container.querySelector('#wd-convert-text');
+  const button = container.querySelector('#wd-convert-copy');
+  let copiedTimer = 0;
+  button.replaceChildren(icon('copy', { size: 14 }));
+
+  const showCopyIcon = () => {
+    button.classList.remove('is-copied');
+    button.replaceChildren(icon('copy', { size: 14 }));
+    button.setAttribute('aria-label', 'Copy');
+    button.setAttribute('title', 'Copy');
+  };
+
+  function setScan(scan) {
+    const text = uniqueWidthReplacements(scan?.pages);
+    input.value = text;
+    box.hidden = !text;
+    if (!text) showCopyIcon();
+  }
+
+  function hide() {
+    input.value = '';
+    box.hidden = true;
+    showCopyIcon();
+  }
+
+  button.addEventListener('click', async () => {
+    if (!input.value) return;
+    if (!(await copyToClipboard(input.value))) {
+      ctx.notify.error('Could not copy to the clipboard.');
+      return;
+    }
+    ctx.notify.success('Half-width copied');
+    button.classList.add('is-copied');
+    button.replaceChildren(icon('check', { size: 14 }));
+    button.setAttribute('aria-label', 'Copied');
+    button.setAttribute('title', 'Copied');
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(showCopyIcon, 1600);
+  });
+
+  return { setScan, hide };
 }
 
 /** Write the example characters (０１２ ...) next to each kind. */
@@ -55,6 +104,7 @@ const config = {
   alwaysPreview: true,
 
   onMount({ container, ctx, update }) {
+    convertBox = bindConvertBox(container, ctx);
     showExamples(container);
     const setAll = (checked) => {
       for (const box of container.querySelectorAll('.wd-grid input[type="checkbox"]')) {
@@ -71,14 +121,17 @@ const config = {
       ctx.notify.info('Marks removed from the page.');
     });
   },
-  onUnmount: ({ ctx }) => clearMarks(ctx),
+  onUnmount: ({ ctx }) => {
+    convertBox = null;
+    clearMarks(ctx);
+  },
   // A result on another page opens that page: mark the characters there too.
   locateExtras: (query) => (query.highlightOnPage ? { marks: query } : {}),
 
   copyValue: (match) => match.text,
   copyNoun: 'Text',
-  createResults: (root, handlers) =>
-    createTextResults(root, {
+  createResults: (root, handlers) => {
+    const inner = createTextResults(root, {
       ...handlers,
       copyLabel: 'Copy text',
       subject: 'text',
@@ -95,7 +148,33 @@ const config = {
           ],
         };
       },
-    }),
+    });
+    return {
+      ...inner,
+      show(scan, options) {
+        const outcome = inner.show(scan, options);
+        if (outcome?.empty) convertBox?.hide();
+        else convertBox?.setScan(scan);
+        return outcome;
+      },
+      showPartial(scan) {
+        inner.showPartial(scan);
+        convertBox?.setScan(scan);
+      },
+      showIdle() {
+        inner.showIdle();
+        convertBox?.hide();
+      },
+      showError(message, options) {
+        inner.showError(message, options);
+        convertBox?.hide();
+      },
+      clear() {
+        inner.clear();
+        convertBox?.hide();
+      },
+    };
+  },
 };
 
 export const createFeature = (ctx) => createSearchFeature(ctx, config);

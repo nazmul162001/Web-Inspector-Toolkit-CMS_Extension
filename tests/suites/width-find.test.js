@@ -3,6 +3,7 @@ import {
   WIDTH_CATEGORIES,
   convertWidth,
   createWidthMatcher,
+  uniqueWidthReplacements,
   describeWidthQuery,
   isWidthQuery,
   parseWidthInput,
@@ -127,6 +128,17 @@ describe('Width conversion', () => {
   it('converts half-width to full-width', () => {
     assert.equal(convertWidth('2024 (A)', 'full'), '２０２４　（Ａ）');
     assert.equal(convertWidth('ｶﾞｷﾞ', 'full'), 'ガギ');
+  });
+
+  it('lists unique converted forms from a scan, first seen first', () => {
+    assert.equal(
+      uniqueWidthReplacements([
+        { matches: [{ replacement: '(' }, { replacement: '12' }, { replacement: '(' }] },
+        { matches: [{ replacement: ')' }, { replacement: '12' }] },
+      ]),
+      '( 12 )',
+    );
+    assert.equal(uniqueWidthReplacements([]), '');
   });
 });
 

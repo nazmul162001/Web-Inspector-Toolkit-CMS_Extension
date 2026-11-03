@@ -188,6 +188,8 @@ describe('Link values of an element', () => {
     assert.deepEqual(linkValues(make('<button formaction="/send">Send</button>'), true), [{ attribute: 'formaction', value: '/send' }]);
     assert.deepEqual(linkValues(make('<form action="/search"></form>'), true), [{ attribute: 'action', value: '/search' }]);
     assert.deepEqual(linkValues(make('<div>plain</div>'), true), []);
+    const neutralized = make('<button data-wit-onclick="location.href=\'/z\'">Go</button>');
+    assert.deepEqual(linkValues(neutralized, true), [{ attribute: 'onclick', value: '/z' }]);
   });
 
   it('finds addresses written in click handlers', () => {

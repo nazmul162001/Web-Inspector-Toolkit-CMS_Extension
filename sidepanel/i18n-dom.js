@@ -18,7 +18,7 @@ const ATTRIBUTES = ['placeholder', 'title', 'aria-label'];
 // (tag and class names, selectors, CSS property names, page titles and addresses, image names).
 const SKIP = [
   'code, pre, textarea, script, style, [data-i18n-skip], .mono, .tsnip, .tmark',
-  '.tag-chip, .rcard__selector:not(.rcard__selector--none), .prop, .hex, .page-block__title, .page-block__path',
+  '.tag-chip, .rcard__selector:not(.rcard__selector--none), .prop, .hex, .page-block__title, .page-block__path, .page-group__path',
   '.context-bar__title, .context-bar__host, .ir-last__name, .ir-url, .kv__code, .chip',
 ].join(', ');
 

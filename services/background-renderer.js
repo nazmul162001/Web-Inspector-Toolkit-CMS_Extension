@@ -66,6 +66,20 @@ const REMOVE_SELECTOR = [
 const IMPORT_RE =
   /@import\s+(?:url\(\s*(?:"([^"]+)"|'([^']+)'|([^)\s]+))\s*\)|"([^"]+)"|'([^']+)')\s*([^;{]*);/gi;
 
+/**
+ * Chrome compiles HTML event-handler attributes (`onclick`, `onerror`, …)
+ * while `parseFromString` runs, which violates the extension CSP. Rewrite
+ * them to `data-wit-on*` first so the parser treats them as ordinary data.
+ * The original text is kept so Link href can still read click handlers.
+ */
+function neutralizeInlineHandlers(html) {
+  return String(html).replace(/<\/?[a-zA-Z][^>]*>/g, (tag) => tag.replace(/\s(on[a-z]+\s*=)/gi, ' data-wit-$1'));
+}
+
+function parsePageHtml(html) {
+  return new DOMParser().parseFromString(neutralizeInlineHandlers(html), 'text/html');
+}
+
 /** An AbortSignal combining the caller's signal with a timeout. */
 function linkSignals(external, timeoutMs) {
   const controller = new AbortController();
@@ -194,7 +208,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
    * @returns {Promise<{ html: string, unreadable: {href:string,label:string,reason:string}[] }>}
    */
   async function prepareHtml(html, pageUrl) {
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const parsed = parsePageHtml(html);
 
     let baseUrl = pageUrl;
     const baseElement = parsed.querySelector('base[href]');
@@ -261,7 +275,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
    * the same sanitising as prepareHtml but without stylesheets or layout.
    */
   function parseInert(html, pageUrl) {
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const parsed = parsePageHtml(html);
     let baseUrl = pageUrl;
     const baseElement = parsed.querySelector('base[href]');
     if (baseElement) {

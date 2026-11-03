@@ -160,6 +160,21 @@ export function convertWidth(text, to) {
     .replace(/[\u0020-\u007e]/g, (ch) => (ch === ' ' ? '\u3000' : String.fromCharCode(ch.charCodeAt(0) + 0xfee0)));
 }
 
+/** Unique converted forms from a width scan, in the order they were first found. */
+export function uniqueWidthReplacements(pages) {
+  const seen = new Set();
+  const parts = [];
+  for (const page of pages || []) {
+    for (const match of page.matches || []) {
+      const text = match.replacement;
+      if (typeof text !== 'string' || seen.has(text)) continue;
+      seen.add(text);
+      parts.push(text);
+    }
+  }
+  return parts.join(' ');
+}
+
 const SHORT_LABELS = { number: 'Numbers', letter: 'Letters', bracket: 'Brackets', colon: 'Colons', percent: 'Percent', mark: 'Marks', punct: 'Punctuation', symbol: 'Symbols', space: 'Spaces', kana: 'Katakana' };
 
 /** Short names of kind ids for pills. */

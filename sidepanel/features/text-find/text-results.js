@@ -5,15 +5,14 @@
  */
 
 import { el, pluralize, setChildren } from '../../../shared/helpers.js';
-import { displayPath } from '../../../services/url-normalizer.js';
 import { icon } from '../../components/icons.js';
-import { collectFacets, filterItems, groupByPage } from '../color-find/color-find-utils.js';
+import { filterItems } from '../color-find/color-find-utils.js';
 import { coverageBanner, pageNotices, scopeLabel } from '../color-find/color-results.js';
+import { createPageBlock, isSitePageList, pageFilterField, renderSectionGroups } from '../page-groups.js';
 import { createTextResultCard } from './text-result-card.js';
 import { buildTextSummary, flattenTextResult, groupTextItems, sortTextItems } from './text-find-utils.js';
 
 const RENDER_STEP = 60;
-const MAX_CLASS_OPTIONS = 150;
 
 /**
  * @param {HTMLElement} root
@@ -22,10 +21,12 @@ const MAX_CLASS_OPTIONS = 150;
 export function createTextResults(root, { onAction, groupMode = 'section', onGroupModeChange, emptyState, copyLabel, subject = 'text', truncatedHint = 'Try a longer or more specific text, Match case or Whole word.' }) {
   let scan = null;
   let items = [];
-  let view = { groupMode, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+  let view = { groupMode, sortMode: 'dom', tag: '', cls: '', section: '', limit: RENDER_STEP };
   let listEl = null;
   let countEl = null;
   const expanded = new Set();
+  const openSections = new Set();
+  const openSubpages = new Set();
 
   const noticeOptions = { truncatedHint };
 
@@ -42,51 +43,21 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
     );
   }
 
-  const option = (value, label, selected, data = false) => el('option', { value, selected, ...(data ? { 'data-i18n-skip': true } : {}) }, label);
-
-  function toolbar(facets) {
-    const seg = (mode, label) =>
-      el(
-        'button',
-        {
-          class: 'seg__btn',
-          type: 'button',
-          'aria-pressed': String(view.groupMode === mode),
-          onClick: (event) => {
-            view.groupMode = mode;
-            onGroupModeChange?.(mode);
-            event.currentTarget.parentElement.querySelectorAll('.seg__btn').forEach((b) => b.setAttribute('aria-pressed', String(b === event.currentTarget)));
-            view.limit = RENDER_STEP;
-            renderList();
-          },
-        },
-        label,
-      );
-    const select = (label, options, onChange) =>
-      el('label', { class: 'tb-field' }, el('span', {}, label), el('select', { class: 'select', onChange: (e) => onChange(e.target.value) }, options));
-
+  function toolbar() {
+    if (!isSitePageList(scan)) return null;
     return el(
       'div',
       { class: 'toolbar' },
-      el('div', { class: 'toolbar__row' }, el('span', { class: 'toolbar__label' }, 'Group by'), el('div', { class: 'seg', role: 'group', 'aria-label': 'Group by' }, seg('section', 'Section'), seg('tag', 'Tag'), seg('none', 'None'))),
-      el(
-        'div',
-        { class: 'toolbar__grid' },
-        select('Sort', [option('dom', 'DOM order', view.sortMode === 'dom'), option('tag', 'Tag', view.sortMode === 'tag')], (value) => {
-          view.sortMode = value;
-          renderList();
-        }),
-        select('Tag', [option('', `All tags (${facets.tags.length})`, view.tag === ''), ...facets.tags.map((t) => option(t.value, `${t.value} (${t.count})`, view.tag === t.value, true))], (value) => {
-          view.tag = value;
+      pageFilterField({
+        items,
+        section: view.section,
+        onChange: (value) => {
+          view.section = value;
           view.limit = RENDER_STEP;
+          if (value) openSections.add(value);
           renderList();
-        }),
-        select('Class', [option('', `All classes (${facets.classes.length})`, view.cls === ''), ...facets.classes.slice(0, MAX_CLASS_OPTIONS).map((c) => option(c.value, `.${c.value} (${c.count})`, view.cls === c.value, true))], (value) => {
-          view.cls = value;
-          view.limit = RENDER_STEP;
-          renderList();
-        }),
-      ),
+        },
+      }),
     );
   }
 
@@ -125,30 +96,45 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
 
     if (filtered.length === 0) {
       listEl.replaceChildren(
-        el('div', { class: 'empty empty--inline' }, 'No results match these filters.', el('button', { class: 'btn btn--sm', type: 'button', onClick: () => { view.tag = ''; view.cls = ''; build(); } }, 'Clear filters')),
+        el('div', { class: 'empty empty--inline' }, 'No results match these filters.', el('button', { class: 'btn btn--sm', type: 'button', onClick: () => { view.section = ''; build(); } }, 'Clear filters')),
       );
       return;
     }
 
-    if (scan.scope === 'site' && scan.pages.length > 1) {
-      for (const bucket of groupByPage(filtered)) {
-        const groups = groupTextItems(bucket.items, view.groupMode).map((g) => groupBlock(g, budget)).filter(Boolean);
-        if (!groups.length) continue;
-        blocks.push(
-          el(
-            'section',
-            { class: 'page-block' },
-            el('header', { class: 'page-block__head' }, icon('file', { size: 14 }), el('span', { class: 'page-block__path', title: bucket.page.url }, displayPath(bucket.page.url)), el('span', { class: 'badge badge--accent' }, String(bucket.items.length))),
-            el('div', { class: 'page-block__title' }, bucket.page.title || bucket.page.url),
-            ...groups,
-          ),
-        );
-      }
-    } else {
-      for (const group of groupTextItems(filtered, view.groupMode)) {
-        const block = groupBlock(group, budget);
-        if (block) blocks.push(block);
-      }
+    if (isSitePageList(scan)) {
+      listEl.replaceChildren(
+        ...renderSectionGroups({
+          items: filtered,
+          openSections,
+          openSubpages,
+          cardLimit: view.limit,
+          onToggleSection: (key) => {
+            if (openSections.has(key)) openSections.delete(key);
+            else openSections.add(key);
+            renderList();
+          },
+          onShowAllSubpages: (key) => {
+            openSubpages.add(key);
+            openSections.add(key);
+            renderList();
+          },
+          onShowMore: () => {
+            view.limit += RENDER_STEP * 2;
+            renderList();
+          },
+          renderPage: (bucket, pageBudget) =>
+            createPageBlock(
+              bucket,
+              groupTextItems(bucket.items, view.groupMode).map((g) => groupBlock(g, pageBudget)).filter(Boolean),
+            ),
+        }),
+      );
+      return;
+    }
+
+    for (const group of groupTextItems(filtered, view.groupMode)) {
+      const block = groupBlock(group, budget);
+      if (block) blocks.push(block);
     }
 
     const rendered = view.limit - budget.remaining;
@@ -161,7 +147,6 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
   }
 
   function build() {
-    const facets = collectFacets(items);
     countEl = el('span', { class: 'toolbar__count' });
     listEl = el('div', { class: 'cf-list' });
     setChildren(
@@ -170,7 +155,7 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
       coverageBanner(scan.coverage, scan.failures || [], { subject }),
       ...pageNotices(scan.pages, noticeOptions),
       summaryTiles(buildTextSummary(items), scan.scope === 'site'),
-      toolbar(facets),
+      toolbar(),
       el('div', { class: 'cf-list-head' }, countEl),
       listEl,
     );
@@ -182,6 +167,8 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
       scan = null;
       items = [];
       expanded.clear();
+      openSections.clear();
+      openSubpages.clear();
       root.replaceChildren();
     },
 
@@ -198,7 +185,9 @@ export function createTextResults(root, { onAction, groupMode = 'section', onGro
       items = flattenTextResult(scanResult);
       if (!keepView) {
         expanded.clear();
-        view = { ...view, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+        openSections.clear();
+        openSubpages.clear();
+        view = { ...view, sortMode: 'dom', tag: '', cls: '', section: '', limit: RENDER_STEP };
       }
 
       if (items.length === 0) {

@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inline handlers</title>
+</head>
+<body>
+  <p class="static-one" style="color: #025743">Static, in the served HTML</p>
+  <button class="go" style="color: #025743" onclick="location.href='about.html'">Go</button>
+  <img class="broken" src="missing.png" onerror="this.src='about.html'" alt="">
+</body>
+</html>

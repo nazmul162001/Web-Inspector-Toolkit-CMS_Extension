@@ -123,6 +123,35 @@ describe('Site crawler', () => {
     assert.equal(result.coverage.notScanned, 12 - 4);
   });
 
+  it('scans at most 5 articles per /blog /column /news /gallery when the option is on', async () => {
+    const posts = Array.from({ length: 15 }, (_, i) => `/blog/p${i}`);
+    const columns = Array.from({ length: 12 }, (_, i) => `/column/c${i}`);
+    const site = {
+      '/': { links: ['/blog', '/column', '/menu', ...posts, ...columns] },
+      '/blog': { links: posts },
+      '/column': { links: columns },
+      '/menu': {},
+    };
+    for (const path of posts) site[path] = {};
+    for (const path of columns) site[path] = {};
+    const { result } = await crawl(site, { crawl: { limitListingArticles: true } });
+    const paths = result.pages.map((p) => new URL(p.url).pathname);
+    assert.ok(paths.includes('/blog'));
+    assert.ok(paths.includes('/column'));
+    assert.ok(paths.includes('/menu'));
+    assert.equal(paths.filter((p) => p.startsWith('/blog/')).length, 5);
+    assert.equal(paths.filter((p) => p.startsWith('/column/')).length, 5);
+    assert.equal(result.coverage.limitReached, false);
+  });
+
+  it('scans every article when Search first 5 articles is off', async () => {
+    const posts = Array.from({ length: 12 }, (_, i) => `/blog/p${i}`);
+    const site = { '/': { links: ['/blog', ...posts] }, '/blog': { links: posts } };
+    for (const path of posts) site[path] = {};
+    const { result } = await crawl(site, { crawl: { limitListingArticles: false } });
+    assert.equal(result.pages.map((p) => new URL(p.url).pathname).filter((p) => p.startsWith('/blog/')).length, 12);
+  });
+
   it('respects the concurrency limit and always closes its temp tabs', async () => {
     const site = { '/': { links: Array.from({ length: 9 }, (_, i) => `/p${i}`) } };
     for (let i = 0; i < 9; i += 1) site[`/p${i}`] = { delay: 30 };

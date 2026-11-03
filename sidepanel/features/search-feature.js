@@ -26,6 +26,7 @@ import { ERR, MSG, SCOPE } from '../../shared/constants.js';
 import { copyToClipboard, el, pluralize, uid } from '../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../services/settings-service.js';
+import { listingArticlesLimited } from '../components/tools-limit.js';
 import { createSpinner } from '../components/loading.js';
 import { ensureAccess, requestOrigin } from '../permissions.js';
 import { createStatus, createStreamer, describeError } from './scan-ui.js';
@@ -193,7 +194,14 @@ export function createSearchFeature(ctx, config) {
     try {
       const response = await sendToBackground(
         scope === SCOPE.SITE ? MSG.SCAN_SITE : MSG.SCAN_PAGE,
-        { scanId, sessionId: ctx.sessionId, tabId: tabContext.tab.id, target: query, options: {} },
+        {
+          scanId,
+          sessionId: ctx.sessionId,
+          tabId: tabContext.tab.id,
+          target: query,
+          options: {},
+          crawl: scope === SCOPE.SITE ? { ...(await loadSettings()).crawl, limitListingArticles: listingArticlesLimited() } : undefined,
+        },
         { timeoutMs: 0 },
       );
       if (scanId !== currentScanId) return;

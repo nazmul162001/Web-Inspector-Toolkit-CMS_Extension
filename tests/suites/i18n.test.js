@@ -52,6 +52,13 @@ describe('Language: translate()', () => {
     assert.equal(ja('1 match'), '1 件一致');
     assert.equal(ja('Showing 50 of 120 matches'), '120 件中 50 件を表示');
     assert.equal(ja('Show more (70 remaining)'), 'さらに表示（残り 70 件）');
+    assert.equal(ja('All pages (12)'), 'すべてのページ（12）');
+    assert.equal(ja('Show all 49 subpages'), 'すべてのサブページを表示（49）');
+    assert.equal(ja('Page'), 'ページ');
+    assert.equal(ja('Search first 5 articles'), '最初の5件の記事を検索');
+    assert.equal(ja('Half-width'), '半角');
+    assert.equal(ja('Copied'), 'コピーしました');
+    assert.ok(ja('When this is enabled, Entire Site searches only the first 5 article pages under /blog, /column, /news and /gallery, plus each listing page. Disable it to search every article. Other pages are not limited.').includes('最初の5件'));
     assert.equal(ja('Checking the site: 3 of 40 pages'), 'サイトを処理中: 40 ページ中 3 ページ');
     assert.equal(ja('Version 1.0.0'), 'バージョン 1.0.0');
   });

@@ -101,6 +101,17 @@ describe('Background renderer (no tabs)', () => {
     }
   });
 
+  it('parses pages with inline event handlers without running them', async () => {
+    const { renderer, dispose } = makeRenderer();
+    try {
+      const page = await renderer.scanUrl(url('onclick.html'), { target: TARGET, timeoutMs: 15000 });
+      assert.ok(classesOf(page).includes('static-one'));
+      assert.ok(classesOf(page).includes('go'));
+    } finally {
+      dispose();
+    }
+  });
+
   it('never runs scripts, never follows meta refresh, drops <noscript>', async () => {
     const { renderer, dispose } = makeRenderer();
     try {

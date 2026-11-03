@@ -35,6 +35,13 @@
     <div class="wd-tools">
       <button class="btn btn--sm" id="wd-clear" type="button">Remove marks from the page</button>
     </div>
+    <div class="wd-convert" id="wd-convert" hidden>
+      <span class="field-label">Half-width</span>
+      <div class="wd-convert__box">
+        <textarea id="wd-convert-text" class="wd-convert__input" readonly rows="2" spellcheck="false" data-i18n-skip></textarea>
+        <button type="button" id="wd-convert-copy" class="wd-convert__copy" aria-label="Copy" title="Copy"></button>
+      </div>
+    </div>
 
     <div class="cf-site-panel" id="wd-site-panel" hidden>
       <div class="notice notice--info" id="wd-site-notice"></div>

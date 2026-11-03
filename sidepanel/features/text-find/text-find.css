@@ -107,3 +107,74 @@
   gap: 6px;
   margin-top: 8px;
 }
+
+.wd-convert {
+  margin-top: 12px;
+}
+
+.wd-convert .field-label {
+  margin-bottom: 6px;
+}
+
+.wd-convert__box {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.wd-convert__input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  max-height: 120px;
+  margin: 0;
+  padding: 10px 38px 10px 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.wd-convert__input:focus {
+  outline: none;
+}
+
+.wd-convert__box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wd-convert__copy {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-dim);
+}
+
+.wd-convert__copy:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.wd-convert__copy.is-copied {
+  color: var(--success);
+}
+
+.wd-convert__copy svg {
+  width: 14px;
+  height: 14px;
+}

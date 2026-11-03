@@ -13,6 +13,7 @@ import { normalizeLanguage } from '../services/i18n.js';
 import { applyTheme, cacheTheme, cachedTheme, normalizeTheme } from '../services/theme.js';
 import { createDomTranslator } from './i18n-dom.js';
 import { renderHeader } from './components/header.js';
+import { bindToolsLimit } from './components/tools-limit.js';
 import { createContextBar } from './components/context-bar.js';
 import { createFeatureNav } from './components/navigation.js';
 import { createScopeTabs } from './components/scope-tabs.js';
@@ -102,6 +103,7 @@ async function init() {
   const settings = await loadSettings();
   const language = normalizeLanguage(settings.language);
   translator.setLanguage(language);
+  bindToolsLimit({ initial: settings.crawl.limitListingArticles });
 
   // Dark / light: "system" until the user picks one, then the pick is kept.
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');

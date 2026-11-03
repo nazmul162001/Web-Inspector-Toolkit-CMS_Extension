@@ -156,7 +156,13 @@ export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
   pageTimeoutMs: 20000,
   retries: 1,
   renderDelayMs: 500,
+  // Listing sections with many articles: scan the index plus this many posts.
+  limitListingArticles: true,
 });
+
+/** Sections whose article URLs (`/blog/id`) are capped when limitListingArticles is on. */
+export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery']);
+export const LISTING_ARTICLE_LIMIT = 5;
 
 export const CRAWL_LIMITS = Object.freeze({
   maxPages: { min: 1, max: 5000 },

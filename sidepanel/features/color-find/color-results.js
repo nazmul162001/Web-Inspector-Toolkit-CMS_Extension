@@ -8,20 +8,18 @@ import { pluralize, el, setChildren } from '../../../shared/helpers.js';
 import { displayPath } from '../../../services/url-normalizer.js';
 import { icon } from '../../components/icons.js';
 import { createSpinner } from '../../components/loading.js';
+import { createPageBlock, isSitePageList, pageFilterField, renderSectionGroups } from '../page-groups.js';
 import { createResultCard } from './color-result-card.js';
 import {
   buildSummary,
-  collectFacets,
   describeCoverage,
   filterItems,
   flattenScanResult,
-  groupByPage,
   groupItems,
   sortItems,
 } from './color-find-utils.js';
 
 const RENDER_STEP = 60;
-const MAX_CLASS_OPTIONS = 150;
 
 /** Which scope/page a result set belongs to (results outlive tab switches). */
 export function scopeLabel(result) {
@@ -103,11 +101,13 @@ export function pageNotices(pages, { truncatedHint = 'Try a more specific color 
 export function createResults(root, { onAction, groupMode = 'section', onGroupModeChange }) {
   let scan = null;
   let items = [];
-  let view = { groupMode, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+  let view = { groupMode, sortMode: 'dom', tag: '', cls: '', section: '', limit: RENDER_STEP };
   let listEl = null;
   let countEl = null;
 
   const expanded = new Set();
+  const openSections = new Set();
+  const openSubpages = new Set();
 
   /* ------------------------------------------------------------- Pieces */
 
@@ -125,54 +125,21 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
     );
   }
 
-  function option(value, label, selected, data = false) {
-    return el('option', { value, selected, ...(data ? { 'data-i18n-skip': true } : {}) }, label);
-  }
-
-  function toolbar(facets) {
-    const seg = (mode, label) =>
-      el(
-        'button',
-        {
-          class: 'seg__btn',
-          type: 'button',
-          'aria-pressed': String(view.groupMode === mode),
-          onClick: (event) => {
-            view.groupMode = mode;
-            onGroupModeChange?.(mode);
-            event.currentTarget.parentElement.querySelectorAll('.seg__btn').forEach((b) => b.setAttribute('aria-pressed', String(b === event.currentTarget)));
-            view.limit = RENDER_STEP;
-            renderList();
-          },
-        },
-        label,
-      );
-
-    const select = (label, options, onChange) =>
-      el('label', { class: 'tb-field' }, el('span', {}, label), el('select', { class: 'select', onChange: (e) => onChange(e.target.value) }, options));
-
+  function toolbar() {
+    if (!isSitePageList(scan)) return null;
     return el(
       'div',
       { class: 'toolbar' },
-      el('div', { class: 'toolbar__row' }, el('span', { class: 'toolbar__label' }, 'Group by'), el('div', { class: 'seg', role: 'group', 'aria-label': 'Group by' }, seg('section', 'Section'), seg('property', 'Property'), seg('none', 'None'))),
-      el(
-        'div',
-        { class: 'toolbar__grid' },
-        select('Sort', [option('dom', 'DOM order', view.sortMode === 'dom'), option('property', 'Property', view.sortMode === 'property'), option('tag', 'Tag', view.sortMode === 'tag')], (value) => {
-          view.sortMode = value;
-          renderList();
-        }),
-        select('Tag', [option('', `All tags (${facets.tags.length})`, view.tag === ''), ...facets.tags.map((t) => option(t.value, `${t.value} (${t.count})`, view.tag === t.value, true))], (value) => {
-          view.tag = value;
+      pageFilterField({
+        items,
+        section: view.section,
+        onChange: (value) => {
+          view.section = value;
           view.limit = RENDER_STEP;
+          if (value) openSections.add(value);
           renderList();
-        }),
-        select('Class', [option('', `All classes (${facets.classes.length})`, view.cls === ''), ...facets.classes.slice(0, MAX_CLASS_OPTIONS).map((c) => option(c.value, `.${c.value} (${c.count})`, view.cls === c.value, true))], (value) => {
-          view.cls = value;
-          view.limit = RENDER_STEP;
-          renderList();
-        }),
-      ),
+        },
+      }),
     );
   }
 
@@ -204,34 +171,49 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
 
     const budget = { remaining: view.limit };
     const blocks = [];
-    const bySite = scan.scope === 'site' && scan.pages.length > 1;
+    const bySite = isSitePageList(scan);
 
     if (filtered.length === 0) {
       listEl.replaceChildren(
-        el('div', { class: 'empty empty--inline' }, 'No results match these filters.', el('button', { class: 'btn btn--sm', type: 'button', onClick: () => { view.tag = ''; view.cls = ''; build(); } }, 'Clear filters')),
+        el('div', { class: 'empty empty--inline' }, 'No results match these filters.', el('button', { class: 'btn btn--sm', type: 'button', onClick: () => { view.section = ''; build(); } }, 'Clear filters')),
       );
       return;
     }
 
     if (bySite) {
-      for (const bucket of groupByPage(filtered)) {
-        const groups = groupItems(bucket.items, view.groupMode).map((g) => groupBlock(g, budget)).filter(Boolean);
-        if (!groups.length) continue;
-        blocks.push(
-          el(
-            'section',
-            { class: 'page-block' },
-            el('header', { class: 'page-block__head' }, icon('file', { size: 14 }), el('span', { class: 'page-block__path', title: bucket.page.url }, displayPath(bucket.page.url)), el('span', { class: 'badge badge--accent' }, String(bucket.items.length))),
-            el('div', { class: 'page-block__title' }, bucket.page.title || bucket.page.url),
-            ...groups,
-          ),
-        );
-      }
-    } else {
-      for (const group of groupItems(filtered, view.groupMode)) {
-        const block = groupBlock(group, budget);
-        if (block) blocks.push(block);
-      }
+      listEl.replaceChildren(
+        ...renderSectionGroups({
+          items: filtered,
+          openSections,
+          openSubpages,
+          cardLimit: view.limit,
+          onToggleSection: (key) => {
+            if (openSections.has(key)) openSections.delete(key);
+            else openSections.add(key);
+            renderList();
+          },
+          onShowAllSubpages: (key) => {
+            openSubpages.add(key);
+            openSections.add(key);
+            renderList();
+          },
+          onShowMore: () => {
+            view.limit += RENDER_STEP * 2;
+            renderList();
+          },
+          renderPage: (bucket, pageBudget) =>
+            createPageBlock(
+              bucket,
+              groupItems(bucket.items, view.groupMode).map((g) => groupBlock(g, pageBudget)).filter(Boolean),
+            ),
+        }),
+      );
+      return;
+    }
+
+    for (const group of groupItems(filtered, view.groupMode)) {
+      const block = groupBlock(group, budget);
+      if (block) blocks.push(block);
     }
 
     const rendered = view.limit - budget.remaining;
@@ -247,7 +229,6 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
 
   function build() {
     const summary = buildSummary(items);
-    const facets = collectFacets(items);
     countEl = el('span', { class: 'toolbar__count' });
     listEl = el('div', { class: 'cf-list' });
 
@@ -257,7 +238,7 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       coverageBanner(scan.coverage, scan.failures || []),
       ...pageNotices(scan.pages),
       summaryTiles(summary, scan.scope === 'site'),
-      toolbar(facets),
+      toolbar(),
       el('div', { class: 'cf-list-head' }, countEl),
       listEl,
     );
@@ -269,6 +250,8 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       scan = null;
       items = [];
       expanded.clear();
+      openSections.clear();
+      openSubpages.clear();
       root.replaceChildren();
     },
 
@@ -289,7 +272,9 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
       items = flattenScanResult(scanResult);
       if (!keepView) {
         expanded.clear();
-        view = { ...view, sortMode: 'dom', tag: '', cls: '', limit: RENDER_STEP };
+        openSections.clear();
+        openSubpages.clear();
+        view = { ...view, sortMode: 'dom', tag: '', cls: '', section: '', limit: RENDER_STEP };
       }
 
       if (items.length === 0) {

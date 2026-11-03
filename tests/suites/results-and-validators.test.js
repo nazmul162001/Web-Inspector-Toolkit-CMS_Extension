@@ -1,16 +1,20 @@
-import { assert, describe, it } from '../test-runner.js';
+import { afterEach, assert, describe, it } from '../test-runner.js';
 import {
   buildSummary,
   collectFacets,
+  collectSectionFacets,
   declarationKey,
   describeCoverage,
   describeSourceLocation,
   filterItems,
   flattenScanResult,
   groupByPage,
+  groupBySection,
   groupItems,
+  pagesShownInGroup,
   sortItems,
 } from '../../sidepanel/features/color-find/color-find-utils.js';
+import { createTextResults } from '../../sidepanel/features/text-find/text-results.js';
 import {
   checkRestrictedUrl,
   isCanonicalColor,
@@ -97,6 +101,33 @@ describe('Result data helpers', () => {
     assert.equal(groupByPage(multi).length, 2);
   });
 
+  it('groups site matches by first path segment and hides extra articles until asked', () => {
+    const pages = [
+      { ...scan.pages[0], url: 'https://x.test/' },
+      { ...scan.pages[0], url: 'https://x.test/blog' },
+      { ...scan.pages[0], url: 'https://x.test/blog/one' },
+      { ...scan.pages[0], url: 'https://x.test/blog/two' },
+      { ...scan.pages[0], url: 'https://x.test/blog/three' },
+      { ...scan.pages[0], url: 'https://x.test/concept' },
+    ];
+    const multi = flattenScanResult({ pages });
+    const groups = groupBySection(multi);
+    assert.deepEqual(groups.map((g) => g.section), ['/', '/blog', '/concept']);
+    const blog = groups.find((g) => g.section === '/blog');
+    assert.equal(blog.pageCount, 4);
+    assert.equal(blog.indexCount, 1);
+    assert.equal(blog.subCount, 3);
+    const preview = pagesShownInGroup(blog, false);
+    assert.equal(preview.pages.length, 2);
+    assert.equal(preview.pages[0].page.url, 'https://x.test/blog');
+    assert.equal(preview.pages[1].page.url, 'https://x.test/blog/one');
+    assert.equal(preview.hidden, 2);
+    assert.equal(preview.subCount, 3);
+    assert.equal(pagesShownInGroup(blog, true).pages.length, 4);
+    assert.equal(filterItems(multi, { section: '/blog' }).length, scan.pages[0].matches.filter((m) => m.elementId !== 99).length * 4);
+    assert.deepEqual(collectSectionFacets(multi).map((f) => f.value), ['/', '/blog', '/concept']);
+  });
+
   it('describes source locations without inventing line numbers', () => {
     assert.equal(describeSourceLocation(null), '');
     assert.equal(describeSourceLocation({ origin: 'inline' }), 'Inline style attribute');
@@ -117,6 +148,75 @@ describe('Result data helpers', () => {
     assert.equal(describeCoverage({ ...base, failed: 1 }).state, 'partial');
     assert.ok(describeCoverage({ ...base, limitReached: true, notScanned: 3 }).detail.includes('limit'));
     assert.ok(describeCoverage({ ...base, cancelled: true }).detail.includes('cancelled'));
+  });
+});
+
+describe('Entire Site result accordion', () => {
+  let root;
+
+  afterEach(() => {
+    root?.remove();
+    root = null;
+  });
+
+  function hrefPage(url, title) {
+    return {
+      url,
+      title,
+      elements: [{ elementId: 1, tag: 'a', classes: ['w-sns-icon'], selector: 'a.w-sns-icon', rendered: true, location: { section: 'header' } }],
+      matches: [{ elementId: 1, kind: 'href', attribute: 'href', text: 'https://www.instagram.com/x/', before: '', after: '', seq: 0 }],
+    };
+  }
+
+  it('collapses to main paths, then shows the listing plus the first article', () => {
+    root = document.createElement('div');
+    document.body.append(root);
+    const view = createTextResults(root, { onAction() {}, copyLabel: 'Copy link' });
+    view.show(
+      {
+        scope: 'site',
+        pages: [
+          hrefPage('https://x.test/', 'Home'),
+          hrefPage('https://x.test/menu/', 'Menu'),
+          hrefPage('https://x.test/blog', 'Blog'),
+          hrefPage('https://x.test/blog/one', 'One'),
+          hrefPage('https://x.test/blog/two', 'Two'),
+          hrefPage('https://x.test/blog/three', 'Three'),
+        ],
+        failures: [],
+        coverage: { scope: 'site', scanned: 6, discovered: 6, failed: 0, notScanned: 0, cancelled: false, limitReached: false, origin: 'https://x.test' },
+      },
+      { query: 'instagram' },
+    );
+
+    const groups = [...root.querySelectorAll('.page-group')];
+    assert.deepEqual(groups.map((g) => g.dataset.section), ['/', '/blog', '/menu']);
+    assert.ok(groups.every((g) => g.querySelector('.page-group__toggle').getAttribute('aria-expanded') === 'false'));
+    assert.equal(root.querySelectorAll('.page-block').length, 0);
+
+    const pageSelect = root.querySelector('.tb-field--page select');
+    assert.ok(pageSelect);
+    assert.ok([...pageSelect.options].some((o) => o.value === '/blog'));
+
+    groups[1].querySelector('.page-group__toggle').click();
+    const blog = root.querySelector('[data-section="/blog"]');
+    assert.equal(blog.querySelector('.page-group__toggle').getAttribute('aria-expanded'), 'true');
+    const paths = [...blog.querySelectorAll('.page-block__path')].map((n) => n.textContent);
+    assert.deepEqual(paths, ['/blog', '/blog/one']);
+    const more = blog.querySelector('.page-group__more');
+    assert.ok(more);
+    assert.ok(more.textContent.includes('3'));
+
+    more.click();
+    const allPaths = [...root.querySelector('[data-section="/blog"]').querySelectorAll('.page-block__path')].map((n) => n.textContent);
+    assert.deepEqual(allPaths, ['/blog', '/blog/one', '/blog/two', '/blog/three']);
+    assert.equal(root.querySelector('[data-section="/blog"] .page-group__more'), null);
+
+    pageSelect.value = '/menu';
+    pageSelect.dispatchEvent(new Event('change'));
+    assert.deepEqual([...root.querySelectorAll('.page-group')].map((g) => g.dataset.section), ['/menu']);
+    assert.equal(root.querySelector('[data-section="/menu"] .page-group__toggle').getAttribute('aria-expanded'), 'true');
+    assert.equal(root.querySelector('[data-section="/menu"] .page-block__path').textContent, '/menu/');
   });
 });
 
@@ -150,6 +250,10 @@ describe('Validators', () => {
     assert.equal(wild.pageTimeoutMs, CRAWL_LIMITS.pageTimeoutMs.min);
     assert.equal(wild.retries, CRAWL_LIMITS.retries.min);
     assert.equal(wild.renderDelayMs, DEFAULT_CRAWL_OPTIONS.renderDelayMs);
+    assert.equal(DEFAULT_CRAWL_OPTIONS.limitListingArticles, true);
+    assert.equal(sanitizeCrawlOptions({}).limitListingArticles, true);
+    assert.equal(sanitizeCrawlOptions({ limitListingArticles: false }).limitListingArticles, false);
+    assert.equal(sanitizeCrawlOptions({ limitListingArticles: 'yes' }).limitListingArticles, true);
   });
 
   it('detects pages extensions cannot inspect', () => {

@@ -53,8 +53,9 @@ export function linkValues(element, includeButtons) {
   for (const name of DATA_ATTRIBUTES) {
     if (element.hasAttribute(name)) out.push({ attribute: name, value: element.getAttribute(name) });
   }
-  if (element.hasAttribute('onclick')) {
-    for (const value of addressesInCode(element.getAttribute('onclick'))) out.push({ attribute: 'onclick', value });
+  const onclick = element.getAttribute('onclick') || element.getAttribute('data-wit-onclick');
+  if (onclick) {
+    for (const value of addressesInCode(onclick)) out.push({ attribute: 'onclick', value });
   }
   return out;
 }

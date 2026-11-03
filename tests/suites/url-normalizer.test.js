@@ -2,8 +2,11 @@ import { assert, describe, it } from '../test-runner.js';
 import {
   extractInternalLinks,
   isCrawlableUrl,
+  isListingArticle,
   isSameOrigin,
+  isSectionIndex,
   normalizeUrl,
+  sectionPath,
 } from '../../services/url-normalizer.js';
 
 const BASE = 'https://example.com/products/';
@@ -93,5 +96,35 @@ describe('Crawlable URL filtering', () => {
       'https://example.com',
     );
     assert.deepEqual(links.map((l) => l.key), ['https://example.com/a', 'https://example.com/b', 'https://example.com/d']);
+  });
+});
+
+describe('Site section paths', () => {
+  it('uses the first path segment as the section', () => {
+    assert.equal(sectionPath('https://example.com/'), '/');
+    assert.equal(sectionPath('https://example.com/blog'), '/blog');
+    assert.equal(sectionPath('https://example.com/blog/'), '/blog');
+    assert.equal(sectionPath('https://example.com/blog/post-1'), '/blog');
+    assert.equal(sectionPath('https://example.com/column/42?x=1'), '/column');
+  });
+
+  it('treats listing URLs as the section index and articles as subpages', () => {
+    assert.ok(isSectionIndex('https://example.com/'));
+    assert.ok(isSectionIndex('https://example.com/blog'));
+    assert.ok(isSectionIndex('https://example.com/blog/'));
+    assert.ok(isSectionIndex('https://example.com/news?page=2'));
+    assert.ok(!isSectionIndex('https://example.com/blog/post-1'));
+    assert.ok(!isSectionIndex('https://example.com/column/42/'));
+  });
+
+  it('treats /blog /column /news /gallery posts as listing articles', () => {
+    const sections = ['/blog', '/column', '/news', '/gallery'];
+    assert.ok(isListingArticle('https://example.com/blog/post-1', sections));
+    assert.ok(isListingArticle('https://example.com/column/42/', sections));
+    assert.ok(isListingArticle('https://example.com/news/2024/hello', sections));
+    assert.ok(isListingArticle('https://example.com/gallery/album', sections));
+    assert.ok(!isListingArticle('https://example.com/blog', sections));
+    assert.ok(!isListingArticle('https://example.com/blog/', sections));
+    assert.ok(!isListingArticle('https://example.com/menu/item', sections));
   });
 });

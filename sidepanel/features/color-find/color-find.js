@@ -8,6 +8,7 @@ import { ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/con
 import { copyToClipboard, el, pluralize, uid } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
+import { listingArticlesLimited } from '../../components/tools-limit.js';
 import { ensureAccess, requestOrigin } from '../../permissions.js';
 import { createSpinner } from '../../components/loading.js';
 import { createStatus, createStreamer, describeError } from '../scan-ui.js';
@@ -168,6 +169,7 @@ export function createFeature(ctx) {
           tabId: tabContext.tab.id,
           target: validation.color,
           options,
+          crawl: scope === SCOPE.SITE ? { ...(await loadSettings()).crawl, limitListingArticles: listingArticlesLimited() } : undefined,
         },
         { timeoutMs: 0 }, // long jobs are bounded by cancellation, not a message timeout
       );

@@ -40,6 +40,10 @@ export function sanitizeCrawlOptions(raw = {}) {
   };
   for (const [key, fallback] of Object.entries(DEFAULT_CRAWL_OPTIONS)) {
     if (key === 'mode') continue;
+    if (typeof fallback === 'boolean') {
+      out[key] = typeof raw?.[key] === 'boolean' ? raw[key] : fallback;
+      continue;
+    }
     const { min, max } = CRAWL_LIMITS[key];
     const value = Number(raw?.[key]);
     out[key] = Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback;
