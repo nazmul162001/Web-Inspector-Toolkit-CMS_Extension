@@ -474,6 +474,13 @@ export const EXACT_JA = {
   'Works through text, buttons and other layers on top of an image.': '画像の上に重なったテキスト・ボタン・その他のレイヤー越しでも動作します。',
   'Also reads CSS background images, such as hero banners.': 'ヒーローバナーなど、CSSの背景画像も読み取ります。',
   'Also reads CSS background images and pictures drawn with ::before / ::after.': 'ヒーローバナーなどのCSS背景画像と、::before / ::after で描かれた画像も読み取ります。',
+  'Also reads CSS background images, masks, border images and pictures drawn with ::before / ::after.':
+    'CSSの背景画像、マスク、ボーダー画像、::before / ::after で描かれた画像も読み取ります。',
+  'Mask image': 'マスク画像',
+  'Border image': 'ボーダー画像',
+  'List image': 'リスト画像',
+  'Content image': 'コンテンツ画像',
+  'Video poster': '動画ポスター',
   "Shows the size on the page, the image's own size and how they compare.": 'ページ上での表示サイズ、画像本来のサイズ、その比較を表示します。',
   'Include CSS background images': 'CSSの背景画像を含める',
   'Pictures set with background-image, even under text and other elements.': 'background-image で指定された画像（テキストなどの下にあるものも含む）。',

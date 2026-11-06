@@ -439,7 +439,7 @@ export function createFeature(ctx) {
           'ul',
           { class: 'ir-tips' },
           el('li', {}, 'Works through text, buttons and other layers on top of an image.'),
-          el('li', {}, 'Also reads CSS background images and pictures drawn with ::before / ::after.'),
+          el('li', {}, 'Also reads CSS background images, masks, border images and pictures drawn with ::before / ::after.'),
           el('li', {}, 'Shows the size on the page, the image\'s own size and how they compare.'),
         ),
         el('div', { class: 'ir-options' }, optionBoxes),

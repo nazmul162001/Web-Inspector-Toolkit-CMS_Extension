@@ -60,6 +60,7 @@ describe('Image Resolution: CSS lists', () => {
     assert.equal(extractImageUrl('image-set(url("a.png") 1x, url("b.png") 2x)'), 'a.png');
     assert.equal(extractImageUrl('image-set("a.png" 1x)'), 'a.png');
     assert.equal(extractImageUrl('linear-gradient(red, blue)'), null);
+    assert.equal(extractImageUrl('url(/_lg/ja/cms_parts_library/56067/image/) no-repeat center / contain'), '/_lg/ja/cms_parts_library/56067/image/');
     assert.equal(extractImageUrl('none'), null);
     assert.equal(extractImageUrl(''), null);
     assert.equal(imageSetDensity('image-set(url("a.png") 2x)'), 2);
@@ -308,6 +309,64 @@ describe('Image Resolution: finding images under the pointer', () => {
     assert.equal(hit.format, 'SVG');
   });
 
+  it('finds an <img> under a stretched-link ::before overlay', async () => {
+    const holder = place(`<a id="ir-card" href="#x" style="position:relative;display:block;width:200px;height:100px;">
+      <img src="${svg(200, 100)}" width="200" height="100" alt="Card photo" style="display:block;width:200px;height:100px;">
+    </a>`);
+    const sheet = document.createElement('style');
+    sheet.textContent = '#ir-card::before{content:"";position:absolute;inset:0;z-index:1;}';
+    holder.append(sheet);
+    await holder.querySelector('img').decode();
+    const hit = await lookup(80, 80);
+    assert.ok(hit, 'found under the overlay');
+    assert.equal(hit.kind, 'Image');
+    assert.equal(hit.alt, 'Card photo');
+    assert.deepEqual(hit.natural, { w: 200, h: 100 });
+  });
+
+  it('finds a CMS card photo under a whole-card link overlay', async () => {
+    const url = svg(400, 300);
+    const holder = place(`
+      <ul class="-w-field_set fade" style="margin:0;padding:0;list-style:none;">
+        <li>
+          <a href="" class="-w-none_href" id="ir-cms-card" style="position:relative;display:block;width:220px;color:inherit;text-decoration:none;">
+            <h3 class="-w-general" style="margin:0;height:28px;font-size:14px;">本当の気持ちに気づける</h3>
+            <div class="-w-fleld_image image">
+              <img src="${url}" alt="本当の気持ちに気づける">
+            </div>
+            <div class="-w-field_text" style="padding:8px 0;">Caption text under the photo</div>
+          </a>
+        </li>
+      </ul>`);
+    const sheet = document.createElement('style');
+    sheet.textContent = `
+      #ir-cms-card::before { content:""; position:absolute; inset:0; z-index:2; }
+      .-w-none_href::before { content:""; position:absolute; inset:0; z-index:2; }
+      .-w-fleld_image.image img {
+        display:inline-block; vertical-align:top; aspect-ratio:3 / 1; object-fit:cover;
+        max-width:100%; padding:0; width:100%;
+      }
+    `;
+    holder.append(sheet);
+    await holder.querySelector('img').decode();
+    const img = holder.querySelector('img');
+    const box = img.getBoundingClientRect();
+    const hit = await lookup(box.left + box.width / 2, box.top + box.height / 2);
+    assert.ok(hit, 'found the card photo');
+    assert.equal(hit.kind, 'Image');
+    assert.equal(hit.alt, '本当の気持ちに気づける');
+    assert.deepEqual(hit.natural, { w: 400, h: 300 });
+  });
+
+  it('finds an <img> that ignores the pointer', async () => {
+    const holder = place(`<div style="width:200px;height:100px;"><img src="${svg(200, 100)}" width="200" height="100" style="display:block;width:200px;height:100px;pointer-events:none;"></div>`);
+    await holder.querySelector('img').decode();
+    const hit = await lookup(80, 80);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, 'Image');
+    assert.deepEqual(hit.natural, { w: 200, h: 100 });
+  });
+
   it('looks through text and links placed on top of the image', async () => {
     const holder = place(`
       <div style="position: relative; width: 200px; height: 100px;">
@@ -422,6 +481,64 @@ describe('Image Resolution: finding images under the pointer', () => {
     assert.ok(hit);
     assert.equal(hit.kind, '::after image');
     assert.deepEqual(hit.natural, { w: 120, h: 80 });
+  });
+
+  it('finds a CSS mask-image (colour fill clipped by a picture)', async () => {
+    const url = svg(80, 40, '#0aa');
+    place(
+      `<div style="width:80px;height:40px;background:#47e9f5;-webkit-mask-image:url('${url}');mask-image:url('${url}');-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;"></div>`,
+    );
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, 'Mask image');
+    assert.deepEqual(hit.natural, { w: 80, h: 40 });
+  });
+
+  it('still finds a mask-image when CSS backgrounds are turned off', async () => {
+    const url = svg(80, 40, '#0aa');
+    place(`<div style="width:80px;height:40px;background:#47e9f5;mask-image:url('${url}');-webkit-mask-image:url('${url}');"></div>`);
+    const hit = await lookup(60, 60, { backgrounds: false });
+    assert.ok(hit);
+    assert.equal(hit.kind, 'Mask image');
+  });
+
+  it('finds a border-image', async () => {
+    const url = svg(60, 60, '#08c');
+    place(`<div style="width:80px;height:40px;border:10px solid transparent;border-image-source:url('${url}');border-image-slice:10;box-sizing:border-box;"></div>`);
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, 'Border image');
+  });
+
+  it('finds a list-style-image', async () => {
+    const url = svg(16, 16, '#c30');
+    place(`<div style="display:list-item;width:80px;height:40px;padding-left:20px;list-style-image:url('${url}');">item</div>`);
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, 'List image');
+  });
+
+  it('finds a CMS-style colour fill clipped by -webkit-mask', async () => {
+    const url = svg(80, 40, '#0aa');
+    place(
+      `<div style="width:80px;height:40px;background:#47e9f5;--mask-image:url('${url}');-webkit-mask:var(--mask-image) no-repeat center / contain;mask:var(--mask-image) no-repeat center / contain;"></div>`,
+    );
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, 'Mask image');
+    assert.deepEqual(hit.natural, { w: 80, h: 40 });
+  });
+
+  it('finds a mask-image drawn on ::before', async () => {
+    const url = svg(100, 50, '#0a7');
+    const holder = place('<div id="ir-mask" style="position:relative;width:100px;height:50px;"></div>');
+    const sheet = document.createElement('style');
+    sheet.textContent = `#ir-mask::before{content:"";position:absolute;inset:0;background:#47e9f5;-webkit-mask-image:url("${url}");mask-image:url("${url}");-webkit-mask-size:contain;mask-size:contain;}`;
+    holder.append(sheet);
+    const hit = await lookup(60, 60);
+    assert.ok(hit, 'found');
+    assert.equal(hit.kind, '::before image');
+    assert.deepEqual(hit.natural, { w: 100, h: 50 });
   });
 
   it('still finds content:url() on ::before when backgrounds are turned off', async () => {

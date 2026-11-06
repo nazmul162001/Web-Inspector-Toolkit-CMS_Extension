@@ -4,13 +4,19 @@
  * While the inspector runs, the pointer is followed and the pictures under it
  * are looked up from the whole stack of elements at that point
  * (`elementsFromPoint`), so an image is found even when text, buttons, links or
- * transparent layers sit on top of it. Two kinds of pictures are recognised:
+ * transparent layers sit on top of it. These pictures are recognised:
  *
  *   - real images: <img> (and <picture>), <input type="image">, SVG <image>
  *   - CSS background images, including several layers, `background-size`,
  *     `-position`, `-repeat`, `-origin` and `-clip`, so the point must really be
  *     over the painted picture, not just over the element that owns it
- *   - pictures on ::before / ::after (`content: url(...)` and background-image)
+ *   - CSS mask / -webkit-mask images (the usual way a CMS draws an icon with
+ *     a colour fill), border-image and list-style-image
+ *   - pictures on ::before / ::after (`content: url(...)`, background-image, mask)
+ *
+ * A parent with a stretched ::before overlay (whole-card links) or
+ * `pointer-events: none` on the picture is still searched: those pictures are
+ * missing from `elementsFromPoint`, so descendants under the point are visited too.
  *
  * Nothing on the page is changed: the card and the outline are drawn in a
  * closed shadow root under <html> that ignores the pointer, and are removed
@@ -33,6 +39,7 @@ import {
   imageSetDensity,
   layerValue,
   layoutBackgroundLayer,
+  splitSpaces,
   splitTopLevel,
 } from '../services/image-geometry.js';
 import { blobToDataUrl } from '../services/image-export.js';
@@ -91,6 +98,26 @@ function fileSizeOf(url) {
 
 const px = (value) => Number.parseFloat(value) || 0;
 
+/** Make a CSS url() absolute so the side panel can fetch it. */
+function absoluteCssUrl(url, element) {
+  if (!url || /^(data:|blob:)/i.test(url)) return url;
+  try {
+    return new URL(url, element?.baseURI || document.baseURI).href;
+  } catch {
+    return url;
+  }
+}
+
+/** `center` / `left` / `right` as the percentages `background-position` uses. */
+function positionToken(token, fallback = '0%') {
+  const text = String(token ?? '').trim().toLowerCase();
+  if (!text) return fallback;
+  if (text === 'center') return '50%';
+  if (text === 'left' || text === 'top') return '0%';
+  if (text === 'right' || text === 'bottom') return '100%';
+  return token;
+}
+
 const intersect = (a, b) => {
   const x = Math.max(a.x, b.x);
   const y = Math.max(a.y, b.y);
@@ -146,50 +173,85 @@ function makeHit(base) {
   };
 }
 
-/** <img>, <input type="image"> and SVG <image>. */
-function realImageAt(element) {
+/** Address of a replaced picture. `element.src` alone is the page URL when `src` is missing. */
+function imageUrlOf(element) {
   const tag = element.localName;
-  let url = '';
+  if (tag === 'img' || (tag === 'input' && element.type === 'image')) {
+    if (element.currentSrc) return element.currentSrc;
+    const src = element.getAttribute('src');
+    if (src) return element.src || src;
+    const lazy = element.getAttribute('data-src') || element.getAttribute('data-original') || '';
+    return lazy;
+  }
+  if (tag === 'image' && element.namespaceURI === 'http://www.w3.org/2000/svg') {
+    const href = element.href?.baseVal || element.getAttribute('href') || element.getAttribute('xlink:href') || '';
+    return href ? new URL(href, element.baseURI).href : '';
+  }
+  if (tag === 'video') return element.poster || element.getAttribute('poster') || '';
+  return '';
+}
+
+function boxOfRect(rect) {
+  return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
+}
+
+/** <img>, <picture>, <input type="image">, SVG <image> and video posters. */
+function realImageAt(element, x, y) {
+  if (!element) return null;
+  const tag = element.localName;
+  if (tag === 'picture') {
+    const img = element.querySelector('img');
+    return img ? realImageAt(img, x, y) : null;
+  }
+
   let kind = 'Image';
   if (tag === 'img') {
-    url = element.currentSrc || element.src;
     if (element.parentElement?.localName === 'picture') kind = 'Picture';
-  } else if (tag === 'input' && element.type === 'image') {
-    url = element.src;
-    kind = 'Image button';
-  } else if (tag === 'image' && element.namespaceURI === 'http://www.w3.org/2000/svg') {
-    url = element.href?.baseVal ? new URL(element.href.baseVal, element.baseURI).href : '';
-    kind = 'SVG image';
-  } else return null;
+  } else if (tag === 'input' && element.type === 'image') kind = 'Image button';
+  else if (tag === 'image' && element.namespaceURI === 'http://www.w3.org/2000/svg') kind = 'SVG image';
+  else if (tag === 'video') kind = 'Video poster';
+  else return null;
+
+  const url = absoluteCssUrl(imageUrlOf(element), element);
   if (!url) return null;
 
   const style = getComputedStyle(element);
-  if (style.visibility !== 'visible' || Number(style.opacity) === 0) return null;
+  if (style.display === 'none') return null;
+  if (style.visibility === 'hidden') return null;
 
-  const content = tag === 'image' ? (() => {
-    const r = element.getBoundingClientRect();
-    return { x: r.left, y: r.top, w: r.width, h: r.height };
-  })() : boxesOf(element, style)['content-box'];
-  if (content.w <= 2 && content.h <= 2) return null; // tracking pixels and spacers are not worth reporting
-
-  // The picture's real pixel size. With srcset the browser divides by the density, so read the file itself.
-  let natural = { w: element.naturalWidth || 0, h: element.naturalHeight || 0 };
-  if (tag !== 'image' && (element.hasAttribute('srcset') || kind === 'Picture')) {
-    const raw = naturalSizeOf(url);
-    if (raw.state === 'ok' && raw.w) natural = { w: raw.w, h: raw.h };
-  } else if (tag === 'image') {
-    const raw = naturalSizeOf(url);
-    if (raw.state === 'ok') natural = { w: raw.w, h: raw.h };
+  let box = boxOfRect(element.getBoundingClientRect());
+  const natural = { w: element.naturalWidth || 0, h: element.naturalHeight || 0 };
+  const tinyBox = !(box.w > 2 && box.h > 2);
+  const tinyFile = !(natural.w > 2 || natural.h > 2);
+  if (tinyBox) {
+    // Tracking pixels stay hidden. A loaded photo with height 0 / opacity 0 still
+    // has a real file — use the wrapper that is actually under the pointer.
+    if (tag === 'img' && !element.complete) return null;
+    if (tinyFile) return null;
+    const parent = element.parentElement;
+    if (!parent) return null;
+    box = boxOfRect(parent.getBoundingClientRect());
+    if (!(box.w > 2 && box.h > 2)) return null;
   }
-  const broken = tag === 'img' && element.complete && natural.w === 0;
+  if (Number.isFinite(x) && Number.isFinite(y) && !contains(box, x, y)) return null;
+
+  let file = natural;
+  if (tag !== 'image' && tag !== 'video' && (element.hasAttribute('srcset') || kind === 'Picture')) {
+    const raw = naturalSizeOf(url);
+    if (raw.state === 'ok' && raw.w) file = { w: raw.w, h: raw.h };
+  } else if (tag === 'image' || tag === 'video') {
+    const raw = naturalSizeOf(url);
+    if (raw.state === 'ok') file = { w: raw.w, h: raw.h };
+  }
+  const broken = tag === 'img' && element.complete && file.w === 0;
   const loading = tag === 'img' && !element.complete;
 
   return makeHit({
     kind,
     url,
-    display: { w: content.w, h: content.h },
-    natural,
-    outline: content,
+    display: { w: box.w, h: box.h },
+    natural: file,
+    outline: box,
     alt: tag === 'img' ? element.alt || '' : '',
     broken,
     loading,
@@ -299,8 +361,9 @@ function backgroundLayersAt(element, x, y, style, own, kind, paintsCanvas) {
   const clips = splitTopLevel(style.backgroundClip);
 
   for (let i = 0; i < layers.length; i += 1) {
-    const url = extractImageUrl(layers[i]);
-    if (!url) continue; // gradient or none: not a picture file
+    const raw = extractImageUrl(layers[i]);
+    if (!raw) continue; // gradient or none: not a picture file
+    const url = absoluteCssUrl(raw, element);
 
     const clipName = layerValue(clips, i, 'border-box');
     if (clipName === 'text') continue;
@@ -349,6 +412,149 @@ function backgroundImageAt(element, x, y) {
   return backgroundLayersAt(element, x, y, style, boxesOf(element, style), 'Background image', paintsCanvas);
 }
 
+function firstStyleValue(style, names) {
+  for (const name of names) {
+    const value = style[name];
+    if (value && value !== 'none') return value;
+  }
+  return '';
+}
+
+function maskAxes(style) {
+  let posX = firstStyleValue(style, ['maskPositionX', 'webkitMaskPositionX']);
+  let posY = firstStyleValue(style, ['maskPositionY', 'webkitMaskPositionY']);
+  if (!posX || !posY) {
+    const parts = splitSpaces(firstStyleValue(style, ['maskPosition', 'webkitMaskPosition']) || '0% 0%');
+    posX = posX || positionToken(parts[0], '0%');
+    posY = posY || positionToken(parts[1] || parts[0], '0%');
+  }
+  return { posX: positionToken(posX, '0%'), posY: positionToken(posY, '0%') };
+}
+
+/**
+ * A CSS picture (mask, border-image, list-style-image, content:url).
+ * If the painted tile cannot be resolved, the element's box is still reported
+ * so a mask icon can be downloaded.
+ */
+function cssPictureAt(element, x, y, { style, own, kind, imageValue, sizeValue = 'auto', posX = '50%', posY = '50%', repeat = 'no-repeat', originName = 'border-box', clipName = 'border-box' }) {
+  if (!imageValue || imageValue === 'none') return null;
+  if (style.visibility !== 'visible' || Number(style.opacity) === 0) return null;
+  const layers = splitTopLevel(imageValue);
+  if (!layers.some((layer) => extractImageUrl(layer))) return null;
+
+  const clipBox = own[clipName] || own['border-box'];
+  if (!clipBox || !contains(clipBox, x, y)) return null;
+  const origin = own[originName] || own['border-box'] || clipBox;
+  const sizes = splitTopLevel(sizeValue);
+  const repeats = splitTopLevel(repeat);
+
+  for (let i = 0; i < layers.length; i += 1) {
+    const raw = extractImageUrl(layers[i]);
+    if (!raw) continue;
+    const url = absoluteCssUrl(raw, element);
+    const natural = naturalSizeOf(url);
+    if (natural.state === 'loading') return null;
+
+    let painted = { x: origin.x, y: origin.y, w: origin.w, h: origin.h };
+    if (natural.state === 'ok' && natural.w > 0 && natural.h > 0) {
+      const density = imageSetDensity(layers[i]);
+      const layout = layoutBackgroundLayer({
+        natural: { w: natural.w / density, h: natural.h / density },
+        area: { w: origin.w, h: origin.h },
+        size: layerValue(sizes, i, 'auto'),
+        posX,
+        posY,
+        repeat: layerValue(repeats, i, 'no-repeat'),
+      });
+      const tile = layout.tileAt(x - origin.x, y - origin.y);
+      if (tile && tile.w > 0 && tile.h > 0) painted = { x: origin.x + tile.x, y: origin.y + tile.y, w: tile.w, h: tile.h };
+    }
+
+    return makeHit({
+      kind,
+      url,
+      display: { w: painted.w, h: painted.h },
+      natural: { w: natural.w || 0, h: natural.h || 0 },
+      outline: intersect(painted, clipBox) || painted,
+      box: { w: own['border-box'].w, h: own['border-box'].h },
+    });
+  }
+  return null;
+}
+
+function maskImageAt(element, x, y, style, own, kind = 'Mask image') {
+  let imageValue = firstStyleValue(style, ['maskImage', 'webkitMaskImage']);
+  if (!extractImageUrl(imageValue)) {
+    const shorthand = firstStyleValue(style, ['mask', 'webkitMask']);
+    if (extractImageUrl(shorthand)) imageValue = shorthand;
+  }
+  if (!imageValue) return null;
+  const axes = maskAxes(style);
+  return cssPictureAt(element, x, y, {
+    style,
+    own,
+    kind,
+    imageValue,
+    sizeValue: firstStyleValue(style, ['maskSize', 'webkitMaskSize']) || 'auto',
+    posX: axes.posX,
+    posY: axes.posY,
+    repeat: firstStyleValue(style, ['maskRepeat', 'webkitMaskRepeat']) || 'no-repeat',
+    originName: firstStyleValue(style, ['maskOrigin', 'webkitMaskOrigin']) || 'border-box',
+    clipName: firstStyleValue(style, ['maskClip', 'webkitMaskClip']) || 'border-box',
+  });
+}
+
+function borderImageAt(element, x, y, style, own) {
+  return cssPictureAt(element, x, y, {
+    style,
+    own,
+    kind: 'Border image',
+    imageValue: firstStyleValue(style, ['borderImageSource', 'webkitBorderImageSource']),
+    sizeValue: firstStyleValue(style, ['borderImageWidth']) || 'auto',
+    posX: '0%',
+    posY: '0%',
+    repeat: 'stretch',
+  });
+}
+
+function listStyleImageAt(element, x, y, style, own) {
+  return cssPictureAt(element, x, y, {
+    style,
+    own,
+    kind: 'List image',
+    imageValue: firstStyleValue(style, ['listStyleImage']),
+    sizeValue: 'auto',
+    posX: '0%',
+    posY: '0%',
+    repeat: 'no-repeat',
+  });
+}
+
+function contentImageAt(element, x, y, style, own, kind = 'Content image') {
+  const url = extractImageUrl(style.content);
+  if (!url) return null;
+  const box = own['content-box'] || own['border-box'];
+  if (!box || !contains(box, x, y) || (box.w <= 2 && box.h <= 2)) return null;
+  if (style.visibility !== 'visible' || Number(style.opacity) === 0) return null;
+  const abs = absoluteCssUrl(url, element);
+  const natural = naturalSizeOf(abs);
+  if (natural.state === 'loading') return null;
+  return makeHit({
+    kind,
+    url: abs,
+    display: { w: box.w, h: box.h },
+    natural: { w: natural.w || 0, h: natural.h || 0 },
+    outline: box,
+    box: { w: own['border-box'].w, h: own['border-box'].h },
+    alt: contentAlt(style.content),
+  });
+}
+
+function extraCssImagesAt(element, x, y, style, own, kindPrefix = '') {
+  const maskKind = kindPrefix || 'Mask image';
+  return maskImageAt(element, x, y, style, own, maskKind) || (!kindPrefix && borderImageAt(element, x, y, style, own)) || (!kindPrefix && listStyleImageAt(element, x, y, style, own));
+}
+
 /** `content: url()` or background-image on ::before / ::after. */
 function pseudoImageAt(element, x, y, pseudoName, { backgrounds = true } = {}) {
   let style;
@@ -364,11 +570,12 @@ function pseudoImageAt(element, x, y, pseudoName, { backgrounds = true } = {}) {
 
   const contentUrl = extractImageUrl(style.content);
   if (contentUrl && contains(rect, x, y) && !(rect.w <= 2 && rect.h <= 2)) {
-    const natural = naturalSizeOf(contentUrl);
+    const url = absoluteCssUrl(contentUrl, element);
+    const natural = naturalSizeOf(url);
     if (natural.state === 'ok') {
       return makeHit({
         kind,
-        url: contentUrl,
+        url,
         display: { w: rect.w, h: rect.h },
         natural: { w: natural.w, h: natural.h },
         outline: rect,
@@ -379,28 +586,111 @@ function pseudoImageAt(element, x, y, pseudoName, { backgrounds = true } = {}) {
     if (natural.state === 'loading') return null;
   }
 
-  if (!backgrounds) return null;
+  const own = boxesFromRect(rect, style);
   if (!contains(rect, x, y)) return null;
-  return backgroundLayersAt(element, x, y, style, boxesFromRect(rect, style), kind, false);
+  if (backgrounds) {
+    const background = backgroundLayersAt(element, x, y, style, own, kind, false);
+    if (background) return background;
+  }
+  return maskImageAt(element, x, y, style, own, kind) || contentImageAt(element, x, y, style, own, kind);
+}
+
+/**
+ * Direct children whose box contains the point. Used for pictures that
+ * `elementsFromPoint` skips (`pointer-events: none`, or a parent ::before overlay).
+ */
+function kidsAtPoint(element, x, y) {
+  const out = [];
+  const children = element?.children;
+  if (!children || !children.length) return out;
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i];
+    const box = child.getBoundingClientRect();
+    if (!(box.width > 2 && box.height > 2)) continue;
+    if (x < box.left || x > box.right || y < box.top || y > box.bottom) continue;
+    out.push(child);
+  }
+  return out;
+}
+
+/** Pictures on one element, top to bottom. `under` is searched after ::before (overlay) and before the background. */
+function pictureOn(element, x, y, { backgrounds = true, under = null } = {}) {
+  const after = pseudoImageAt(element, x, y, '::after', { backgrounds });
+  if (after) return after;
+  const real = realImageAt(element, x, y);
+  if (real) return real;
+  const style = getComputedStyle(element);
+  const own = boxesOf(element, style);
+  const content = contentImageAt(element, x, y, style, own);
+  if (content) return content;
+  const before = pseudoImageAt(element, x, y, '::before', { backgrounds });
+  if (before) return before;
+  if (under) {
+    const nested = under();
+    if (nested) return nested;
+  }
+  if (backgrounds) {
+    const background = backgroundImageAt(element, x, y);
+    if (background) return background;
+  }
+  return extraCssImagesAt(element, x, y, style, own);
 }
 
 /** The picture under a point, or null. Elements on top (text, links, overlays) are looked through. */
 export function imageAtPoint(x, y, { backgrounds = true } = {}) {
+  const seen = new Set();
+  const visit = (element, walkKids) => {
+    if (!element || seen.has(element) || element.id === HOST_ID) return null;
+    seen.add(element);
+    return pictureOn(element, x, y, {
+      backgrounds,
+      under:
+        walkKids && element.localName !== 'html' && element.localName !== 'body'
+          ? () => {
+              for (const child of kidsAtPoint(element, x, y)) {
+                const nested = visit(child, true);
+                if (nested) return nested;
+              }
+              return null;
+            }
+          : null,
+    });
+  };
+
   for (const element of stackAt(document, x, y)) {
-    if (element.id === HOST_ID) continue;
-    // Painting order, top to bottom: ::after, the element's own picture, ::before, then its background.
-    const after = pseudoImageAt(element, x, y, '::after', { backgrounds });
-    if (after) return after;
-    const real = realImageAt(element);
-    if (real) return real;
-    const before = pseudoImageAt(element, x, y, '::before', { backgrounds });
-    if (before) return before;
-    if (backgrounds) {
-      const background = backgroundImageAt(element, x, y);
-      if (background) return background;
+    const hit = visit(element, true);
+    if (hit) return hit;
+  }
+  return mediaFallbackAt(x, y);
+}
+
+/**
+ * Last resort: any replaced picture whose box is under the pointer, even when
+ * hit-testing never saw it (whole-card `a::before`, pointer-events, opacity 0).
+ */
+function mediaFallbackAt(x, y) {
+  const stack = stackAt(document, x, y);
+  let scope = document;
+  for (const el of stack) {
+    if (!el?.closest || el === document.documentElement || el === document.body) continue;
+    scope = el.closest('a, li, figure, picture, section, article, [class*="image"]') || el;
+    break;
+  }
+  if (!scope.querySelectorAll) scope = document;
+  const nodes = scope.querySelectorAll('img, picture, input[type="image"], image, video[poster]');
+  let best = null;
+  let bestArea = Infinity;
+  const limit = Math.min(nodes.length, 250);
+  for (let i = 0; i < limit; i += 1) {
+    const hit = realImageAt(nodes[i], x, y);
+    if (!hit) continue;
+    const area = hit.display.w * hit.display.h;
+    if (area > 0 && area < bestArea) {
+      best = hit;
+      bestArea = area;
     }
   }
-  return null;
+  return best;
 }
 
 /* ------------------------------------------------------------- Card */

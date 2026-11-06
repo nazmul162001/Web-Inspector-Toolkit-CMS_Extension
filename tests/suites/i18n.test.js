@@ -74,6 +74,11 @@ describe('Language: translate()', () => {
     assert.equal(ja('Background removed.'), '背景を除去しました。');
     assert.equal(ja('Drop an image here'), '画像をここにドロップ');
     assert.equal(ja('Image coming soon'), '画像準備中');
+    assert.equal(ja('Mask image'), 'マスク画像');
+    assert.equal(ja('Border image'), 'ボーダー画像');
+    assert.equal(ja('List image'), 'リスト画像');
+    assert.equal(ja('Content image'), 'コンテンツ画像');
+    assert.equal(ja('Video poster'), '動画ポスター');
     assert.ok(ja('Thumbnails are 50×50. Download saves each file at its original size.').includes('50'));
     assert.equal(ja('Original size'), 'オリジナルサイズ');
     assert.equal(ja('Auto'), '自動');

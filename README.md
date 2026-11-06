@@ -31,7 +31,7 @@
 | <mark><strong>Link href</strong></mark> | Find every link, button or form that points to an address (exact or contains). |
 | <mark><strong>Font Find</strong></mark> | See which elements use a font family, including CSS source and `@font-face` files. |
 | <mark><strong>Half / Full Width Text</strong></mark> | Find full-width numbers, letters and symbols, and mark them in red on the page. |
-| <mark><strong>Inspect/Download image</strong></mark> | Hover any image or background and see its real pixel size vs how it is shown. |
+| <mark><strong>Inspect/Download image</strong></mark> | Hover any image, background, mask, border image or `::before` / `::after` picture and see its real pixel size vs how it is shown. |
 | <mark><strong>Official Icon</strong></mark> | A library of official icons. Thumbnails are 50×50; Download saves the original file. |
 | <mark><strong>Image Convert</strong></mark> | Convert PNG, JPG, WebP or SVG. Pick the original format first so the file picker only accepts that type. One file downloads directly; several files download as a zip. Quality is kept. |
 | <mark><strong>Image Resize</strong></mark> | Resize one or more images. Width starts at 800px and height stays auto unless you set it. One file downloads directly; several files download as a zip. |
