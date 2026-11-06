@@ -7,6 +7,7 @@ import {
   isSectionIndex,
   normalizeUrl,
   sectionPath,
+  siteHomeUrl,
 } from '../../services/url-normalizer.js';
 
 const BASE = 'https://example.com/products/';
@@ -100,6 +101,13 @@ describe('Crawlable URL filtering', () => {
 });
 
 describe('Site section paths', () => {
+  it('points Entire Site at the origin home page', () => {
+    assert.equal(siteHomeUrl('https://example.com/about')?.url, 'https://example.com/');
+    assert.equal(siteHomeUrl('https://example.com/concept/')?.key, 'https://example.com/');
+    assert.equal(siteHomeUrl('https://example.com/')?.url, 'https://example.com/');
+    assert.equal(siteHomeUrl('not a url'), null);
+  });
+
   it('uses the first path segment as the section', () => {
     assert.equal(sectionPath('https://example.com/'), '/');
     assert.equal(sectionPath('https://example.com/blog'), '/blog');
@@ -117,14 +125,16 @@ describe('Site section paths', () => {
     assert.ok(!isSectionIndex('https://example.com/column/42/'));
   });
 
-  it('treats /blog /column /news /gallery posts as listing articles', () => {
-    const sections = ['/blog', '/column', '/news', '/gallery'];
+  it('treats /blog /column /news /gallery /feature posts as listing articles', () => {
+    const sections = ['/blog', '/column', '/news', '/gallery', '/feature'];
     assert.ok(isListingArticle('https://example.com/blog/post-1', sections));
     assert.ok(isListingArticle('https://example.com/column/42/', sections));
     assert.ok(isListingArticle('https://example.com/news/2024/hello', sections));
     assert.ok(isListingArticle('https://example.com/gallery/album', sections));
+    assert.ok(isListingArticle('https://example.com/feature/hero', sections));
     assert.ok(!isListingArticle('https://example.com/blog', sections));
     assert.ok(!isListingArticle('https://example.com/blog/', sections));
+    assert.ok(!isListingArticle('https://example.com/feature', sections));
     assert.ok(!isListingArticle('https://example.com/menu/item', sections));
   });
 });

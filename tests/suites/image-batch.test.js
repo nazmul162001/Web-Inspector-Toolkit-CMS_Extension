@@ -8,6 +8,7 @@ import {
   fileFormat,
   fileMatchesFormat,
 } from '../../services/image-export.js';
+import { enhanceImageData } from '../../services/image-enhance.js';
 import { savedMessage, uniqueNames } from '../../services/image-batch.js';
 import { buildStoreZip, crc32 } from '../../services/zip-store.js';
 import { createFeature as createConvert } from '../../sidepanel/features/image-convert/image-convert.js';
@@ -43,6 +44,16 @@ async function loadImage(blob) {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+async function pixelOf(blob, x, y) {
+  const img = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  return Array.from(ctx.getImageData(x, y, 1, 1).data);
 }
 
 async function storedFile(zipBlob, fileName) {
@@ -137,6 +148,111 @@ describe('Image Convert / Resize: files', () => {
     assert.ok(/width="20"/.test(text));
     assert.ok(/height="10"/.test(text));
     assert.ok(text.includes('<rect'));
+  });
+
+  it('does not re-encode when the resize matches the original pixels', async () => {
+    const file = await pngFile('same.png', 8);
+    const original = new Uint8Array(await file.arrayBuffer());
+    const out = await convertFile(file, 'png', { width: 8, height: 8, quality: 1 });
+    const next = new Uint8Array(await out.blob.arrayBuffer());
+    assert.deepEqual([...next], [...original]);
+  });
+
+  it('keeps a solid colour when shrinking a PNG', async () => {
+    const file = await pngFile('red.png', 40);
+    const out = await convertFile(file, 'png', { width: 10, height: 'auto', quality: 1 });
+    const img = await loadImage(out.blob);
+    assert.equal(img.naturalWidth, 10);
+    assert.equal(img.naturalHeight, 10);
+    const [r, g, b, a] = await pixelOf(out.blob, 5, 5);
+    assert.ok(r > 180 && g < 80 && b < 80 && a === 255, `expected red, got ${r},${g},${b},${a}`);
+  });
+
+  it('converts PNG to JPG at the original size without softening a solid colour', async () => {
+    const file = await pngFile('dot.png', 12);
+    const out = await convertFile(file, 'jpg', { quality: 1 });
+    const img = await loadImage(out.blob);
+    assert.equal(img.naturalWidth, 12);
+    assert.equal(img.naturalHeight, 12);
+    const [r, g, b] = await pixelOf(out.blob, 6, 6);
+    assert.ok(r > 170 && g < 90 && b < 90, `expected red, got ${r},${g},${b}`);
+  });
+
+  it('sharpens a soft edge and leaves a flat fill unchanged', () => {
+    const flat = new ImageData(8, 8);
+    for (let i = 0; i < flat.data.length; i += 4) {
+      flat.data[i] = 204;
+      flat.data[i + 1] = 51;
+      flat.data[i + 2] = 51;
+      flat.data[i + 3] = 255;
+    }
+    enhanceImageData(flat);
+    assert.deepEqual([...flat.data.slice(0, 4)], [204, 51, 51, 255]);
+
+    const edge = new ImageData(24, 10);
+    const copy = new Uint8ClampedArray(edge.data.length);
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 24; x += 1) {
+        const p = (y * 24 + x) * 4;
+        const v = x < 12 ? 28 : 228;
+        copy[p] = copy[p + 1] = copy[p + 2] = v;
+        copy[p + 3] = 255;
+      }
+    }
+    for (let y = 1; y < 9; y += 1) {
+      for (let x = 1; x < 23; x += 1) {
+        let sum = 0;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) sum += copy[((y + dy) * 24 + (x + dx)) * 4];
+        }
+        const p = (y * 24 + x) * 4;
+        const v = Math.round(sum / 9);
+        edge.data[p] = edge.data[p + 1] = edge.data[p + 2] = v;
+        edge.data[p + 3] = 255;
+      }
+    }
+    const row = 5 * 24 * 4;
+    const before = edge.data[row + 12 * 4] - edge.data[row + 11 * 4];
+    enhanceImageData(edge, { scale: 2 });
+    const after = edge.data[row + 12 * 4] - edge.data[row + 11 * 4];
+    assert.ok(after > before, `expected a clearer edge (${before} → ${after})`);
+  });
+
+  it('saves a converted WebP smaller than the PNG while keeping the colour', async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 160, 100);
+    gradient.addColorStop(0, '#c33');
+    gradient.addColorStop(1, '#248');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 160, 100);
+    const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([pngBlob], 'scene.png', { type: 'image/png' });
+    const out = await convertFile(file, 'webp');
+    assert.ok(/webp/i.test(out.blob.type));
+    assert.ok(out.blob.size < file.size, `webp ${out.blob.size} should be smaller than png ${file.size}`);
+    const [r, g, b] = await pixelOf(out.blob, 8, 8);
+    assert.ok(r > 140 && g < 120, `expected a red corner, got ${r},${g},${b}`);
+  });
+
+  it('rasterises SVG at the requested size so vectors stay sharp', async () => {
+    const markup =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4">' +
+      '<rect width="1" height="1" fill="#000"/>' +
+      '<rect x="1" y="0" width="3" height="4" fill="#fff"/>' +
+      '<rect x="0" y="1" width="1" height="3" fill="#fff"/>' +
+      '</svg>';
+    const file = new File([markup], 'pixel.svg', { type: 'image/svg+xml' });
+    const out = await convertFile(file, 'png', { width: 16, height: 16, quality: 1 });
+    const img = await loadImage(out.blob);
+    assert.equal(img.naturalWidth, 16);
+    assert.equal(img.naturalHeight, 16);
+    const black = await pixelOf(out.blob, 1, 1);
+    const white = await pixelOf(out.blob, 10, 1);
+    assert.ok(black[0] < 20 && black[1] < 20 && black[2] < 20, `expected black corner, got ${black}`);
+    assert.ok(white[0] > 240 && white[1] > 240 && white[2] > 240, `expected white field, got ${white}`);
   });
 });
 

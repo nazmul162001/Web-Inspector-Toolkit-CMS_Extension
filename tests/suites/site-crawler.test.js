@@ -123,28 +123,33 @@ describe('Site crawler', () => {
     assert.equal(result.coverage.notScanned, 12 - 4);
   });
 
-  it('scans at most 5 articles per /blog /column /news /gallery when the option is on', async () => {
+  it('scans at most 3 articles per /blog /column /news /gallery /feature when the option is on', async () => {
     const posts = Array.from({ length: 15 }, (_, i) => `/blog/p${i}`);
     const columns = Array.from({ length: 12 }, (_, i) => `/column/c${i}`);
+    const features = Array.from({ length: 9 }, (_, i) => `/feature/f${i}`);
     const site = {
-      '/': { links: ['/blog', '/column', '/menu', ...posts, ...columns] },
+      '/': { links: ['/blog', '/column', '/feature', '/menu', ...posts, ...columns, ...features] },
       '/blog': { links: posts },
       '/column': { links: columns },
+      '/feature': { links: features },
       '/menu': {},
     };
     for (const path of posts) site[path] = {};
     for (const path of columns) site[path] = {};
+    for (const path of features) site[path] = {};
     const { result } = await crawl(site, { crawl: { limitListingArticles: true } });
     const paths = result.pages.map((p) => new URL(p.url).pathname);
     assert.ok(paths.includes('/blog'));
     assert.ok(paths.includes('/column'));
+    assert.ok(paths.includes('/feature'));
     assert.ok(paths.includes('/menu'));
-    assert.equal(paths.filter((p) => p.startsWith('/blog/')).length, 5);
-    assert.equal(paths.filter((p) => p.startsWith('/column/')).length, 5);
+    assert.equal(paths.filter((p) => p.startsWith('/blog/')).length, 3);
+    assert.equal(paths.filter((p) => p.startsWith('/column/')).length, 3);
+    assert.equal(paths.filter((p) => p.startsWith('/feature/')).length, 3);
     assert.equal(result.coverage.limitReached, false);
   });
 
-  it('scans every article when Search first 5 articles is off', async () => {
+  it('scans every article when Search first 3 articles is off', async () => {
     const posts = Array.from({ length: 12 }, (_, i) => `/blog/p${i}`);
     const site = { '/': { links: ['/blog', ...posts] }, '/blog': { links: posts } };
     for (const path of posts) site[path] = {};
@@ -268,8 +273,35 @@ describe('Site crawler', () => {
     assert.ok(events.every((e) => e.maxPages === DEFAULT_CRAWL_OPTIONS.maxPages));
   });
 
+  it('always starts Entire Site from / even when the tab is a subpage', async () => {
+    const { result, world } = await crawl(
+      {
+        '/': { links: ['/about', '/concept', '/blog/p1', '/blog/p2'] },
+        '/about': { links: ['/secret'] },
+        '/concept': {},
+        '/blog/p1': {},
+        '/blog/p2': {},
+        '/secret': {},
+      },
+      { start: '/about' },
+    );
+    assert.equal(new URL(result.pages[0].url).pathname, '/', `home is scanned before any subpage (first=${result.pages[0].url} opened=${world.opened.join(',')})`);
+    const paths = result.pages.map((page) => new URL(page.url).pathname);
+    for (const path of ['/', '/about', '/concept', '/secret']) assert.ok(paths.includes(path), path);
+    assert.equal(world.opened[0], `${ORIGIN}/`, 'home is fetched first, not the /about tab');
+    assert.ok(!world.opened[0].includes('/about'));
+  });
+
   it('starts from a non-root URL and only follows same origin', async () => {
-    const { result } = await crawl({ '/docs/start': { links: ['/docs/next', '/'] }, '/docs/next': {}, '/': {} }, { start: '/docs/start' });
+    const { result } = await crawl(
+      {
+        '/': { links: ['/docs/start'] },
+        '/docs/start': { links: ['/docs/next', 'https://other.test/x'] },
+        '/docs/next': {},
+      },
+      { start: '/docs/start' },
+    );
+    assert.equal(new URL(result.pages[0].url).pathname, '/');
     assert.deepEqual(urls(result), ['/', '/docs/next', '/docs/start']);
   });
 });

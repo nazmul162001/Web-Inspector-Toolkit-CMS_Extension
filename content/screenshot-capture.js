@@ -4,7 +4,8 @@
  * Chrome can only photograph what is visible in the tab, and only the service
  * worker may ask for it (tabs.captureVisibleTab). So:
  *   - Current Screen: one photo, trimmed to the page area (no scrollbars).
- *   - Select Area:    one photo, cropped to the rectangle.
+ *   - Select Area:    production freezes the whole screen (see screenshot-area-service);
+ *                     tests still crop one tab photo to the rectangle.
  *   - Full Page:      the page is scrolled one screen at a time, a photo is
  *     taken at each stop and they are stitched together here.
  *

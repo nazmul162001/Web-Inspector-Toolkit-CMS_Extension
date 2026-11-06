@@ -2,11 +2,14 @@
  * Entire Site scan: a bounded, same-origin, breadth-first crawl that inspects
  * the RENDERED DOM of every page (never downloaded HTML).
  *
- * - The page the user is on is scanned in their own tab (exact current state,
- *   including authentication and client-side rendering).
- * - Every other page is opened in a temporary inactive background tab, awaited
- *   until `complete` plus a short render delay, scanned by the content script,
- *   and the tab is closed in a `finally` block no matter what happens.
+ * - The crawl always starts at the site home (`/`), even if the user is on
+ *   `/about` or `/concept`. Their tab is not switched. Home is scanned in the
+ *   live tab only when they are already on `/`.
+ * - Top-level pages (`/about`, `/blog`, …) are queued ahead of listing articles
+ *   so results appear in a stable, nav-like order.
+ * - Other pages are opened in a temporary inactive background tab (or the
+ *   hidden offscreen renderer), awaited until `complete` plus a short render
+ *   delay, scanned, and the tab is closed in a `finally` block.
  * - Links are discovered from each rendered page, normalized, de-duplicated,
  *   restricted to the start origin and filtered to crawlable URLs.
  * - Concurrency, page count, timeouts and retries are bounded; the crawl can
@@ -18,7 +21,7 @@
 import { CRAWL_MODE, ERR, LISTING_ARTICLE_LIMIT, LISTING_ARTICLE_SECTIONS } from '../shared/constants.js';
 import { createError, isCancelled, sleep, throttle } from '../shared/helpers.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
-import { extractInternalLinks, isListingArticle, isSameOrigin, normalizeUrl, sectionPath } from './url-normalizer.js';
+import { extractInternalLinks, isListingArticle, isSameOrigin, isSectionIndex, normalizeUrl, sectionPath, siteHomeUrl } from './url-normalizer.js';
 import { scanTab } from './page-scan-service.js';
 import { scanUrl } from './offscreen-scanner.js';
 import { closeTempTab, openTempTab, waitForTabComplete } from './temp-tab-manager.js';
@@ -57,6 +60,15 @@ export async function crawlSite({
   const options = sanitizeCrawlOptions(crawl);
   const useBackground = options.mode === CRAWL_MODE.BACKGROUND && typeof deps.scanUrl === 'function';
   const origin = new URL(startUrl).origin;
+  const home = siteHomeUrl(startUrl) || normalizeUrl(`${origin}/`);
+  const homeUrl = home?.url || `${origin}/`;
+  const homeKey = home?.key || '';
+  const currentKey = normalizeUrl(startUrl)?.key || '';
+  const currentIsHome = !!homeKey && currentKey === homeKey;
+  if (typeof globalThis !== 'undefined') {
+    globalThis.__CRAWL_HOME_DEBUG = globalThis.__CRAWL_HOME_DEBUG || [];
+    globalThis.__CRAWL_HOME_DEBUG.push({ startUrl, homeUrl, homeKey, currentKey, currentIsHome, origin });
+  }
   const startedAt = Date.now();
 
   const pages = [];
@@ -107,8 +119,27 @@ export async function crawlSite({
         active: Array.from(inFlight.keys()),
         elapsedMs: Date.now() - startedAt,
       }),
-    250,
+    120,
   );
+
+  /** Home and top-level pages first, then deeper pages, listing articles last. */
+  function linkRank(url) {
+    try {
+      if (isSectionIndex(url)) return 0;
+      if (isListingArticle(url, LISTING_ARTICLE_SECTIONS)) return 2;
+      return 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  function insertQueued(link) {
+    const rank = linkRank(link.url);
+    link.rank = rank;
+    let index = 0;
+    while (index < queue.length && queue[index].rank <= rank) index += 1;
+    queue.splice(index, 0, link);
+  }
 
   function enqueueLinks(links, pageUrl) {
     if (!links?.length) return;
@@ -116,7 +147,7 @@ export async function crawlSite({
       if (seen.has(link.key) || seen.size >= MAX_DISCOVERED_URLS) continue;
       if (!acceptLink(link)) continue;
       seen.add(link.key);
-      queue.push(link);
+      insertQueued(link);
     }
   }
 
@@ -148,39 +179,7 @@ export async function crawlSite({
     });
   }
 
-  /* ---------------------------------------------------------- start page */
-
-  const startKey = normalizeUrl(startUrl)?.key;
-  if (startKey) {
-    seen.add(startKey);
-    scannedKeys.add(startKey);
-  }
-  noteListingArticle(startUrl);
-  attempted += 1;
-  inFlight.set(startUrl, true);
-  try {
-    const result = await deps.scanTab(startTabId, {
-      scanId,
-      target,
-      options: { ...scanOptions, collectLinks: true },
-      signal,
-      timeoutMs: Math.max(options.pageTimeoutMs, 60000),
-    });
-    const finalKey = normalizeUrl(result.url)?.key;
-    if (finalKey) {
-      seen.add(finalKey);
-      scannedKeys.add(finalKey);
-    }
-    recordPage(result, null);
-  } catch (error) {
-    if (isCancelled(error)) return finish(true);
-    throw error; // the current page must be scannable, otherwise nothing sensible can follow
-  } finally {
-    inFlight.delete(startUrl);
-  }
-  emit();
-
-  /* -------------------------------------------------------- crawl others */
+  /* -------------------------------------------------------- page scanners */
 
   async function scanInTempTab(item) {
     let tabId = null;
@@ -244,6 +243,49 @@ export async function crawlSite({
 
   const scanOne = useBackground ? scanInBackground : scanInTempTab;
 
+  /* ---------------------------------------------------------- home page */
+
+  if (homeKey) {
+    seen.add(homeKey);
+    scannedKeys.add(homeKey);
+  }
+  attempted += 1;
+  inFlight.set(homeUrl, true);
+  try {
+    let homeResult;
+    let homeFinalKey = null;
+    if (currentIsHome) {
+      homeResult = await deps.scanTab(startTabId, {
+        scanId,
+        target,
+        options: { ...scanOptions, collectLinks: true },
+        signal,
+        timeoutMs: Math.max(options.pageTimeoutMs, 60000),
+      });
+      homeFinalKey = normalizeUrl(homeResult.url)?.key || null;
+      if (homeFinalKey) {
+        seen.add(homeFinalKey);
+        scannedKeys.add(homeFinalKey);
+      }
+      recordPage(homeResult, null);
+    } else {
+      const scanned = await scanOne({ url: homeUrl, key: homeKey });
+      homeResult = scanned.result;
+      homeFinalKey = scanned.finalKey;
+      if (homeFinalKey) {
+        seen.add(homeFinalKey);
+        scannedKeys.add(homeFinalKey);
+      }
+      recordPage(homeResult, null);
+    }
+  } catch (error) {
+    if (isCancelled(error)) return finish(true);
+    throw error;
+  } finally {
+    inFlight.delete(homeUrl);
+  }
+  emit();
+
   async function processItem(item) {
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
       item.attempts = attempt + 1;
@@ -258,7 +300,7 @@ export async function crawlSite({
           fail(item, error);
           return;
         }
-        await sleep(600 * (attempt + 1), signal);
+        await sleep(250 * (attempt + 1), signal);
       }
     }
   }

@@ -1,5 +1,5 @@
 /**
- * "Search first 5 articles" control next to Tools. Persists with crawl
+ * "Search first 3 articles" control next to Tools. Persists with crawl
  * settings and only affects Entire Site scans of listing sections.
  */
 

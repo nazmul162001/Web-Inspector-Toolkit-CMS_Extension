@@ -8,6 +8,7 @@
  */
 
 import { imageFormat } from './image-geometry.js';
+import { enhanceCanvas } from './image-enhance.js';
 
 export const DOWNLOAD_FORMATS = Object.freeze(['png', 'jpg', 'webp', 'svg']);
 
@@ -26,6 +27,11 @@ const MIME = Object.freeze({
 });
 
 const QUALITY = 0.92;
+/**
+ * JPEG / WebP visual quality for Convert and Resize. 0.92 looks near-lossless
+ * and stays much smaller than quality 1. PNG is always lossless.
+ */
+const ENCODE_QUALITY = 0.92;
 export const MAX_EXPORT_EDGE = 8192;
 
 /** png / jpg / webp / svg from the inspector's format label (JPEG, PNG, …). */
@@ -149,30 +155,199 @@ function loadBitmap(src) {
   });
 }
 
-async function canvasBlob(img, format, size, quality = QUALITY) {
-  const { w, h } = resolveExportSize(img, size);
+function sourceWidth(source) {
+  return source.naturalWidth || source.width || 0;
+}
+
+function sourceHeight(source) {
+  return source.naturalHeight || source.height || 0;
+}
+
+function canvasContext(canvas, { alpha = true } = {}) {
+  return canvas.getContext('2d', { alpha, colorSpace: 'srgb' }) || canvas.getContext('2d', { alpha });
+}
+
+function encodeQuality(format, quality) {
+  if (format === 'png' || format === 'svg') return undefined;
+  const value = Number(quality);
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : ENCODE_QUALITY;
+}
+
+function paintToCanvas(source, w, h, { fillWhite = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
-  if (!(canvas.width > 0 && canvas.height > 0)) throw new Error('The image has no size.');
-  const ctx = canvas.getContext('2d');
-  if (format === 'jpg') {
+  const ctx = canvasContext(canvas, { alpha: !fillWhite });
+  if (fillWhite) {
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, w, h);
   }
-  ctx.imageSmoothingEnabled = true;
+  const same = sourceWidth(source) === w && sourceHeight(source) === h;
+  ctx.imageSmoothingEnabled = !same;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, 0, w, h);
+  return canvas;
+}
+
+/** Halve oversized pictures until they are close to the target, then one last high-quality pass. */
+function drawScaled(source, destW, destH, { fillWhite = false } = {}) {
+  let current = source;
+  let width = sourceWidth(source);
+  let height = sourceHeight(source);
+  while (width > destW * 2 && height > destH * 2) {
+    const nextW = Math.max(destW, Math.round(width / 2));
+    const nextH = Math.max(destH, Math.round(height / 2));
+    if (nextW >= width && nextH >= height) break;
+    current = paintToCanvas(current, nextW, nextH);
+    width = nextW;
+    height = nextH;
+  }
+  return paintToCanvas(current, destW, destH, { fillWhite });
+}
+
+async function createBitmap(source, options) {
+  if (typeof createImageBitmap !== 'function') throw new Error('no bitmap');
+  try {
+    return options ? await createImageBitmap(source, options) : await createImageBitmap(source);
+  } catch (error) {
+    if (options) return createImageBitmap(source);
+    throw error;
+  }
+}
+
+/**
+ * Resize with Chrome's high-quality bitmap scaler, in steps when shrinking a
+ * lot. A 4000px photo down to 800px stays sharp instead of turning soft.
+ */
+async function scaleBitmap(source, w, h) {
+  const srcW = sourceWidth(source);
+  const srcH = sourceHeight(source);
+  if (srcW === w && srcH === h) return { bitmap: source, owned: false };
+
+  try {
+    let current = source instanceof ImageBitmap ? source : await createBitmap(source, { imageOrientation: 'from-image' });
+    let owned = current !== source;
+    let width = current.width;
+    let height = current.height;
+    while (width > w * 2 && height > h * 2) {
+      const nextW = Math.max(w, Math.round(width / 2));
+      const nextH = Math.max(h, Math.round(height / 2));
+      const next = await createBitmap(current, { resizeWidth: nextW, resizeHeight: nextH, resizeQuality: 'high' });
+      if (owned) current.close?.();
+      current = next;
+      owned = true;
+      width = nextW;
+      height = nextH;
+    }
+    if (width !== w || height !== h) {
+      const next = await createBitmap(current, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+      if (owned) current.close?.();
+      current = next;
+      owned = true;
+    }
+    return { bitmap: current, owned };
+  } catch {
+    return { canvas: drawScaled(source, w, h), owned: false };
+  }
+}
+
+async function encodeCanvas(canvas, format, quality) {
   const mime = MIME[format] || MIME.png;
-  const q = format === 'png' ? undefined : quality;
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, q));
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, encodeQuality(format, quality)));
   if (!blob) throw new Error('The image could not be converted.');
   return blob;
 }
 
-async function rasterBlob(src, format, size, quality = QUALITY) {
-  const img = await loadBitmap(src);
-  return { blob: await canvasBlob(img, format === 'svg' ? 'png' : format, size, quality), img };
+async function canvasBlob(img, format, size, quality = QUALITY) {
+  const { w, h } = resolveExportSize(img, size);
+  if (!(w > 0 && h > 0)) throw new Error('The image has no size.');
+  const scaled = await scaleBitmap(img, w, h);
+  try {
+    const source = scaled.canvas || scaled.bitmap;
+    const alreadySized = source && sourceWidth(source) === w && sourceHeight(source) === h;
+    const canvas =
+      scaled.canvas && alreadySized && format !== 'jpg'
+        ? scaled.canvas
+        : alreadySized
+          ? paintToCanvas(source, w, h, { fillWhite: format === 'jpg' })
+          : drawScaled(source, w, h, { fillWhite: format === 'jpg' });
+    const scale = Math.max(w / Math.max(1, sourceWidth(img)), h / Math.max(1, sourceHeight(img)));
+    enhanceCanvas(canvas, { scale });
+    return await encodeCanvas(canvas, format, quality);
+  } finally {
+    if (scaled.owned) scaled.bitmap?.close?.();
+  }
+}
+
+function snapshotSize(source) {
+  const w = sourceWidth(source);
+  const h = sourceHeight(source);
+  return { naturalWidth: w, naturalHeight: h, width: w, height: h };
+}
+
+async function decodeSource(src, sourceBlob) {
+  const blob = sourceBlob && !/svg/i.test(sourceBlob.type || '') ? sourceBlob : null;
+  if (blob && typeof createImageBitmap === 'function') {
+    try {
+      return await createBitmap(blob, { imageOrientation: 'from-image' });
+    } catch {
+      try {
+        return await createImageBitmap(blob);
+      } catch {
+        /* Image() fallback */
+      }
+    }
+  }
+  if (typeof src === 'string') return loadBitmap(src);
+  const url = URL.createObjectURL(sourceBlob);
+  try {
+    return await loadBitmap(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Draw SVG at the output pixel size so vectors are not rasterised small then upscaled. */
+async function rasterizeSvg(text, size) {
+  const probe = URL.createObjectURL(new Blob([text], { type: MIME.svg }));
+  try {
+    const img = await loadBitmap(probe);
+    const out = resolveExportSize(img, size);
+    if (!(out.w > 0 && out.h > 0)) throw new Error('The image has no size.');
+    const markup = scaleSvgMarkup(text, out.w, out.h, img.naturalWidth || img.width, img.naturalHeight || img.height);
+    const sized = URL.createObjectURL(new Blob([markup], { type: MIME.svg }));
+    try {
+      const drawn = await loadBitmap(sized);
+      return { canvas: paintToCanvas(drawn, out.w, out.h), img };
+    } finally {
+      URL.revokeObjectURL(sized);
+    }
+  } finally {
+    URL.revokeObjectURL(probe);
+  }
+}
+
+async function rasterBlob(src, format, size, quality = QUALITY, sourceBlob = null) {
+  const fmt = format === 'svg' ? 'png' : format;
+  if (isSvgSource(src, sourceBlob?.type || '')) {
+    let text = '';
+    try {
+      if (sourceBlob) text = await sourceBlob.text();
+      else if (/^data:/i.test(src)) text = decodeDataUrl(src);
+    } catch {
+      text = '';
+    }
+    if (/<svg/i.test(text)) {
+      const { canvas, img } = await rasterizeSvg(text, size);
+      return { blob: await encodeCanvas(canvas, fmt, quality), img };
+    }
+  }
+  const img = await decodeSource(src, sourceBlob);
+  try {
+    return { blob: await canvasBlob(img, fmt, size, quality), img: snapshotSize(img) };
+  } finally {
+    img.close?.();
+  }
 }
 
 function wrapPngAsSvg(dataUrl, width, height) {
@@ -213,14 +388,14 @@ export async function exportImage(url, format, { name = 'image', width, height, 
         const text = sourceBlob ? await sourceBlob.text() : decodeDataUrl(url);
         return { blob: new Blob([text], { type: MIME.svg }), filename: downloadFilename(name, 'svg') };
       }
-      const { blob: png, img } = await rasterBlob(src, 'png', size, quality);
+      const { blob: png, img } = await rasterBlob(src, 'png', size, quality, sourceBlob);
       const dataUrl = await blobToDataUrl(png);
       const out = resolveExportSize(img, size);
       const svg = wrapPngAsSvg(dataUrl, out.w, out.h);
       return { blob: new Blob([svg], { type: MIME.svg }), filename: downloadFilename(name, 'svg') };
     }
 
-    const { blob } = await rasterBlob(src, fmt, size, quality);
+    const { blob } = await rasterBlob(src, fmt, size, quality, sourceBlob);
     return { blob, filename: downloadFilename(name, fmt) };
   } finally {
     if (revoke) URL.revokeObjectURL(revoke);
@@ -270,15 +445,20 @@ export function scaleSvgMarkup(text, width, height, sourceWidth, sourceHeight) {
   });
 }
 
+function isLosslessFormat(format) {
+  return format === 'png' || format === 'svg';
+}
+
 /**
- * Convert or resize a local file. Same-format convert with no size change
- * keeps the original bytes so quality is not reduced.
+ * Convert or resize a local file. Same-format PNG/SVG with no size change
+ * keeps the original bytes. JPEG/WebP are always clarified and re-encoded
+ * so a soft or compressed original comes out clearer in a compact file.
  */
-export async function convertFile(file, toFormat, { width, height, quality = 1 } = {}) {
+export async function convertFile(file, toFormat, { width, height, quality = ENCODE_QUALITY } = {}) {
   const fmt = DOWNLOAD_FORMATS.includes(toFormat) ? toFormat : 'png';
   const from = fileFormat(file);
   const size = width ? sanitizeExportSize(width, height) : null;
-  if (from === fmt && !size) {
+  if (from === fmt && !size && isLosslessFormat(from)) {
     return { blob: file, filename: downloadFilename(file.name, fmt) };
   }
   if (from === 'svg' && fmt === 'svg' && size) {
@@ -288,6 +468,9 @@ export async function convertFile(file, toFormat, { width, height, quality = 1 }
       try {
         const img = await loadBitmap(url);
         const out = resolveExportSize(img, size);
+        if (out.w === (img.naturalWidth || img.width) && out.h === (img.naturalHeight || img.height)) {
+          return { blob: file, filename: downloadFilename(file.name, 'svg') };
+        }
         const scaled = scaleSvgMarkup(text, out.w, out.h, img.naturalWidth || img.width, img.naturalHeight || img.height);
         return { blob: new Blob([scaled], { type: MIME.svg }), filename: downloadFilename(file.name, 'svg') };
       } finally {
@@ -297,6 +480,17 @@ export async function convertFile(file, toFormat, { width, height, quality = 1 }
   }
   const url = URL.createObjectURL(file);
   try {
+    if (from === fmt && size && isLosslessFormat(from)) {
+      const decoded = await decodeSource(url, file);
+      try {
+        const out = resolveExportSize(decoded, size);
+        if (out.w === sourceWidth(decoded) && out.h === sourceHeight(decoded)) {
+          return { blob: file, filename: downloadFilename(file.name, fmt) };
+        }
+      } finally {
+        decoded.close?.();
+      }
+    }
     return await exportImage(url, fmt, { name: file.name, width, height, quality });
   } finally {
     URL.revokeObjectURL(url);

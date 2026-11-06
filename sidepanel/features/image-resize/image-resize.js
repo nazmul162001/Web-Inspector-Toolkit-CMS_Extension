@@ -67,7 +67,7 @@ export function createFeature(ctx) {
     try {
       const results = [];
       for (const file of files) {
-        results.push(await convertFile(file, fileFormat(file), { width: size.width, height: size.height, quality: 1 }));
+        results.push(await convertFile(file, fileFormat(file), { width: size.width, height: size.height }));
       }
       const saved = await saveResults(results, 'resized-images.zip');
       ctx.notify.success(savedMessage(saved));

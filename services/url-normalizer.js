@@ -79,6 +79,15 @@ export const isSameOrigin = (a, b) => {
   }
 };
 
+/** The site's top page (`https://example.com/`), used as the Entire Site crawl root. */
+export function siteHomeUrl(pageUrl) {
+  try {
+    return normalizeUrl(`${new URL(pageUrl).origin}/`);
+  } catch {
+    return null;
+  }
+}
+
 /** Is this URL something worth navigating to in order to inspect a page? */
 export function isCrawlableUrl(url) {
   let parsed;
@@ -154,7 +163,7 @@ export function isSectionIndex(url) {
 }
 
 /**
- * Article URL under /blog, /column, /news or /gallery (`/blog/post-id`),
+ * Article URL under /blog, /column, /news, /gallery or /feature (`/blog/post-id`),
  * not the listing page itself.
  */
 export function isListingArticle(url, sections) {

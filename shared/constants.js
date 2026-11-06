@@ -158,17 +158,17 @@ export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
   // Entire Site checks every page it can reach; this is only a runaway guard
   // (infinite calendars, faceted search ...) and is reported when hit.
   maxPages: 2000,
-  concurrency: 12,
+  concurrency: 16,
   pageTimeoutMs: 20000,
   retries: 1,
-  renderDelayMs: 500,
+  renderDelayMs: 150,
   // Listing sections with many articles: scan the index plus this many posts.
   limitListingArticles: true,
 });
 
 /** Sections whose article URLs (`/blog/id`) are capped when limitListingArticles is on. */
-export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery']);
-export const LISTING_ARTICLE_LIMIT = 5;
+export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery', '/feature']);
+export const LISTING_ARTICLE_LIMIT = 3;
 
 export const CRAWL_LIMITS = Object.freeze({
   maxPages: { min: 1, max: 5000 },

@@ -44,10 +44,10 @@ export const EXACT_JA = {
   'Not inspectable': '検査できません',
   'Scan scope': '検索範囲',
   Tools: 'ツール',
-  'Search first 5 articles': '最初の5件の記事を検索',
-  'About Search first 5 articles': '「最初の5件の記事を検索」について',
-  'When this is enabled, Entire Site searches only the first 5 article pages under /blog, /column, /news and /gallery, plus each listing page. Disable it to search every article. Other pages are not limited.':
-    '有効のとき、サイト全体の検索では /blog・/column・/news・/gallery の一覧ページと、それぞれの最初の5件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
+  'Search first 3 articles': '最初の3件の記事を検索',
+  'About Search first 3 articles': '「最初の3件の記事を検索」について',
+  'When this is enabled, Entire Site searches only the first 3 article pages under /blog, /column, /news, /gallery and /feature, plus each listing page. Disable it to search every article. Other pages are not limited.':
+    '有効のとき、サイト全体の検索では /blog・/column・/news・/gallery・/feature の一覧ページと、それぞれの最初の3件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
   Language: '言語',
   'Switch to English': '英語に切り替え',
   'Switch to light mode': 'ライトモードに切り替え',

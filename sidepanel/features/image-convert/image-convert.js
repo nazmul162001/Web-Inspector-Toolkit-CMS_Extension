@@ -76,7 +76,7 @@ export function createFeature(ctx) {
       const results = [];
       for (const file of files) {
         if (!fileMatchesFormat(file, from)) continue;
-        results.push(await convertFile(file, to, { quality: 1 }));
+        results.push(await convertFile(file, to));
       }
       if (!results.length) throw new Error(`Those files are not ${formatLabel()} images.`);
       const saved = await saveResults(results, 'converted-images.zip');
