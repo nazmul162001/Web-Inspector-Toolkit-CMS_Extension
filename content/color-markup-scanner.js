@@ -368,3 +368,28 @@ export function scanColorMarkup(doc, sheets, target, options = {}) {
     },
   };
 }
+
+/** Selectors that hide an element (`display: none` / `visibility: hidden`). */
+export function hiddenSelectorsFromSheets(sheets, ruleCache) {
+  const selectors = [];
+  for (const sheet of sheets) {
+    const cacheKey = sheet.href || sheet.css;
+    let rules = ruleCache?.get(cacheKey);
+    if (!rules) {
+      rules = collectCssRules(sheet.css);
+      ruleCache?.set(cacheKey, rules);
+    }
+    for (const rule of rules) {
+      if (
+        rule.declarations.some(
+          (decl) =>
+            (decl.name === 'display' && /^\s*none\s*$/i.test(decl.value)) ||
+            (decl.name === 'visibility' && /^\s*hidden\s*$/i.test(decl.value)),
+        )
+      ) {
+        selectors.push(rule.selectorText);
+      }
+    }
+  }
+  return selectors;
+}

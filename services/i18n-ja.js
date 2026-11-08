@@ -46,8 +46,8 @@ export const EXACT_JA = {
   Tools: 'ツール',
   'Search first 3 articles': '最初の3件の記事を検索',
   'About Search first 3 articles': '「最初の3件の記事を検索」について',
-  'When this is enabled, Entire Site searches only the first 3 article pages under /blog, /column, /news, /gallery and /feature, plus each listing page. Disable it to search every article. Other pages are not limited.':
-    '有効のとき、サイト全体の検索では /blog・/column・/news・/gallery・/feature の一覧ページと、それぞれの最初の3件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
+  'When this is enabled, Entire Site searches only the first 3 article pages under /blog, /column, /news, /gallery, /feature and /constructed, plus each listing page. Disable it to search every article. Other pages are not limited.':
+    '有効のとき、サイト全体の検索では /blog・/column・/news・/gallery・/feature・/constructed の一覧ページと、それぞれの最初の3件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
   Language: '言語',
   'Switch to English': '英語に切り替え',
   'Switch to light mode': 'ライトモードに切り替え',
@@ -367,7 +367,8 @@ export const EXACT_JA = {
   /* ---------------------------------------------------------- Link href */
   'Find every link, button or anchor that points to an address - on this page or across the whole site.': 'あるアドレスを指すすべてのリンク・ボタン・アンカーを検索します（このページまたはサイト全体）。',
   Link: 'リンク',
-  'Paste any address, for example https://www.line.me/en/ or https://www.instagram.com/?locale=ja_%C3%A5JP. Relative links on the page (/en/) are compared by where they lead.': 'アドレスを貼り付けてください（例: https://www.line.me/en/ や https://www.instagram.com/?locale=ja_%C3%A5JP）。ページ内の相対リンク（/en/）は、リンク先で比較されます。',
+  'A page name (contact), a path (/contact) or a full address all work. Relative links are compared by where they lead.': 'ページ名（contact）、パス（/contact）、完全なアドレスのどれでも検索できます。相対リンクはリンク先で比較されます。',
+  'contact  or  /contact  or  https://…': 'contact または /contact または https://…',
   'Exact link (off: any link that contains this text)': '完全一致（オフ: このテキストを含むすべてのリンク）',
   'Ignore http/https and www': 'http/https と www を無視',
   'Also buttons, forms and click handlers': 'ボタン・フォーム・クリック処理も対象',

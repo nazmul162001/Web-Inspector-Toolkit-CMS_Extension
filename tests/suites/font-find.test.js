@@ -408,6 +408,8 @@ describe('Font search through requests and the invisible renderer', () => {
     const url = new URL('../fixtures/fonts.html', import.meta.url).href;
 
     const page = await renderer.scanUrl(url, { target: font('Fixture Sans'), options: {}, timeoutMs: 20000 });
+    assert.equal(page.stats.timings.frameMs, 0, 'font scans must not wait on an iframe');
+    assert.equal(holder.querySelectorAll('iframe').length, 0);
     assert.equal(page.matches.length, 2);
     const heading = page.matches[0];
     assert.equal(heading.position, 1);

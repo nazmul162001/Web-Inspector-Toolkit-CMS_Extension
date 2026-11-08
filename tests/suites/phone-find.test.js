@@ -1,6 +1,7 @@
 import { afterEach, assert, describe as baseDescribe, it } from '../test-runner.js';
 import { createPhoneMatcher, isPhoneQuery, parsePhoneInput, phoneFromHref, sanitizePhoneQuery } from '../../services/phone-matcher.js';
 import { scanPhoneDocument } from '../../content/phone-scanner.js';
+import { locateElement } from '../../content/element-locator.js';
 import { runScan } from '../../content/run-scan.js';
 import { createBackgroundRenderer } from '../../services/background-renderer.js';
 import { isScanTarget, parseScanRequest } from '../../shared/validators.js';
@@ -251,5 +252,36 @@ describe('Phone search through requests and the invisible renderer', () => {
     assert.equal(page.matches[0].text, '+15555550123');
     assert.equal(requests.length, 1, 'only the HTML was downloaded');
     assert.equal(holder.querySelectorAll('iframe').length, 0);
+  });
+});
+
+describe('Highlight locate from Entire Site (stale path)', () => {
+  it('finds a tel: number when the scanned CSS path no longer matches the live DOM', () => {
+    const header = document.createElement('header');
+    header.innerHTML = '<div class="bar"><a class="tel" href="tel:0120801425">0120-801-425</a></div>';
+    document.body.append(header);
+    created.push(header);
+    const live = header.querySelector('a');
+    const found = locateElement({
+      path: 'header > nav > li:nth-of-type(9) > a:nth-of-type(1)',
+      tag: 'a',
+      hint: { kind: 'phone', text: '0120-801-425', digits: '0120801425', section: 'header', classes: ['tel'] },
+    });
+    assert.equal(found, live);
+  });
+
+  it('prefers the header or footer instance that the result came from', () => {
+    const header = document.createElement('header');
+    header.innerHTML = '<a href="tel:0120801425">0120-801-425</a>';
+    const footer = document.createElement('footer');
+    footer.innerHTML = '<a href="tel:0120801425">0120-801-425</a>';
+    document.body.append(header, footer);
+    created.push(header, footer);
+    const found = locateElement({
+      path: '#does-not-exist > a',
+      tag: 'a',
+      hint: { kind: 'phone', text: '0120-801-425', digits: '0120801425', section: 'footer' },
+    });
+    assert.equal(found, footer.querySelector('a'));
   });
 });

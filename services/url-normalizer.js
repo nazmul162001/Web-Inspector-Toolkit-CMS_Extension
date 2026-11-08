@@ -163,8 +163,8 @@ export function isSectionIndex(url) {
 }
 
 /**
- * Article URL under /blog, /column, /news, /gallery or /feature (`/blog/post-id`),
- * not the listing page itself.
+ * Article URL under /blog, /column, /news, /gallery, /feature or /constructed
+ * (`/blog/post-id`), not the listing page itself.
  */
 export function isListingArticle(url, sections) {
   try {

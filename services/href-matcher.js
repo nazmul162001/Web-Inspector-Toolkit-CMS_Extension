@@ -21,8 +21,10 @@
  *    address as written or as resolved, in escaped or readable form
  *    (`ja_åJP` finds `ja_%C3%A5JP`), ignoring letter case.
  *  - A typed path (`/contact`) matches links to that path on the page's own site only.
- *    Other relative text (`#top`, `?page=2`, `about.html`) is compared with the
- *    link exactly as it is written in the page.
+ *    A page name without a slash (`contact`, `about.html`) is the same: it matches
+ *    `/contact`, `contact.html`, `/en/contact` and the full URL, on this site only.
+ *    Fragments and queries (`#top`, `?page=2`) are still compared with the href
+ *    exactly as it is written in the page.
  */
 
 export const MAX_URL_LENGTH = 2000;
@@ -34,6 +36,8 @@ const FILE_EXTENSIONS = new Set([
   'html', 'htm', 'php', 'asp', 'aspx', 'jsp', 'cgi', 'js', 'css', 'json', 'xml', 'txt', 'pdf', 'png', 'jpg', 'jpeg',
   'gif', 'svg', 'webp', 'ico', 'zip', 'csv',
 ]);
+/** Document files whose extension is ignored when the user types a page name (`contact` = `contact.html`). */
+const PAGE_FILE_EXTENSIONS = new Set(['html', 'htm', 'php', 'asp', 'aspx', 'jsp', 'cgi']);
 
 /* ---------------------------------------------------------------- Query */
 
@@ -114,7 +118,8 @@ function keyOf(url, { looseHost, withHash }) {
  * What kind of thing was typed.
  *  - `absolute`: an address with a scheme (`https://...`, `mailto:...`) or a host name (`line.me/en/`)
  *  - `path`: starts with `/`
- *  - `relative`: anything else (`#top`, `?page=2`, `about.html`)
+ *  - `page`: a page name with no slash (`contact`, `about.html`)
+ *  - `relative`: fragments and queries (`#top`, `?page=2`)
  */
 function classify(text) {
   if (SCHEME.test(text)) {
@@ -131,7 +136,27 @@ function classify(text) {
     const url = parseUrl(`https://${text}`);
     if (url) return { type: 'absolute', url, scheme: false };
   }
+  if (isPageName(text)) return { type: 'page' };
   return { type: 'relative' };
+}
+
+function isPageName(text) {
+  return !!text && !text.startsWith('#') && !text.startsWith('?') && !text.includes('/');
+}
+
+/** Last path folder or file, without a trailing slash. */
+function lastPathSegment(pathname) {
+  const trimmed = String(pathname || '/').replace(/\/+$/, '') || '/';
+  const parts = trimmed.split('/').filter(Boolean);
+  return parts[parts.length - 1] || '';
+}
+
+/** `contact.html` and `contact` compare equal; `logo.png` stays `logo.png`. */
+function pageToken(name) {
+  const decoded = safeDecode(String(name || ''));
+  const dot = decoded.lastIndexOf('.');
+  if (dot > 0 && PAGE_FILE_EXTENSIONS.has(decoded.slice(dot + 1).toLowerCase())) return decoded.slice(0, dot);
+  return decoded;
 }
 
 /* --------------------------------------------------------------- Matcher */
@@ -155,6 +180,7 @@ export function createHrefMatcher(query) {
   const typedPath = shape.type === 'path' ? parseUrl(typed, 'https://placeholder.invalid') : null;
   const typedPathHasHash = !!typedPath && typedPath.hash.length > 1;
   const typedPathKey = typedPath ? pathKey(typedPath, typedPathHasHash) : null;
+  const typedPageToken = shape.type === 'page' ? pageToken(typed) : null;
 
   function pathKey(url, withHash) {
     return keyOf(url, { looseHost: false, withHash }).replace(/^[^/]*\/\/[^/?#]*/, '');
@@ -170,7 +196,14 @@ export function createHrefMatcher(query) {
       if (!resolved || value.startsWith('#')) return false;
       return resolved.origin === pageOrigin && pathKey(resolved, typedPathHasHash) === typedPathKey;
     }
-    return value === typed || value === `${typed}/` || `${value}/` === typed;
+    if (value === typed || value === `${typed}/` || `${value}/` === typed) return true;
+    if (shape.type === 'page') {
+      if (!resolved || value.startsWith('#') || resolved.origin !== pageOrigin) return false;
+      if (pageToken(lastPathSegment(resolved.pathname)) === typedPageToken) return true;
+      const asPath = parseUrl(`/${typed}`, 'https://placeholder.invalid');
+      return !!asPath && pathKey(resolved, false) === pathKey(asPath, false);
+    }
+    return false;
   }
 
   /* ---- Contains */

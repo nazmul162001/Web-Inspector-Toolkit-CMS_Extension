@@ -4,7 +4,7 @@
  * and performs result actions (copy, highlight, scroll).
  */
 
-import { CRAWL_LIMITS, DEFAULT_CRAWL_OPTIONS, ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
+import { FAST_SITE_CRAWL, ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
 import { copyToClipboard, el, pluralize, uid } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
@@ -172,12 +172,8 @@ export function createFeature(ctx) {
           crawl: scope === SCOPE.SITE
             ? {
                 ...(await loadSettings()).crawl,
+                ...FAST_SITE_CRAWL,
                 limitListingArticles: listingArticlesLimited(),
-                concurrency: CRAWL_LIMITS.concurrency.max,
-                pageTimeoutMs: CRAWL_LIMITS.pageTimeoutMs.min,
-                retries: 0,
-                renderDelayMs: 0,
-                mode: DEFAULT_CRAWL_OPTIONS.mode,
               }
             : undefined,
         },
@@ -242,6 +238,12 @@ export function createFeature(ctx) {
       tag: item.element.tag,
       label: item.element.selector + (item.match.pseudo || ''),
       mode,
+      hint: {
+        kind: 'color',
+        section: item.element.location?.section || null,
+        classes: item.element.classes || [],
+        id: item.element.id || '',
+      },
     };
     try {
       return await sendToBackground(MSG.HIGHLIGHT, payload, { timeoutMs: 40000 });

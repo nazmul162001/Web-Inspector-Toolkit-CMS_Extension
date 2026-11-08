@@ -8,8 +8,8 @@ import { createError } from '../shared/helpers.js';
 import { isScanTarget } from '../shared/validators.js';
 import { broadcast, registerHandlers } from '../services/message-service.js';
 import { collectLinks } from './dom-scanner.js';
-import { CONTEXT_ID, lookupRegisteredElement } from './element-registry.js';
 import { runScan } from './run-scan.js';
+import { locateElement } from './element-locator.js';
 import { clearHighlight, highlightElement } from './element-highlighter.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
 import { clearMarks, markPage } from './width-marks.js';
@@ -55,22 +55,12 @@ async function handleScan({ scanId, target, options = {} }) {
   }
 }
 
-function handleHighlight({ elementId, contextId, path, tag, mode = 'highlight', label, marks }) {
+function handleHighlight({ elementId, contextId, path, tag, mode = 'highlight', label, marks, hint }) {
   // Half/Full Width Text: also mark the found characters when this page was opened from a result.
   const widthQuery = marks ? sanitizeWidthQuery(marks) : null;
   if (widthQuery) markPage(widthQuery);
 
-  // Prefer the exact element remembered from the scan (same content-script life)...
-  let element = elementId && contextId === CONTEXT_ID ? lookupRegisteredElement(elementId) : null;
-  // ...otherwise fall back to the unique path, accepted only if the tag still agrees.
-  if (!element && path) {
-    try {
-      const candidate = document.querySelector(path);
-      if (candidate && (!tag || candidate.localName === tag)) element = candidate;
-    } catch {
-      element = null;
-    }
-  }
+  const element = locateElement({ elementId, contextId, path, tag, hint });
   if (!element) throw createError(ERR.NOT_FOUND, 'The element is no longer on the page. Run Find again.');
   const outcome = highlightElement(element, { outline: mode !== 'scroll', label });
   if (!outcome.ok) {

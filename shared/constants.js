@@ -123,7 +123,7 @@ export const SCAN_LIMITS = Object.freeze({
   /** Hard cap on collected matches per page (protects memory + messaging). */
   MAX_MATCHES_PER_PAGE: 5000,
   /** Time-slice budget before the scanner yields to the page. */
-  BATCH_BUDGET_MS: 12,
+  BATCH_BUDGET_MS: 48,
   /** Cap on internal links a single page may report. */
   MAX_LINKS_PER_PAGE: 3000,
   /** Cap on stylesheet line-number lookups per scan. */
@@ -158,16 +158,16 @@ export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
   // Entire Site checks every page it can reach; this is only a runaway guard
   // (infinite calendars, faceted search ...) and is reported when hit.
   maxPages: 2000,
-  concurrency: 12,
-  pageTimeoutMs: 8000,
-  retries: 1,
+  concurrency: 16,
+  pageTimeoutMs: 5000,
+  retries: 0,
   renderDelayMs: 0,
   // Listing sections with many articles: scan the index plus this many posts.
   limitListingArticles: true,
 });
 
 /** Sections whose article URLs (`/blog/id`) are capped when limitListingArticles is on. */
-export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery', '/feature']);
+export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery', '/feature', '/constructed']);
 export const LISTING_ARTICLE_LIMIT = 3;
 
 export const CRAWL_LIMITS = Object.freeze({
@@ -176,6 +176,15 @@ export const CRAWL_LIMITS = Object.freeze({
   pageTimeoutMs: { min: 5000, max: 120000 },
   retries: { min: 0, max: 3 },
   renderDelayMs: { min: 0, max: 5000 },
+});
+
+/** Entire Site always fetches pages in parallel; never reuse a slower saved crawl. */
+export const FAST_SITE_CRAWL = Object.freeze({
+  concurrency: CRAWL_LIMITS.concurrency.max,
+  pageTimeoutMs: CRAWL_LIMITS.pageTimeoutMs.min,
+  retries: 0,
+  renderDelayMs: 0,
+  mode: CRAWL_MODE.BACKGROUND,
 });
 
 export const STORAGE_KEYS = Object.freeze({

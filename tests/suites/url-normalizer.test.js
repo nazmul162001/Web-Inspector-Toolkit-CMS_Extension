@@ -125,16 +125,18 @@ describe('Site section paths', () => {
     assert.ok(!isSectionIndex('https://example.com/column/42/'));
   });
 
-  it('treats /blog /column /news /gallery /feature posts as listing articles', () => {
-    const sections = ['/blog', '/column', '/news', '/gallery', '/feature'];
+  it('treats /blog /column /news /gallery /feature /constructed posts as listing articles', () => {
+    const sections = ['/blog', '/column', '/news', '/gallery', '/feature', '/constructed'];
     assert.ok(isListingArticle('https://example.com/blog/post-1', sections));
     assert.ok(isListingArticle('https://example.com/column/42/', sections));
     assert.ok(isListingArticle('https://example.com/news/2024/hello', sections));
     assert.ok(isListingArticle('https://example.com/gallery/album', sections));
     assert.ok(isListingArticle('https://example.com/feature/hero', sections));
+    assert.ok(isListingArticle('https://example.com/constructed/house', sections));
     assert.ok(!isListingArticle('https://example.com/blog', sections));
     assert.ok(!isListingArticle('https://example.com/blog/', sections));
     assert.ok(!isListingArticle('https://example.com/feature', sections));
+    assert.ok(!isListingArticle('https://example.com/constructed', sections));
     assert.ok(!isListingArticle('https://example.com/menu/item', sections));
   });
 });

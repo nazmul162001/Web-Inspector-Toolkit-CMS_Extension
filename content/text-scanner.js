@@ -19,6 +19,7 @@
 import { ERR, HIGHLIGHT_HOST_ID, SCAN_LIMITS, SKIPPED_TAGS } from '../shared/constants.js';
 import { createError, throttle, yieldToMain } from '../shared/helpers.js';
 import { collapseWhitespace, createTextMatcher } from '../services/text-matcher.js';
+import { stripPseudoElement } from './css-utils.js';
 import { buildElementRecord, createPathBuilder } from './element-info.js';
 import { CONTEXT_ID, registerElement } from './element-registry.js';
 
@@ -52,6 +53,39 @@ function createVisibilityCheck() {
     cache.set(element, visible);
     return visible;
   };
+}
+
+/** Authored CSS only (Entire Site): `hidden`, `display: none`, `visibility: hidden`. */
+function createAuthoredVisibilityCheck(hiddenSelectors) {
+  const cache = new WeakMap();
+  const selectors = (hiddenSelectors || []).map((sel) => {
+    try {
+      return stripPseudoElement(sel);
+    } catch {
+      return sel;
+    }
+  });
+  function isVisible(element) {
+    if (!element || element.nodeType !== 1) return true;
+    if (cache.has(element)) return cache.get(element);
+    let visible = !element.hasAttribute('hidden');
+    if (visible) {
+      for (const selector of selectors) {
+        try {
+          if (element.matches(selector)) {
+            visible = false;
+            break;
+          }
+        } catch {
+          /* invalid selector */
+        }
+      }
+    }
+    if (visible) visible = isVisible(element.parentElement);
+    cache.set(element, visible);
+    return visible;
+  }
+  return isVisible;
 }
 
 /** Text nodes (and breaks) of one flow, in document order. */
@@ -144,6 +178,7 @@ export async function scanFlows(
     isCancelled = () => false,
     onProgress = () => {},
     budgetMs = SCAN_LIMITS.BATCH_BUDGET_MS,
+    hiddenSelectors = null,
   },
   { finder, attributes = () => [], linkValue = () => null, visibleOnly = false },
 ) {
@@ -153,7 +188,9 @@ export async function scanFlows(
   };
 
   const buildPath = createPathBuilder(doc);
-  const isVisible = visibleOnly ? createVisibilityCheck() : null;
+  const isVisible = visibleOnly
+    ? (doc.defaultView ? createVisibilityCheck() : createAuthoredVisibilityCheck(hiddenSelectors))
+    : null;
   const total = root.querySelectorAll('*').length + 1;
 
   const elements = [];
@@ -273,9 +310,9 @@ export async function scanFlows(
  * Text Find: `target` is a sanitized text query (see services/text-matcher.js).
  * @param {object} params see scanFlows, plus `target`
  */
-export function scanTextDocument({ target, options: _options, ...params }) {
+export function scanTextDocument({ target, options = {}, ...params }) {
   const matcher = createTextMatcher(target);
-  return scanFlows(params, {
+  return scanFlows({ ...params, hiddenSelectors: options.hiddenSelectors }, {
     finder: { find: (text, limit) => matcher.find(matcher.fold(text), limit) },
     attributes: target.includeAttributes
       ? (element) =>

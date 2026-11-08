@@ -258,15 +258,15 @@ async function findOrOpenPageTab({ tabId, windowId, pageUrl }) {
 }
 
 async function handleHighlight(payload) {
-  const { pageUrl, elementId, contextId, path, tag, mode, label, tabId, windowId, marks } = payload || {};
-  if (!pageUrl || (!path && !elementId)) throw createError(ERR.INVALID_REQUEST, 'Missing element locator.');
+  const { pageUrl, elementId, contextId, path, tag, mode, label, tabId, windowId, marks, hint } = payload || {};
+  if (!pageUrl || (!path && !elementId && !hint)) throw createError(ERR.INVALID_REQUEST, 'Missing element locator.');
 
   const tab = await findOrOpenPageTab({ tabId, windowId, pageUrl });
   // The user asked to see the element, so (unlike scanning) bringing the tab forward is intended.
   await chrome.tabs.update(tab.id, { active: true });
   await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   const widthMarks = marks ? sanitizeWidthQuery(marks) : null; // never forward an unchecked payload
-  return highlightInTab(tab.id, { elementId, contextId, path, tag, label, ...(widthMarks ? { marks: widthMarks } : {}) }, mode);
+  return highlightInTab(tab.id, { elementId, contextId, path, tag, label, hint, ...(widthMarks ? { marks: widthMarks } : {}) }, mode);
 }
 
 async function handleImageInspect({ tabId, enabled, options, sessionId } = {}) {

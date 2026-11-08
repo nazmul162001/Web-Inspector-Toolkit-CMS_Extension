@@ -123,29 +123,34 @@ describe('Site crawler', () => {
     assert.equal(result.coverage.notScanned, 12 - 4);
   });
 
-  it('scans at most 3 articles per /blog /column /news /gallery /feature when the option is on', async () => {
+  it('scans at most 3 articles per /blog /column /news /gallery /feature /constructed when the option is on', async () => {
     const posts = Array.from({ length: 15 }, (_, i) => `/blog/p${i}`);
     const columns = Array.from({ length: 12 }, (_, i) => `/column/c${i}`);
     const features = Array.from({ length: 9 }, (_, i) => `/feature/f${i}`);
+    const constructed = Array.from({ length: 8 }, (_, i) => `/constructed/c${i}`);
     const site = {
-      '/': { links: ['/blog', '/column', '/feature', '/menu', ...posts, ...columns, ...features] },
+      '/': { links: ['/blog', '/column', '/feature', '/constructed', '/menu', ...posts, ...columns, ...features, ...constructed] },
       '/blog': { links: posts },
       '/column': { links: columns },
       '/feature': { links: features },
+      '/constructed': { links: constructed },
       '/menu': {},
     };
     for (const path of posts) site[path] = {};
     for (const path of columns) site[path] = {};
     for (const path of features) site[path] = {};
+    for (const path of constructed) site[path] = {};
     const { result } = await crawl(site, { crawl: { limitListingArticles: true } });
     const paths = result.pages.map((p) => new URL(p.url).pathname);
     assert.ok(paths.includes('/blog'));
     assert.ok(paths.includes('/column'));
     assert.ok(paths.includes('/feature'));
+    assert.ok(paths.includes('/constructed'));
     assert.ok(paths.includes('/menu'));
     assert.equal(paths.filter((p) => p.startsWith('/blog/')).length, 3);
     assert.equal(paths.filter((p) => p.startsWith('/column/')).length, 3);
     assert.equal(paths.filter((p) => p.startsWith('/feature/')).length, 3);
+    assert.equal(paths.filter((p) => p.startsWith('/constructed/')).length, 3);
     assert.equal(result.coverage.limitReached, false);
   });
 

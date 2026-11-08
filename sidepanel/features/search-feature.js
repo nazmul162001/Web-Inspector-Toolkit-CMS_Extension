@@ -22,7 +22,7 @@
  * A tool without a text field can use a hidden input for `${prefix}-text`.
  */
 
-import { ERR, MSG, SCOPE } from '../../shared/constants.js';
+import { ERR, FAST_SITE_CRAWL, MSG, SCOPE } from '../../shared/constants.js';
 import { copyToClipboard, el, pluralize, uid } from '../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../services/settings-service.js';
@@ -200,7 +200,13 @@ export function createSearchFeature(ctx, config) {
           tabId: tabContext.tab.id,
           target: query,
           options: {},
-          crawl: scope === SCOPE.SITE ? { ...(await loadSettings()).crawl, limitListingArticles: listingArticlesLimited() } : undefined,
+          crawl: scope === SCOPE.SITE
+            ? {
+                ...(await loadSettings()).crawl,
+                ...FAST_SITE_CRAWL,
+                limitListingArticles: listingArticlesLimited(),
+              }
+            : undefined,
         },
         { timeoutMs: 0 },
       );
@@ -262,6 +268,16 @@ export function createSearchFeature(ctx, config) {
       tag: item.element.tag,
       label: item.element.selector,
       mode,
+      hint: {
+        kind: lastQuery?.kind || item.match.kind || '',
+        text: item.match.text || item.match.computed || '',
+        attribute: item.match.attribute || null,
+        resolved: item.match.resolved || null,
+        section: item.element.location?.section || null,
+        classes: item.element.classes || [],
+        id: item.element.id || '',
+        digits: lastQuery?.kind === 'phone' ? lastQuery.digits : null,
+      },
       ...(config.locateExtras && lastQuery ? config.locateExtras(lastQuery) : {}),
     };
     try {

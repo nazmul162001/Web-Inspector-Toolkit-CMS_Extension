@@ -241,7 +241,7 @@ describe_('Text search through the invisible renderer', () => {
     assert.equal(holder.querySelectorAll('iframe').length, 0);
   });
 
-  it('loads stylesheets and a hidden frame only for "visible text only"', async () => {
+  it('loads stylesheets (no iframe) for "visible text only"', async () => {
     const holder = document.createElement('div');
     document.body.append(holder);
     created.push(holder);
@@ -256,6 +256,8 @@ describe_('Text search through the invisible renderer', () => {
     const page = await renderer.scanUrl(url('index.html'), { target: sanitizeTextQuery(query('fixture home', { visibleOnly: true })), timeoutMs: 15000 });
     assert.ok(page.matches.length >= 1);
     assert.ok(requests.length > 1, 'stylesheets were downloaded to decide what is visible');
+    assert.equal(page.stats.timings.frameMs, 0);
+    assert.equal(holder.querySelectorAll('iframe').length, 0);
     assert.ok(page.elements.every((e) => typeof e.rendered === 'boolean' || e.rendered === null));
   });
 });

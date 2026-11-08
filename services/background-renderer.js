@@ -27,8 +27,10 @@ import { ERR } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { collectLinks } from '../content/dom-scanner.js';
 import { runScan } from '../content/run-scan.js';
-import { scanColorMarkup } from '../content/color-markup-scanner.js';
+import { hiddenSelectorsFromSheets, scanColorMarkup } from '../content/color-markup-scanner.js';
+import { scanFontMarkup } from '../content/font-markup-scanner.js';
 import { mediaAppliesToScreen } from '../content/css-utils.js';
+import { isFontQuery } from './font-matcher.js';
 import { isHrefQuery } from './href-matcher.js';
 import { isPhoneQuery } from './phone-matcher.js';
 import { isWidthQuery } from './width-matcher.js';
@@ -489,10 +491,11 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
         let t3;
         let result;
         const skipLayout = isCanonicalColor(target)
+          || isFontQuery(target)
           || isPhoneQuery(target)
           || isHrefQuery(target)
           || isWidthQuery(target)
-          || (isTextQuery(target) && !target.visibleOnly);
+          || isTextQuery(target);
         if (isCanonicalColor(target)) {
           const collected = await collectStyles(page.html, page.finalUrl);
           if (overall.signal.aborted) throw abortError(overall.state);
@@ -501,6 +504,33 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
           t2 = performance.now();
           t3 = t2;
           result = scanColorMarkup(doc, collected.sheets, target, { ...options, ruleCache: parsedRules });
+        } else if (isFontQuery(target)) {
+          const collected = await collectStyles(page.html, page.finalUrl);
+          if (overall.signal.aborted) throw abortError(overall.state);
+          unreadable = collected.unreadable;
+          doc = collected.doc;
+          t2 = performance.now();
+          t3 = t2;
+          result = scanFontMarkup(doc, collected.sheets, target, {
+            ...options,
+            pageUrl: collected.baseUrl,
+            ruleCache: parsedRules,
+          });
+        } else if (isTextQuery(target) && target.visibleOnly) {
+          const collected = await collectStyles(page.html, page.finalUrl);
+          if (overall.signal.aborted) throw abortError(overall.state);
+          unreadable = collected.unreadable;
+          doc = collected.doc;
+          t2 = performance.now();
+          t3 = t2;
+          result = await runScan({
+            doc,
+            target,
+            options: { ...options, hiddenSelectors: hiddenSelectorsFromSheets(collected.sheets, parsedRules) },
+            shared,
+            budgetMs: 1e9,
+            isCancelled: () => overall.signal.aborted,
+          });
         } else if (skipLayout) {
           doc = parseInert(page.html, page.finalUrl);
           t2 = performance.now();
@@ -510,7 +540,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
             target,
             options,
             shared,
-            budgetMs: 40,
+            budgetMs: 1e9,
             isCancelled: () => overall.signal.aborted,
           });
         } else {

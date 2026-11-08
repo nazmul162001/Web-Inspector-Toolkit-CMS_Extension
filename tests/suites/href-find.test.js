@@ -139,6 +139,19 @@ describe('Link matching - exact', () => {
     assert.equal(hit('#top', '#bottom'), null);
   });
 
+  it('treats a typed page name like that path on the same site', () => {
+    assert.ok(hit('contact', '/contact', {}, 'https://a.example/'));
+    assert.ok(hit('contact', '/contact/', {}, 'https://a.example/'));
+    assert.ok(hit('contact', 'https://a.example/contact', {}, 'https://a.example/'));
+    assert.ok(hit('contact', 'contact.html', {}, 'https://a.example/'));
+    assert.ok(hit('contact', '/en/contact', {}, 'https://a.example/about/'));
+    assert.ok(hit('about.html', '/about', {}, 'https://a.example/'));
+    assert.ok(hit('about.html', '/about.html', {}, 'https://a.example/'));
+    assert.equal(hit('contact', 'https://b.example/contact', {}, 'https://a.example/'), null, 'other site');
+    assert.equal(hit('contact', '/contact-us', {}, 'https://a.example/'), null, 'different page name');
+    assert.equal(hit('contact', '#contact', {}, 'https://a.example/'), null, 'bare fragment is not a page');
+  });
+
   it('does not match empty or unparsable values', () => {
     assert.equal(hit(LINE, ''), null);
     assert.equal(hit(LINE, '   '), null);
