@@ -11,7 +11,7 @@ import { icon } from './icons.js';
 export function createFeatureNav(container, { features, activeId, onSelect }) {
   const buttons = new Map();
 
-  for (const feature of features) {
+  features.forEach((feature, index) => {
     const soon = feature.status !== FEATURE_STATUS.ACTIVE;
     const button = el(
       'button',
@@ -24,13 +24,14 @@ export function createFeatureNav(container, { features, activeId, onSelect }) {
         'aria-label': soon ? `${feature.label} (coming soon)` : feature.label,
         onClick: () => onSelect(feature.id),
       },
+      el('span', { class: 'feature-item__num', 'aria-hidden': 'true', 'data-i18n-skip': true }, String(index + 1)),
       icon(feature.icon),
       el('span', { class: 'feature-item__label' }, feature.label),
       soon && el('span', { class: 'badge badge--soon' }, 'Soon'),
     );
     buttons.set(feature.id, button);
     container.append(button);
-  }
+  });
 
   function setActive(id) {
     for (const [featureId, button] of buttons) {

@@ -103,6 +103,13 @@ export async function setImageInspector(tabId, enabled, options = {}) {
   return sendToTab(tabId, MSG.CONTENT_IMAGE_INSPECT, { enabled, options }, { timeoutMs: 4000 });
 }
 
+/** Start or stop SNS Checker in a tab. Stopping never injects anything. */
+export async function setSnsChecker(tabId, enabled, options = {}) {
+  if (enabled) await ensureContentScript(tabId);
+  else if (!(await pingTab(tabId, 500))) return { running: false };
+  return sendToTab(tabId, MSG.CONTENT_SNS_CHECK, { enabled, options }, { timeoutMs: 4000 });
+}
+
 /** Full address of the last image Image Resolution hovered in `tabId`, or null. */
 export async function getInspectedImageSource(tabId) {
   if (!(await pingTab(tabId, 500))) return null;

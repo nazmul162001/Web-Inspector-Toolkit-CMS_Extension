@@ -68,6 +68,11 @@ describe('Language: translate()', () => {
       'サイトの検索を続けるには、example.jp のユーザー名とパスワードを入力してください。',
     );
     assert.equal(ja('Inspect/Download image'), '画像の検査/ダウンロード');
+    assert.equal(ja('SNS Checker'), 'SNSチェック');
+    assert.equal(ja('How to use SNS Checker'), 'SNSチェックの使い方');
+    assert.equal(ja('Perfect. Everything is okay.'), '問題ありません。すべてOKです。');
+    assert.ok(ja('Small-screen rules apply at 768 px and below (now 727 px).').includes('768'));
+    assert.equal(ja('Inline style attribute'), 'インラインのstyle属性');
     assert.equal(ja('Image Convert'), '画像変換');
     assert.equal(ja('Image Resize'), '画像リサイズ');
     assert.equal(ja('Convert'), '変換');

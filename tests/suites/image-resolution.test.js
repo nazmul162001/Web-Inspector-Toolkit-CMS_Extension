@@ -19,7 +19,7 @@ import {
   splitSpaces,
   splitTopLevel,
 } from '../../services/image-geometry.js';
-import { imageAtPoint, inspectedImageSource, isInspectorRunning, startInspector, stopInspector } from '../../content/image-inspector.js';
+import { imageAtPoint, inspectedImageSource, isInspectorLocked, isInspectorRunning, startInspector, stopInspector } from '../../content/image-inspector.js';
 import { DEFAULT_SETTINGS } from '../../services/settings-service.js';
 import {
   DOWNLOAD_FORMATS,
@@ -592,6 +592,103 @@ describe('Image Resolution: the card on the page', () => {
     const afterStop = await inspectedImageSource();
     assert.ok(afterStop);
     assert.equal(afterStop.url, source.url);
+  });
+
+  it('locks an image on click and does not follow the link', async () => {
+    const holder = place(
+      `<a href="https://example.test/go" id="ir-link"><img src="${svg(200, 100, '#c33')}" width="100" height="50"></a>`,
+    );
+    const link = holder.querySelector('#ir-link');
+    const img = holder.querySelector('img');
+    await img.decode();
+    let navigated = false;
+    link.addEventListener('click', () => {
+      navigated = true;
+    });
+    startInspector({});
+    const box = img.getBoundingClientRect();
+    const event = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: box.left + 8,
+      clientY: box.top + 8,
+    });
+    link.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(navigated, false);
+    assert.ok(isInspectorLocked());
+    const source = await inspectedImageSource();
+    assert.ok(source);
+    assert.ok(source.url.startsWith('data:image/svg'));
+  });
+
+  it('keeps the locked image while hovering another, and unlocks on a second click', async () => {
+    const holder = place(
+      `<div style="display:flex;gap:24px;align-items:flex-start">` +
+        `<a href="https://example.test/a" id="ir-a"><img src="${svg(200, 100, '#c33')}" width="100" height="50"></a>` +
+        `<img id="ir-b" src="${svg(80, 40, '#0a0')}" width="80" height="40">` +
+        `</div>`,
+    );
+    const first = holder.querySelector('#ir-a img');
+    const second = holder.querySelector('#ir-b');
+    await first.decode();
+    await second.decode();
+    startInspector({});
+
+    const point = (el) => {
+      const box = el.getBoundingClientRect();
+      return { clientX: box.left + 8, clientY: box.top + 8 };
+    };
+    const move = (el) => window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, ...point(el) }));
+    const click = (el) =>
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, ...point(el) }));
+
+    move(first);
+    await sleep(80);
+    click(first);
+    await sleep(40);
+    assert.ok(isInspectorLocked());
+    const locked = await inspectedImageSource();
+    assert.ok(locked?.url);
+    assert.equal(locked.url, first.currentSrc || first.src);
+
+    move(second);
+    await sleep(80);
+    const still = await inspectedImageSource();
+    assert.equal(still.url, locked.url);
+    assert.ok(isInspectorLocked());
+
+    click(first);
+    await sleep(40);
+    assert.ok(!isInspectorLocked());
+
+    move(second);
+    await sleep(80);
+    const after = await inspectedImageSource();
+    assert.ok(after.url !== locked.url);
+  });
+
+  it('unlocks when clicking empty space', async () => {
+    const holder = place(`<img src="${svg(200, 100)}" width="100" height="50">`);
+    const img = holder.querySelector('img');
+    await img.decode();
+    const empty = place('<div style="width:40px;height:40px"></div>');
+    empty.style.left = '360px';
+    empty.style.top = '360px';
+    startInspector({});
+    const box = img.getBoundingClientRect();
+    img.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, view: window, clientX: box.left + 8, clientY: box.top + 8 }),
+    );
+    await sleep(40);
+    assert.ok(isInspectorLocked());
+    const gap = empty.getBoundingClientRect();
+    empty.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, view: window, clientX: gap.left + 8, clientY: gap.top + 8 }),
+    );
+    await sleep(40);
+    assert.ok(!isInspectorLocked());
   });
 });
 

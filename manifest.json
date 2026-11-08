@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Web Inspector Toolkit",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A developer toolkit in Chrome's side panel. Color Find locates every element, CSS rule and variable that uses a given color - on this page or across a whole site.",
   "minimum_chrome_version": "123",
 
@@ -50,6 +50,7 @@
         "services/font-*.js",
         "services/width-*.js",
         "services/image-*.js",
+        "services/sns-*.js",
         "services/screenshot-*.js",
         "services/highlighter.js",
         "services/i18n*.js",

@@ -12,7 +12,7 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector } from '../services/page-scan-service.js';
+import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector, setSnsChecker } from '../services/page-scan-service.js';
 import { captureForSender, markScreenshotTab } from '../services/capture-tab-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
@@ -78,6 +78,7 @@ watchSessions({
       endScan(scanId);
     }
     stopInspectorOf(sessionId); // the panel closed: the hover inspector must not stay on in the page
+    stopSnsCheckerOf(sessionId);
     stopScreenshotOf(sessionId); // stop a capture in progress; an open editor on the page is left
   },
 });
@@ -91,6 +92,15 @@ function stopInspectorOf(sessionId) {
   const tabId = inspectors.get(sessionId);
   inspectors.delete(sessionId);
   if (tabId !== undefined) setImageInspector(tabId, false).catch(() => {}); // the tab may be gone already
+}
+
+/** sessionId -> tabId where that side panel's SNS Checker runs. */
+const snsCheckers = new Map();
+
+function stopSnsCheckerOf(sessionId) {
+  const tabId = snsCheckers.get(sessionId);
+  snsCheckers.delete(sessionId);
+  if (tabId !== undefined) setSnsChecker(tabId, false).catch(() => {});
 }
 
 // Per-page progress from content scripts is relayed under a single event type.
@@ -340,6 +350,26 @@ async function handleImageSource({ tabId } = {}) {
   return getInspectedImageSource(tabId);
 }
 
+async function handleSnsCheck({ tabId, enabled, options, sessionId } = {}) {
+  if (!Number.isInteger(tabId)) throw createError(ERR.INVALID_REQUEST, 'Missing tab.');
+  const settings = { language: normalizeLanguage(options?.language) };
+  if (!enabled) {
+    if (snsCheckers.get(sessionId) === tabId) snsCheckers.delete(sessionId);
+    try {
+      return await setSnsChecker(tabId, false);
+    } catch {
+      return { running: false };
+    }
+  }
+  const result = await setSnsChecker(tabId, true, settings);
+  if (typeof sessionId === 'string') {
+    const previous = snsCheckers.get(sessionId);
+    if (previous !== undefined && previous !== tabId) setSnsChecker(previous, false).catch(() => {});
+    snsCheckers.set(sessionId, tabId);
+  }
+  return result;
+}
+
 /* ------------------------------------------------------ Screenshot Taker */
 
 const SHOT_MODES = ['area', 'current', 'full'];
@@ -514,6 +544,7 @@ registerHandlers({
   [MSG.CLEAR_MARKS]: handleClearMarks,
   [MSG.IMAGE_INSPECT]: handleImageInspect,
   [MSG.IMAGE_SOURCE]: handleImageSource,
+  [MSG.SNS_CHECK]: handleSnsCheck,
   [MSG.SCREENSHOT_START]: handleScreenshotStart,
   [MSG.SCREENSHOT_CANCEL]: handleScreenshotCancel,
   [MSG.SCREENSHOT_EDITOR]: handleScreenshotEditor,

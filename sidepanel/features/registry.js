@@ -27,6 +27,7 @@ const loaders = {
   'official-image': () => import('./official-image/official-image.js'),
   'image-convert': () => import('./image-convert/image-convert.js'),
   'image-resize': () => import('./image-resize/image-resize.js'),
+  'sns-checker': () => import('./sns-checker/sns-checker.js'),
   'remove-background': () => import('./remove-background/remove-background.js'),
   screenshot: () => import('./screenshot/screenshot.js'),
 };

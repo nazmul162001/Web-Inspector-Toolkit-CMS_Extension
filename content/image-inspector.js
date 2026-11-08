@@ -1,5 +1,7 @@
 /**
- * Image Resolution: hover any image on the page and see its size.
+ * Image Resolution: hover any image on the page and see its size. Click locks
+ * that picture (the link does not open) so the side panel can show it and
+ * download it; click the same picture again to unlock.
  *
  * While the inspector runs, the pointer is followed and the pictures under it
  * are looked up from the whole stack of elements at that point
@@ -247,6 +249,7 @@ function realImageAt(element, x, y) {
   const loading = tag === 'img' && !element.complete;
 
   return makeHit({
+    element,
     kind,
     url,
     display: { w: box.w, h: box.h },
@@ -388,6 +391,7 @@ function backgroundLayersAt(element, x, y, style, own, kind, paintsCanvas) {
 
     const painted = { x: origin.x + tile.x, y: origin.y + tile.y, w: tile.w, h: tile.h };
     return makeHit({
+      element,
       kind,
       url,
       display: { w: tile.w, h: tile.h },
@@ -471,6 +475,7 @@ function cssPictureAt(element, x, y, { style, own, kind, imageValue, sizeValue =
     }
 
     return makeHit({
+      element,
       kind,
       url,
       display: { w: painted.w, h: painted.h },
@@ -540,6 +545,7 @@ function contentImageAt(element, x, y, style, own, kind = 'Content image') {
   const natural = naturalSizeOf(abs);
   if (natural.state === 'loading') return null;
   return makeHit({
+    element,
     kind,
     url: abs,
     display: { w: box.w, h: box.h },
@@ -574,6 +580,7 @@ function pseudoImageAt(element, x, y, pseudoName, { backgrounds = true } = {}) {
     const natural = naturalSizeOf(url);
     if (natural.state === 'ok') {
       return makeHit({
+        element,
         kind,
         url,
         display: { w: rect.w, h: rect.h },
@@ -704,12 +711,23 @@ const CSS_TEXT = `
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55), 0 0 0 4px rgba(124, 108, 246, 0.25);
     border-radius: 2px; display: none;
   }
+  .outline.preview {
+    border-style: dashed;
+    background: rgba(124, 108, 246, 0.06);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+  .outline.lock {
+    border-color: #2f9d78;
+    background: rgba(47, 157, 120, 0.14);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55), 0 0 0 4px rgba(47, 157, 120, 0.25);
+  }
   .chip {
     position: absolute; left: -2px; top: -2px; transform: translateY(-100%);
     padding: 2px 7px; border-radius: 5px 5px 5px 0; white-space: nowrap;
     font: 650 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
     color: #fff; background: #5b4bd8; font-variant-numeric: tabular-nums;
   }
+  .chip.lock { background: #2f9d78; }
   .chip.inside { transform: none; border-radius: 0 0 5px 0; }
   .tip {
     position: fixed; left: 0; top: 0; width: 292px; pointer-events: none; z-index: 2147483647;
@@ -724,7 +742,17 @@ const CSS_TEXT = `
     padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em;
     text-transform: uppercase; color: #b9b0ff; background: rgba(124, 108, 246, 0.18);
   }
-  .state { font-size: 11px; color: #f0b24a; }
+  .state { font-size: 11px; color: #f0b24a; font-weight: 700; }
+  .state.action {
+    padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: #e4e0ff; background: rgba(124, 108, 246, 0.28);
+    border: 1px solid rgba(185, 176, 255, 0.4);
+  }
+  .state.lock {
+    padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: #b7f0d8; background: rgba(47, 157, 120, 0.28);
+    border: 1px solid rgba(67, 197, 158, 0.4);
+  }
   .main { display: flex; gap: 11px; align-items: center; }
   .thumb {
     flex: none; width: 58px; height: 58px; border-radius: 8px; overflow: hidden; border: 1px solid #353c4b;
@@ -752,6 +780,13 @@ const CSS_TEXT = `
     margin-top: 9px; padding: 5px 8px; border-radius: 6px; background: #1c2029; color: #a4abbd;
     font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  .download-note {
+    margin-top: 8px; padding: 7px 9px; border-radius: 7px;
+    background: rgba(124, 108, 246, 0.28); color: #e4e0ff;
+    border: 1px solid rgba(185, 176, 255, 0.45);
+    font: 800 12px/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: -0.01em; text-align: center;
+  }
   .hint { margin-top: 8px; font-size: 10.5px; color: #6e7688; }
 `;
 
@@ -773,6 +808,9 @@ function buildCard() {
   const outline = node('div', 'outline');
   const chip = node('div', 'chip');
   outline.append(chip);
+  const lockOutline = node('div', 'outline lock');
+  const lockChip = node('div', 'chip lock');
+  lockOutline.append(lockChip);
 
   const tip = node('div', 'tip');
   const kind = node('span', 'kind');
@@ -814,24 +852,60 @@ function buildCard() {
     alt: makeRow('Alt text'),
   };
   const name = node('div', 'name');
-  const hint = node('div', 'hint', 'Esc to stop');
-  tip.append(top, main, rows, name, hint);
+  const downloadNote = node('div', 'download-note', 'Download this image from the sidebar');
+  const hint = node('div', 'hint', 'Click to lock · Esc to stop');
+  tip.append(top, main, rows, name, downloadNote, hint);
 
-  shadow.append(style, outline, tip);
-  return { host, outline, chip, tip, kind, state, thumb, thumbImage, big, label, fields, name, hint };
+  shadow.append(style, lockOutline, outline, tip);
+  return { host, outline, chip, lockOutline, lockChip, tip, kind, state, thumb, thumbImage, big, label, fields, name, downloadNote, hint };
 }
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 /* -------------------------------------------------------- Inspector */
 
-function paintCard(card, hit, point, options) {
+function sameImage(a, b) {
+  if (!a || !b) return false;
+  if (a.element && b.element) return a.element === b.element && a.url === b.url && a.kind === b.kind;
+  return a.key === b.key;
+}
+
+function withAnchor(hit) {
+  const el = hit.element;
+  if (!el?.getBoundingClientRect) return hit;
+  const rect = el.getBoundingClientRect();
+  const box = hit.outline || boxOfRect(rect);
+  return {
+    ...hit,
+    anchor: {
+      x: box.x + box.w / 2 - rect.left,
+      y: box.y + box.h / 2 - rect.top,
+    },
+  };
+}
+
+function setOutline(outline, chip, box, text) {
+  if (!box || !(box.w > 0 && box.h > 0)) {
+    outline.style.display = 'none';
+    return;
+  }
+  Object.assign(outline.style, { display: 'block', transform: `translate(${box.x}px, ${box.y}px)`, width: `${box.w}px`, height: `${box.h}px` });
+  chip.textContent = text;
+  chip.classList.toggle('inside', box.y < 24);
+}
+
+function paintCard(card, hit, point, options, lockedHit = null) {
   const { display, natural } = hit;
   const tr = (text) => translate(text, options.language);
+  const lockedHere = sameImage(hit, lockedHit);
   card.kind.textContent = tr(hit.kind);
-  card.state.hidden = !(hit.broken || hit.loading);
-  card.state.textContent = tr(hit.broken ? 'Failed to load' : 'Loading…');
-  card.hint.textContent = tr('Esc to stop');
+  card.state.hidden = false;
+  const status = hit.broken ? 'Failed to load' : hit.loading ? 'Loading…' : lockedHere ? 'Locked' : 'Click to lock';
+  card.state.textContent = tr(status);
+  card.state.classList.toggle('lock', status === 'Locked');
+  card.state.classList.toggle('action', status === 'Click to lock');
+  card.hint.textContent = tr(lockedHere ? 'Click again to unlock · Esc to stop' : 'Click to lock · Esc to stop');
+  card.downloadNote.textContent = tr('Download this image from the sidebar');
   for (const field of Object.values(card.fields)) field.title.textContent = tr(field.name);
 
   // The headline is the picture's real (file) size. Only when that is unknown does the displayed size stand in.
@@ -863,12 +937,11 @@ function paintCard(card, hit, point, options) {
     card.thumbImage.src = hit.url;
   }
 
-  // The outline of the picture.
-  if (options.outline && hit.outline) {
-    const box = hit.outline;
-    Object.assign(card.outline.style, { display: 'block', transform: `translate(${box.x}px, ${box.y}px)`, width: `${box.w}px`, height: `${box.h}px` });
-    card.chip.textContent = `${formatPixels(headline.w)} × ${formatPixels(headline.h)}`;
-    card.chip.classList.toggle('inside', box.y < 24);
+  // Hover outline: solid when nothing is locked, dashed while another picture is locked.
+  const showHoverOutline = options.outline && hit.outline && !lockedHere;
+  card.outline.classList.toggle('preview', !!(lockedHit && showHoverOutline));
+  if (showHoverOutline) {
+    setOutline(card.outline, card.chip, hit.outline, `${formatPixels(headline.w)} × ${formatPixels(headline.h)}`);
   } else {
     card.outline.style.display = 'none';
   }
@@ -927,27 +1000,106 @@ export function startInspector(options = {}) {
 
   const card = buildCard();
   document.documentElement.append(card.host);
-  const state = { options: settings, point: null, frame: 0, lastKey: '', refresh: null };
+  const state = { options: settings, point: null, frame: 0, lastKey: '', locked: null, refresh: null };
 
-  const hide = () => {
+  const hideHover = () => {
     card.tip.style.display = 'none';
     card.outline.style.display = 'none';
   };
 
-  const update = () => {
-    state.frame = 0;
-    if (!state.point) return hide();
-    let hit = null;
-    try {
-      hit = imageAtPoint(state.point.x, state.point.y, { backgrounds: state.options.backgrounds });
-    } catch {
-      hit = null; // a page that throws on layout reads must never break the inspector
-    }
-    if (!hit) {
-      hide();
+  const paintLock = (locked) => {
+    if (!state.options.outline || !locked?.outline) {
+      card.lockOutline.style.display = 'none';
       return;
     }
-    paintCard(card, hit, state.point, state.options);
+    setOutline(card.lockOutline, card.lockChip, locked.outline, translate('Locked', state.options.language));
+  };
+
+  const liveLocked = () => {
+    const locked = state.locked;
+    if (!locked) {
+      card.lockOutline.style.display = 'none';
+      return null;
+    }
+    const el = locked.element;
+    if (!el || !el.isConnected) {
+      state.locked = null;
+      if (session) session.locked = null;
+      card.lockOutline.style.display = 'none';
+      broadcast(MSG.IMAGE_INSPECT_EVENT, { type: 'unlock' });
+      return null;
+    }
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + (locked.anchor?.x ?? Math.min(8, Math.max(0, rect.width / 2)));
+    const y = rect.top + (locked.anchor?.y ?? Math.min(8, Math.max(0, rect.height / 2)));
+    try {
+      const next = imageAtPoint(x, y, { backgrounds: state.options.backgrounds });
+      if (next && sameImage(next, locked)) {
+        state.locked = withAnchor(next);
+        lastHit = state.locked;
+        if (session) session.locked = state.locked;
+        paintLock(state.locked);
+        return state.locked;
+      }
+    } catch {
+      /* keep the last locked outline */
+    }
+    locked.outline = boxOfRect(rect);
+    paintLock(locked);
+    return locked;
+  };
+
+  const lookup = (x, y) => {
+    try {
+      return imageAtPoint(x, y, { backgrounds: state.options.backgrounds });
+    } catch {
+      return null; // a page that throws on layout reads must never break the inspector
+    }
+  };
+
+  const hitFromNode = (element) => {
+    if (!element || element.nodeType !== 1 || element.id === HOST_ID) return null;
+    const box = element.getBoundingClientRect?.();
+    if (!box || !(box.width > 2 && box.height > 2)) return null;
+    return lookup(box.left + Math.min(8, box.width / 2), box.top + Math.min(8, box.height / 2));
+  };
+
+  const hitAtEvent = (event) => {
+    const x = event.clientX;
+    const y = event.clientY;
+    const looksReal = Number.isFinite(x) && Number.isFinite(y) && (x !== 0 || y !== 0);
+    if (looksReal) {
+      const fromPoint = lookup(x, y);
+      if (fromPoint) return fromPoint;
+    }
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    for (const node of path) {
+      const hit = hitFromNode(node);
+      if (hit) return hit;
+    }
+    return hitFromNode(event.target);
+  };
+
+  const setLocked = (hit) => {
+    state.locked = hit ? withAnchor(hit) : null;
+    if (session) session.locked = state.locked;
+    if (state.locked) lastHit = state.locked;
+  };
+
+  const update = () => {
+    state.frame = 0;
+    const locked = liveLocked();
+    if (!state.point) {
+      hideHover();
+      return;
+    }
+    const hit = lookup(state.point.x, state.point.y);
+    if (!hit) {
+      hideHover();
+      return;
+    }
+    paintCard(card, hit, state.point, state.options, locked);
+    if (locked) return;
     lastHit = hit;
     if (hit.key !== state.lastKey) {
       state.lastKey = hit.key;
@@ -968,6 +1120,29 @@ export function startInspector(options = {}) {
     state.point = null;
     schedule();
   };
+  const onClick = (event) => {
+    if (event.button !== 0) return;
+    const hit = hitAtEvent(event);
+    if (!hit) {
+      if (!state.locked) return;
+      setLocked(null);
+      broadcast(MSG.IMAGE_INSPECT_EVENT, { type: 'unlock' });
+      schedule();
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    if (sameImage(hit, state.locked)) {
+      setLocked(null);
+      lastHit = hit;
+      broadcast(MSG.IMAGE_INSPECT_EVENT, { type: 'unlock' });
+    } else {
+      setLocked(hit);
+      broadcast(MSG.IMAGE_INSPECT_EVENT, { type: 'lock', info: summary(hit) });
+    }
+    schedule();
+  };
   const onKey = (event) => {
     if (event.key !== 'Escape') return;
     stopInspector();
@@ -976,6 +1151,7 @@ export function startInspector(options = {}) {
 
   const listeners = [
     [window, 'mousemove', onMove, { capture: true, passive: true }],
+    [window, 'click', onClick, { capture: true }],
     [window, 'scroll', schedule, { capture: true, passive: true }],
     [window, 'resize', schedule, { passive: true }],
     [document.documentElement, 'mouseleave', onLeave, { passive: true }],
@@ -989,6 +1165,12 @@ export function startInspector(options = {}) {
     },
     set options(value) {
       state.options = value;
+    },
+    get locked() {
+      return state.locked;
+    },
+    set locked(value) {
+      state.locked = value;
     },
     refresh: schedule,
     stop() {
@@ -1010,6 +1192,8 @@ export function stopInspector() {
 
 export const isInspectorRunning = () => session !== null;
 
+export const isInspectorLocked = () => !!session?.locked;
+
 function absoluteUrl(url) {
   if (!url || /^data:/i.test(url) || /^blob:/i.test(url)) return url;
   try {
@@ -1020,8 +1204,9 @@ function absoluteUrl(url) {
 }
 
 /**
- * The last hovered picture, with a full address the side panel can fetch.
- * blob: URLs are turned into data URLs because the panel cannot read them.
+ * The locked picture, or the last hovered one, with a full address the side
+ * panel can fetch. blob: URLs are turned into data URLs because the panel cannot
+ * read them.
  */
 export async function inspectedImageSource() {
   if (!lastHit) return null;

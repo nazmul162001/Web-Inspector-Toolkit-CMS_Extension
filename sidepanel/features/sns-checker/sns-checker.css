@@ -1,0 +1,297 @@
+/* SNS Checker — panel. Tokens come from sidepanel.css; status chrome is shared with Image Resolution. */
+
+.sns-head {
+  position: relative;
+}
+
+.sns-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+}
+
+.sns-title-row .cf-title {
+  flex: none;
+}
+
+.sns-help {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.sns-help[aria-expanded="true"] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sns-help-tip {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  margin: 0;
+  padding: 12px 14px 12px;
+  border: 1px solid color-mix(in srgb, var(--text) 32%, var(--accent) 45%);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.45;
+}
+
+.sns-help-tip__title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sns-help-tip__steps {
+  margin: 0;
+  padding-left: 0;
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  counter-reset: sns-help;
+}
+
+.sns-help-tip__steps li {
+  position: relative;
+  padding: 8px 10px 8px 28px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2, var(--surface)));
+  color: var(--text);
+  counter-increment: sns-help;
+}
+
+.sns-help-tip__steps li::before {
+  content: counter(sns-help);
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.sns-empty {
+  margin-top: 16px;
+  padding: 16px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.sns-empty__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.sns-empty__lead {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sns-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.sns-verdict {
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.sns-verdict.is-ok {
+  border-color: color-mix(in srgb, var(--success) 42%, transparent);
+  background: linear-gradient(180deg, var(--success-soft), var(--surface));
+}
+
+.sns-verdict.is-bad {
+  border-color: color-mix(in srgb, var(--danger) 42%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 12%, var(--surface)), var(--surface));
+}
+
+.sns-verdict.is-wait .sns-verdict__title {
+  color: var(--text);
+}
+
+.sns-verdict__title {
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.02em;
+}
+
+.sns-verdict.is-ok .sns-verdict__title {
+  color: var(--success);
+}
+
+.sns-verdict.is-bad .sns-verdict__title {
+  color: var(--danger);
+}
+
+.sns-verdict__detail {
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sns-verdict__screen {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.sns-screens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sns-screen {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2, color-mix(in srgb, var(--text) 6%, var(--surface)));
+  color: var(--text-dim);
+}
+
+.sns-screen.is-pass {
+  color: var(--success);
+}
+
+.sns-screen.is-fail {
+  color: var(--danger);
+}
+
+.sns-suggestions {
+  margin: 0;
+  padding: 10px 14px 10px 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--text);
+  font-size: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.sns-rules {
+  margin-top: 16px;
+}
+
+.sns-css-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sns-css-block {
+  display: grid;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.sns-css-block + .sns-css-block {
+  border-top: 1px solid var(--border);
+}
+
+.sns-css {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sns-css-block.is-ok .sns-css,
+.sns-css.is-ok {
+  color: var(--success);
+}
+
+.sns-css-block.is-bad .sns-css,
+.sns-css.is-bad {
+  color: var(--danger);
+}
+
+.sns-css-meta {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.sns-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.sns-card--error {
+  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.sns-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sns-card__verdict {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sns-card__verdict.is-ok {
+  color: var(--success);
+}
+
+.sns-card__verdict.is-bad {
+  color: var(--danger);
+}
+
+.sns-tips {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.sns .ir-state[data-tone="on"] .ir-state__icon {
+  color: var(--success);
+}

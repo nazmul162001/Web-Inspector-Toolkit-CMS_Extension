@@ -1,9 +1,8 @@
 /**
  * Image Resolution: not a search. While this tool is open the page in the
  * active tab shows a card with the size of whatever image the pointer is over
- * (see content/image-inspector.js). This panel switches the inspector on and
- * off, follows the active tab, and keeps the last image so its details can be
- * read and copied after the pointer has moved on.
+ * (see content/image-inspector.js). Click locks that picture in this panel so
+ * it can be read and downloaded; click again to unlock. Hover still previews.
  */
 
 import { MSG } from '../../../shared/constants.js';
@@ -51,7 +50,8 @@ export function createFeature(ctx) {
   let options = { backgrounds: true, outline: true, preview: true };
   let inspectedTabId = null;
   let sequence = 0;
-  let last = null; // the last image reported by the page
+  let last = null; // the last image reported by the page (locked, or last hover)
+  let locked = false;
   let lastTabKey = '';
   let downloading = false;
   let previewSeq = 0;
@@ -102,6 +102,7 @@ export function createFeature(ctx) {
     const stale = () => mine !== sequence || !refs;
 
     if (!enabled) {
+      locked = false;
       await stopRunning();
       if (!stale()) showStatus('off', 'Inspector is off', 'Turn it on to see image sizes while you move the pointer over the page.');
       return;
@@ -136,7 +137,7 @@ export function createFeature(ctx) {
       await sendToBackground(MSG.IMAGE_INSPECT, { tabId, enabled: true, options: { ...options, language: getLanguage() }, sessionId: ctx.sessionId }, { timeoutMs: 10000 });
       inspectedTabId = tabId; // remembered even if a newer change took over, so it can still be stopped
       if (stale()) return;
-      showStatus('on', 'Inspector is on', 'Move the pointer over any image on the page. Press Esc on the page to stop.');
+      showStatus('on', 'Inspector is on', 'Hover an image to preview it. Click to lock it here so you can download it. Click again to unlock. Press Esc on the page to stop.');
     } catch (error) {
       if (stale()) return;
       const info = describeError(error);
@@ -165,6 +166,8 @@ export function createFeature(ctx) {
       return;
     }
     refs.last.hidden = false;
+    refs.last.dataset.locked = locked ? 'true' : 'false';
+    if (refs.lastLabel) refs.lastLabel.textContent = locked ? 'Locked image' : 'Last image';
     const { display, natural } = last;
     const known = natural.w > 0 && natural.h > 0;
     const shortUrl = last.isData ? 'Inline image (data URL)' : last.url;
@@ -310,7 +313,7 @@ export function createFeature(ctx) {
     try {
       const url = await sourceUrl();
       if (isTruncatedUrl(url)) {
-        throw new Error('The image address is incomplete. Hover the image again and try downloading.');
+        throw new Error('The image address is incomplete. Click the image to lock it and try downloading.');
       }
       const format = DOWNLOAD_FORMATS.includes(refs.format?.value) ? refs.format.value : preferredDownloadFormat(last.format);
       let size = null;
@@ -410,16 +413,17 @@ export function createFeature(ctx) {
       saveSizeBtn,
     );
     const downloadBtn = el('button', { class: 'btn btn--sm', type: 'button', onClick: () => downloadLast() }, icon('download', 14), 'Download');
+    const lastLabel = el('div', { class: 'field-label' }, 'Last image');
     const last_ = el(
       'div',
       { class: 'ir-last', hidden: true },
-      el('div', { class: 'field-label' }, 'Last image'),
+      lastLabel,
       lastBody,
       el(
         'div',
         { class: 'ir-last__actions' },
         el('button', { class: 'btn btn--sm', type: 'button', onClick: () => last && copy(last.url, 'Image address') }, icon('copy', 14), 'Copy address'),
-        el('div', { class: 'ir-download' }, downloadBtn, formatSelect, sizeSelect),
+        el('div', { class: 'ir-download' }, formatSelect, sizeSelect, downloadBtn),
       ),
       customPanel,
     );
@@ -432,7 +436,7 @@ export function createFeature(ctx) {
           'div',
           { class: 'cf-head' },
           el('h2', { id: 'ir-title', class: 'cf-title' }, 'Inspect/Download image'),
-          el('p', { class: 'cf-lead' }, 'Hover any image on the page to see its width and height.'),
+          el('p', { class: 'cf-lead' }, 'Hover any image to see its size. Click to lock it here so you can download it. Click again to unlock.'),
         ),
         state,
         el(
@@ -441,6 +445,7 @@ export function createFeature(ctx) {
           el('li', {}, 'Works through text, buttons and other layers on top of an image.'),
           el('li', {}, 'Also reads CSS background images, masks, border images and pictures drawn with ::before / ::after.'),
           el('li', {}, 'Shows the size on the page, the image\'s own size and how they compare.'),
+          el('li', {}, 'Click an image to lock it (the link does not open). Click the same image again to unlock.'),
         ),
         el('div', { class: 'ir-options' }, optionBoxes),
         last_,
@@ -454,6 +459,7 @@ export function createFeature(ctx) {
       stateActions,
       toggle,
       last: last_,
+      lastLabel,
       lastBody,
       download: downloadBtn,
       format: formatSelect,
@@ -471,10 +477,19 @@ export function createFeature(ctx) {
     disposers.push(
       onEvent(MSG.IMAGE_INSPECT_EVENT, (event) => {
         if (!refs || !event) return;
-        if (event.type === 'hover' && event.info) {
+        if (event.type === 'lock' && event.info) {
+          locked = true;
+          last = event.info;
+          renderLast();
+        } else if (event.type === 'unlock') {
+          locked = false;
+          renderLast();
+        } else if (event.type === 'hover' && event.info) {
+          if (locked) return;
           last = event.info;
           renderLast();
         } else if (event.type === 'stopped') {
+          locked = false;
           enabled = false;
           inspectedTabId = null;
           apply();
@@ -509,6 +524,7 @@ export function createFeature(ctx) {
       lastTabKey = key;
       if (switchedTab) {
         last = null;
+        locked = false;
         renderLast();
       }
     }

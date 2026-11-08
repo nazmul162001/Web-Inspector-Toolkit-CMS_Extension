@@ -24,6 +24,7 @@ export const EXACT_JA = {
   'Official Icon': '公式アイコン',
   'Image Convert': '画像変換',
   'Image Resize': '画像リサイズ',
+  'SNS Checker': 'SNSチェック',
   'Remove Background': '背景除去',
   'Thumbnails are 50×50. Download saves each file at its original size.':
     'サムネイルは 50×50 です。ダウンロードすると元のサイズで保存されます。',
@@ -491,6 +492,8 @@ export const EXACT_JA = {
 
   /* ------------------------------------------------- Image Resolution */
   'Hover any image on the page to see its width and height.': 'ページ上の画像にマウスを重ねると、幅と高さが表示されます。',
+  'Hover any image to see its size. Click to lock it here so you can download it. Click again to unlock.':
+    '画像にマウスを重ねるとサイズが表示されます。クリックでロックし、このパネルからダウンロードできます。もう一度クリックするとロックを解除します。',
   'Works through text, buttons and other layers on top of an image.': '画像の上に重なったテキスト・ボタン・その他のレイヤー越しでも動作します。',
   'Also reads CSS background images, such as hero banners.': 'ヒーローバナーなど、CSSの背景画像も読み取ります。',
   'Also reads CSS background images and pictures drawn with ::before / ::after.': 'ヒーローバナーなどのCSS背景画像と、::before / ::after で描かれた画像も読み取ります。',
@@ -511,6 +514,8 @@ export const EXACT_JA = {
   'Inspector is on': 'インスペクターはオンです',
   'Inspector is off': 'インスペクターはオフです',
   'Move the pointer over any image on the page. Press Esc on the page to stop.': 'ページ上の画像にポインターを重ねてください。停止するにはページ上で Esc キーを押します。',
+  'Hover an image to preview it. Click to lock it here so you can download it. Click again to unlock. Press Esc on the page to stop.':
+    '画像にマウスを重ねるとプレビューできます。クリックでロックし、このパネルからダウンロードできます。もう一度クリックするとロックを解除します。停止するにはページ上で Esc キーを押します。',
   'Turn it on to see image sizes while you move the pointer over the page.': 'オンにすると、ポインターを動かしながら画像のサイズを確認できます。',
   'No page to inspect': '検査できるページがありません',
   "This page can't be inspected": 'このページは検査できません',
@@ -518,6 +523,16 @@ export const EXACT_JA = {
   'Allow access to this site': 'このサイトへのアクセスを許可',
   "Couldn't start the inspector": 'インスペクターを開始できませんでした',
   'Last image': '直前の画像',
+  'Locked image': 'ロックした画像',
+  Locked: 'ロック中',
+  'Download this image from the sidebar': 'サイドバーからこの画像をダウンロード',
+  'Click to lock': 'クリックでロック',
+  'Click to lock · Esc to stop': 'クリックでロック · Escで停止',
+  'Click again to unlock · Esc to stop': 'もう一度クリックで解除 · Escで停止',
+  'Click an image to lock it (the link does not open). Click the same image again to unlock.':
+    '画像をクリックするとロックします（リンクは開きません）。同じ画像をもう一度クリックするとロックを解除します。',
+  'The image address is incomplete. Click the image to lock it and try downloading.':
+    '画像のアドレスが不完全です。画像をクリックしてロックしてから、もう一度ダウンロードしてください。',
   'Image address': '画像のアドレス',
   Size: 'サイズ',
   'Displayed on page': 'ページ上の表示サイズ',
@@ -545,6 +560,86 @@ export const EXACT_JA = {
   'Image from a blob URL': 'blob URL の画像',
   'px displayed': 'px（表示サイズ）',
   'px actual size': 'px（本来のサイズ）',
+
+  /* ------------------------------------------------------ SNS Checker */
+  'How to use SNS Checker': 'SNSチェックの使い方',
+  'How to use': '使い方',
+  'Turn it on, then hover an SNS icon to preview. Click the icon to select it. The link does not open.':
+    'オンにしてから、SNSアイコンにホバーするとプレビューできます。クリックで選択します。リンクは開きません。',
+  'Click more than one icon in the same row to check them together.':
+    '同じ行のアイコンは複数クリックして、まとめてチェックできます。',
+  'Keep them selected and resize the window. Check a small screen (max 768 px) and PC. Perfect only appears when both pass.':
+    '選択したままウィンドウをリサイズしてください。小さい画面（最大 768 px）とPCの両方を確認します。「問題ありません」は両方で合格したときだけ表示されます。',
+  'If a rule is broken, the frame turns red. Details appear below: the CSS to change (width, margin, padding, gap), and a media query when the value comes from one.':
+    'ルールに違反すると枠が赤くなります。下に詳細が出ます。直すCSS（width、margin、padding、gap）と、値がメディアクエリから来ている場合はそのクエリです。',
+  'SNS Checker is on': 'SNSチェックはオンです',
+  'SNS Checker is off': 'SNSチェックはオフです',
+  'Turn it on to hover and click an SNS icon on the page.': 'オンにすると、ページ上のSNSアイコンにホバーしてクリックし、確認できます。',
+  'Hover an Instagram, LINE, Facebook, mail or reservation icon to preview. Click to select it. The link will not open. Press Esc on the page to stop.':
+    'Instagram、LINE、Facebook、メール、予約などのアイコンにホバーするとプレビューできます。クリックで選択します。リンクは開きません。ページで Esc を押すと停止します。',
+  "Couldn't start SNS Checker": 'SNSチェックを開始できませんでした',
+  'Check SNS icons on the page': 'ページ上のSNSアイコンをチェック',
+  'Hover an SNS icon to preview its size and spacing. Click to select it.':
+    'SNSアイコンにホバーするとサイズと余白をプレビューできます。クリックで選択します。',
+  'Small screens (max 768 px): the icon must be 40 × 40 px, with at least 20 px of space on the left and right.':
+    '小さい画面（最大 768 px）では、アイコンは 40 × 40 px、左右に 20 px 以上の余白が必要です。',
+  'PC: 30 × 30, 32 × 32 or 40 × 40 px are fine. Space on each side must still be at least half the icon width.':
+    'PCでは 30 × 30、32 × 32、または 40 × 40 px で構いません。左右の余白はアイコン幅の半分以上必要です。',
+  'Every selected icon in the row must be the same size, with the same space between them.':
+    '同じ行で選択したアイコンは、すべて同じサイズで、アイコン間の余白も揃える必要があります。',
+  'Hover to preview, click to select, then resize the window. A red frame means this width fails. Perfect waits until small screen and PC both pass.':
+    'ホバーでプレビュー、クリックで選択し、ウィンドウをリサイズしてください。赤い枠はこの幅で不合格です。「問題ありません」は小さい画面とPCの両方で合格するまで表示しません。',
+  'No icon selected yet': 'まだアイコンが選択されていません',
+  'Hover an SNS icon on the page, then click to select it. Icons that sit side by side can be selected together.':
+    'ページ上のSNSアイコンにホバーしてから、クリックで選択してください。横に並んだアイコンはまとめて選択できます。',
+  'Perfect. Everything is okay.': '問題ありません。すべてOKです。',
+  'Small screen and PC both match the SNS rules.': '小さい画面とPCの両方でSNSのルールを満たしています。',
+  'This width breaks the SNS rules.': 'この幅ではSNSのルールを満たしていません。',
+  'The red frame marks what fails. Update the CSS below at this screen size.':
+    '赤い枠が問題箇所です。この画面幅で、下のCSSを直してください。',
+  'Update the CSS below.': '下のCSSを直してください。',
+  'Inline style attribute': 'インラインのstyle属性',
+  'PC already passed.': 'PCはすでに合格しています。',
+  'Small screen already passed.': '小さい画面はすでに合格しています。',
+  'The red frame on the page marks what fails. Fix the size, the space beside the icon, or the gaps in the row, then check the other screen size.':
+    'ページ上の赤い枠が問題箇所です。サイズ、左右の余白、または行内の間隔を直してから、もう一方の画面幅でも確認してください。',
+  'Not finished yet': 'まだ完了していません',
+  'This width is okay. Resize to a small screen (max 768 px) and confirm 40 × 40 px with 20 px sides.':
+    'この幅は問題ありません。小さい画面（最大 768 px）にリサイズし、40 × 40 px と左右 20 px を確認してください。',
+  'This width is okay. Resize wider than 768 px and confirm the PC size and spacing.':
+    'この幅は問題ありません。768 px より広くして、PCのサイズと余白を確認してください。',
+  'This width matches the size and side-space rules.': 'この幅ではサイズと左右の余白のルールを満たしています。',
+  Preview: 'プレビュー',
+  'Click to select this icon': 'クリックしてこのアイコンを選択',
+  'Hover previews the rules. Click to lock the selection, then resize the window.':
+    'ホバーでルールをプレビューできます。クリックで選択を確定し、ウィンドウをリサイズしてください。',
+  'This width is okay': 'この幅は問題ありません',
+  'Resize to a small screen (max 768 px) and confirm 40 × 40 px with 20 px sides.':
+    '小さい画面（最大 768 px）にリサイズし、40 × 40 px と左右 20 px を確認してください。',
+  'Resize wider than 768 px and confirm the PC size and spacing.':
+    '768 px より広くして、PCのサイズと余白を確認してください。',
+  'Click to select · Esc to stop': 'クリックで選択 · Escで停止',
+  'Row sizes': '行内のサイズ',
+  'All the same': 'すべて同じ',
+  'Not the same': 'そろっていません',
+  'Space between icons': 'アイコン間の余白',
+  'This row': 'この行',
+  'Not checked yet': '未チェック',
+  'Required size': '必要なサイズ',
+  'Required space': '必要な余白',
+  'Space on the left': '左の余白',
+  'Space on the right': '右の余白',
+  Reservation: '予約',
+  Calendar: 'カレンダー',
+  'px on the page': 'px（ページ上）',
+  Pass: '合格',
+  'Needs work': '要修正',
+  'Small screen': '小さい画面',
+  'Click an SNS icon · Esc to stop': 'SNSアイコンをクリック · Escで停止',
+  'Resize the window to re-check · Esc to stop': 'ウィンドウをリサイズして再チェック · Escで停止',
+  'Usual PC sizes are 30 × 30, 32 × 32 or 40 × 40 px. Spacing must still be at least half the width.':
+    'PCの通常サイズは 30 × 30、32 × 32、または 40 × 40 px です。余白は幅の半分以上必要です。',
+  '30 × 30, 32 × 32 or 40 × 40': '30 × 30、32 × 32、または 40 × 40',
 
   /* ------------------------------------------------ Screenshot Taker */
   'Screenshot Taker': 'スクリーンショット',
@@ -784,6 +879,21 @@ export function makePatternsJa(tr) {
     rule(/^(\d)× image, sharp on high-density screens$/, '$1 倍の画像（高解像度ディスプレイで鮮明に表示されます）'),
     rule(/^Shrunk ([\d.]+)× \(shown at (\d+)%\)$/, '$1 分の1 に縮小されています（$2% で表示）'),
     rule(/^Download \((\d+)\)$/, 'ダウンロード（$1）'),
+
+    /* SNS Checker */
+    rule(/^Set this icon to 40 × 40 px on small screens \(now (.+)\)\.$/, '小さい画面ではこのアイコンを 40 × 40 px にしてください（現在 $1）。'),
+    rule(/^Keep the icon square on PC \(now (.+)\); usual sizes are 30 × 30, 32 × 32 or 40 × 40 px\.$/, 'PCではアイコンを正方形にしてください（現在 $1）。通常は 30 × 30、32 × 32、または 40 × 40 px です。'),
+    rule(/^On PC use 30 × 30, 32 × 32 or 40 × 40 px \(now (.+)\)\.$/, 'PCでは 30 × 30、32 × 32、または 40 × 40 px にしてください（現在 $1）。'),
+    rule(/^Give the left side at least (.+) px of space \(now (.+) px\)\.$/, '左側に $1 px 以上の余白を取ってください（現在 $2 px）。'),
+    rule(/^Give the right side at least (.+) px of space \(now (.+) px\)\.$/, '右側に $1 px 以上の余白を取ってください（現在 $2 px）。'),
+    rule(/^Make every SNS icon in this row the same size \(now (.+)\)\.$/, 'この行のSNSアイコンはすべて同じサイズにしてください（現在 $1）。'),
+    rule(/^Keep the space between SNS icons the same \(now (.+)\)\.$/, 'SNSアイコン間の余白を揃えてください（現在 $1）。'),
+    rule(/^Small-screen rules apply at (.+) px and below \(now (.+) px\)\.$/, '小さい画面のルールは $1 px 以下で適用されます（現在 $2 px）。'),
+    rule(/^PC rules apply above (.+) px \(now (.+) px\)\.$/, 'PCのルールは $1 px より上で適用されます（現在 $2 px）。'),
+    rule(/^Edit (.+) in (.+)\.$/, '$1 を $2 で編集してください。'),
+    rule(/^Increase the (left|right) spacing to at least (.+) px \(now (.+)\)\.$/, (side, need, now) => `${side === 'left' ? '左' : '右'}の余白を ${need} px 以上にしてください（現在 ${now}）。`),
+    rule(/^Increase (.+) to at least (.+) px \(now (.+)\)\.$/, '$1 を $2 px 以上にしてください（現在 $3）。'),
+    rule(/^Add at least (.+) px of (left|right) spacing with margin-(?:left|right), padding-(?:left|right) or gap \(now 0 px\)\.$/, (need, side) => `${side === 'left' ? '左' : '右'}に ${need} px 以上の余白を margin-${side}、padding-${side}、または gap で取ってください（現在 0 px）。`),
 
     /* Screenshot Taker */
     rule(new RegExp(`^Capturing the page… ${N} of ${N}$`), 'ページをキャプチャ中… $2 枚中 $1 枚目'),
