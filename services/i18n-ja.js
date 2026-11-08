@@ -30,6 +30,7 @@ export const EXACT_JA = {
   'Coming Soon (wide)': '準備中（ワイド）',
   Delivery: 'デリバリー',
   Mail: 'メール',
+  Contact: 'コンタクト',
   'Image coming soon': '画像準備中',
   Sample: 'サンプル',
   'Sample (portrait)': 'サンプル（縦）',

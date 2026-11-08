@@ -9,6 +9,7 @@ export const OFFICIAL_IMAGES = Object.freeze([
   Object.freeze({ id: 'line', file: 'line.png', name: 'LINE', brand: true }),
   Object.freeze({ id: 'facebook', file: 'facebook.png', name: 'Facebook', brand: true }),
   Object.freeze({ id: 'mail', file: 'mail.png', name: 'Mail', brand: false }),
+  Object.freeze({ id: 'contact', file: 'contact.png', name: 'Contact', brand: false }),
   Object.freeze({ id: 'coming-soon', file: 'coming-soon.jpg', name: 'Coming Soon', brand: false }),
   Object.freeze({ id: 'coming-soon-wide', file: 'coming-soon-wide.jpg', name: 'Coming Soon (wide)', brand: false }),
   Object.freeze({ id: 'image-coming-soon', file: 'image-coming-soon.jpg', name: 'Image coming soon', brand: false }),

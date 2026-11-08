@@ -14,11 +14,11 @@ describe('Official Image: library', () => {
     assert.equal(ids[ids.length - 1], 'screenshot');
   });
 
-  it('lists twelve original files, four across in the panel', () => {
-    assert.equal(OFFICIAL_IMAGES.length, 12);
+  it('lists thirteen original files, four across in the panel', () => {
+    assert.equal(OFFICIAL_IMAGES.length, 13);
     const files = OFFICIAL_IMAGES.map((item) => item.file);
-    assert.equal(new Set(files).size, 12);
-    assert.equal(new Set(OFFICIAL_IMAGES.map((item) => item.id)).size, 12);
+    assert.equal(new Set(files).size, 13);
+    assert.equal(new Set(OFFICIAL_IMAGES.map((item) => item.id)).size, 13);
     for (const item of OFFICIAL_IMAGES) {
       assert.ok(item.file);
       assert.ok(item.name);
@@ -34,6 +34,7 @@ describe('Official Image: library', () => {
         'line',
         'facebook',
         'mail',
+        'contact',
         'coming-soon',
         'coming-soon-wide',
         'image-coming-soon',

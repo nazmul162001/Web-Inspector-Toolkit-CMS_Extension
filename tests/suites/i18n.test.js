@@ -59,6 +59,7 @@ describe('Language: translate()', () => {
     assert.equal(ja('Half-width'), '半角');
     assert.equal(ja('Download'), 'ダウンロード');
     assert.equal(ja('Official Icon'), '公式アイコン');
+    assert.equal(ja('Contact'), 'コンタクト');
     assert.equal(ja('Inspect/Download image'), '画像の検査/ダウンロード');
     assert.equal(ja('Image Convert'), '画像変換');
     assert.equal(ja('Image Resize'), '画像リサイズ');
