@@ -30,6 +30,7 @@ import { listingArticlesLimited } from '../components/tools-limit.js';
 import { createSpinner } from '../components/loading.js';
 import { ensureAccess, requestOrigin } from '../permissions.js';
 import { createStatus, createStreamer, describeError } from './scan-ui.js';
+import { bindScanAuth } from './scan-auth.js';
 
 async function ensureStyles(urls) {
   await Promise.all(
@@ -370,6 +371,15 @@ export function createSearchFeature(ctx, config) {
 
       disposers.push(onEvent(MSG.SCAN_PROGRESS, handleProgress));
       disposers.push(onEvent(MSG.SCAN_PAGE_RESULT, handlePageResult));
+      disposers.push(
+        bindScanAuth({
+          getScanId: () => currentScanId,
+          isBusy: () => busy,
+          onEvent,
+          sendToBackground,
+          onPrompt: () => status.update({ title: 'This site asks for a password.' }),
+        }),
+      );
       config.onMount?.({ container, refs, ctx, update: updatePreview });
       applyScope();
       refs.text.focus();

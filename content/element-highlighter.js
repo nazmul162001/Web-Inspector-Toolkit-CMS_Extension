@@ -51,13 +51,15 @@ function visibleTarget(element) {
  * @param {{ outline?: boolean, label?: string }} [options]
  * @returns {{ ok: boolean, code?: string, note?: string }}
  */
-export function highlightElement(element, { outline = true, label = '' } = {}) {
+export function highlightElement(element, { outline = true, label = '', keepScroll = false } = {}) {
   clearHighlight();
   const target = visibleTarget(element);
   if (!target) return { ok: false, code: 'NOT_VISIBLE' };
   const note = target === element ? undefined : 'The element itself is not rendered; its nearest visible ancestor was highlighted.';
 
-  target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+  // Popup banners are shown at a scroll threshold. Centering the match would
+  // scroll the page back and close them before the outline is drawn.
+  if (!keepScroll) target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
   if (!outline) return { ok: true, note };
 
   const host = document.createElement('div');

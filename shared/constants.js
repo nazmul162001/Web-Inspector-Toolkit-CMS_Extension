@@ -49,6 +49,8 @@ export const MSG = Object.freeze({
   SCAN_PAGE: 'wit/scan-page',
   SCAN_SITE: 'wit/scan-site',
   CANCEL_SCAN: 'wit/cancel-scan',
+  SCAN_AUTH_REQUIRED: 'wit/scan-auth-required', // crawl paused: the site asked for HTTP Basic Auth
+  SCAN_AUTH_PROVIDE: 'wit/scan-auth-provide', // panel: username/password (or cancelled) for the paused crawl
   HIGHLIGHT: 'wit/highlight',
   CLEAR_MARKS: 'wit/clear-marks',
   IMAGE_INSPECT: 'wit/image-inspect', // start / stop the hover inspector of Image Resolution in a tab
@@ -104,6 +106,7 @@ export const ERR = Object.freeze({
   CANCELLED: 'CANCELLED',
   LOAD_FAILED: 'LOAD_FAILED',
   HTTP_ERROR: 'HTTP_ERROR',
+  AUTH_REQUIRED: 'AUTH_REQUIRED',
   REDIRECTED_OFFSITE: 'REDIRECTED_OFFSITE',
   NOT_HTML: 'NOT_HTML',
   NOT_FOUND: 'NOT_FOUND',
@@ -343,6 +346,7 @@ export const SECTION = Object.freeze({
   HEADER: 'header',
   MAIN: 'main',
   FOOTER: 'footer',
+  POPUP: 'popup',
   OTHER: 'other',
 });
 
@@ -350,10 +354,11 @@ export const SECTION_LABELS = Object.freeze({
   header: 'Header',
   main: 'Main Content',
   footer: 'Footer',
+  popup: 'Popup',
   other: 'Other',
 });
 
-export const SECTION_ORDER = Object.freeze(['header', 'main', 'footer', 'other']);
+export const SECTION_ORDER = Object.freeze(['header', 'main', 'footer', 'popup', 'other']);
 
 export const HIGHLIGHT_DURATION_MS = 2800;
 export const HIGHLIGHT_HOST_ID = '__wit-highlight-host__';

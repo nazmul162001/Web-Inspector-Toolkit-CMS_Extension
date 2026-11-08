@@ -22,6 +22,7 @@ import { collapseWhitespace, createTextMatcher } from '../services/text-matcher.
 import { stripPseudoElement } from './css-utils.js';
 import { buildElementRecord, createPathBuilder } from './element-info.js';
 import { CONTEXT_ID, registerElement } from './element-registry.js';
+import { popupRoot } from './popup-reveal.js';
 
 /** Elements whose text continues the surrounding sentence. Everything else starts a new flow. */
 const INLINE_TAGS = new Set([
@@ -220,7 +221,7 @@ export async function scanFlows(
       truncated = true;
       return;
     }
-    if (isVisible && !isVisible(element)) return;
+    if (isVisible && !isVisible(element) && !popupRoot(element)) return;
     const record = recordFor(element, domIndex);
     sequence += 1;
     matches.push({ elementId: record.elementId, seq: sequence, kind, attribute: attribute || null, ...shown });

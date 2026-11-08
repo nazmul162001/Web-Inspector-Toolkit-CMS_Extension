@@ -22,6 +22,7 @@ import { CRAWL_MODE, ERR, LISTING_ARTICLE_LIMIT, LISTING_ARTICLE_SECTIONS } from
 import { createError, isCancelled, sleep, throttle } from '../shared/helpers.js';
 import { sanitizeCrawlOptions } from '../shared/validators.js';
 import { extractInternalLinks, isListingArticle, isSameOrigin, isSectionIndex, normalizeUrl, sectionPath, siteHomeUrl } from './url-normalizer.js';
+import { basicAuthorization, isUnauthorized } from './http-auth.js';
 import { scanTab } from './page-scan-service.js';
 import { scanUrl } from './offscreen-scanner.js';
 import { closeTempTab, openTempTab, waitForTabComplete } from './temp-tab-manager.js';
@@ -42,6 +43,7 @@ const defaultDeps = { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabCom
  * @param {object} params.crawl       crawl options (sanitized here)
  * @param {AbortSignal} params.signal
  * @param {(progress: object) => void} [params.onProgress]
+ * @param {(info: { origin: string, url?: string, realm?: string, invalid?: boolean }) => Promise<{ username: string, password: string }>} [params.requestAuth]
  * @param {typeof defaultDeps} [params.deps] injectable for tests
  */
 export async function crawlSite({
@@ -55,6 +57,7 @@ export async function crawlSite({
   signal,
   onProgress = () => {},
   onPage = () => {},
+  requestAuth,
   deps = defaultDeps,
 }) {
   const options = sanitizeCrawlOptions(crawl);
@@ -80,6 +83,8 @@ export async function crawlSite({
   const articleCounts = new Map();
   let attempted = 0;
   let matchCount = 0;
+  let authorization = null;
+  let authGate = null;
 
   function noteListingArticle(url) {
     if (!options.limitListingArticles || !isListingArticle(url, LISTING_ARTICLE_SECTIONS)) return;
@@ -224,6 +229,7 @@ export async function crawlSite({
       options: { ...scanOptions, collectLinks: true },
       signal,
       timeoutMs,
+      authorization,
     });
 
     const final = normalizeUrl(result.url);
@@ -241,6 +247,42 @@ export async function crawlSite({
 
   const scanOne = (item, timeoutMs) =>
     (useBackground ? scanInBackground : scanInTempTab)(item, timeoutMs);
+
+  async function obtainAuth(error) {
+    if (typeof requestAuth !== 'function') throw error;
+    if (!authGate) {
+      authGate = Promise.resolve()
+        .then(() =>
+          requestAuth({
+            origin,
+            url: error?.details?.url || '',
+            realm: error?.details?.realm || '',
+            invalid: !!authorization,
+          }),
+        )
+        .then((creds) => {
+          if (!creds) throw createError(ERR.CANCELLED, 'Scan cancelled');
+          authorization = basicAuthorization(creds.username, creds.password);
+          return authorization;
+        })
+        .finally(() => {
+          authGate = null;
+        });
+    }
+    return authGate;
+  }
+
+  async function withAuth(run) {
+    for (;;) {
+      try {
+        return await run();
+      } catch (error) {
+        if (isCancelled(error) || signal.aborted) throw createError(ERR.CANCELLED, 'Scan cancelled');
+        if (!isUnauthorized(error)) throw error;
+        await obtainAuth(error);
+      }
+    }
+  }
 
   async function attemptScan(run) {
     let lastError;
@@ -283,16 +325,16 @@ export async function crawlSite({
   try {
     let scanned;
     if (currentIsHome) {
-      scanned = await attemptScan(scanLiveTab);
+      scanned = await withAuth(() => attemptScan(scanLiveTab));
     } else {
       try {
-        scanned = await attemptScan(() => scanOne({ url: homeUrl, key: homeKey }, options.pageTimeoutMs));
+        scanned = await withAuth(() => attemptScan(() => scanOne({ url: homeUrl, key: homeKey }, options.pageTimeoutMs)));
       } catch (error) {
         if (isCancelled(error)) return finish(true);
         // Home is required as the crawl root, but a timeout there must not
         // kill Entire Site when the user started from /about or similar.
         fail({ url: homeUrl, attempts: options.retries + 1 }, error);
-        scanned = await attemptScan(scanLiveTab);
+        scanned = await withAuth(() => attemptScan(scanLiveTab));
         recordedLiveTab = true;
       }
     }
@@ -314,7 +356,7 @@ export async function crawlSite({
       inFlight.set(current.url, true);
       emit();
       try {
-        const live = await attemptScan(scanLiveTab);
+        const live = await withAuth(() => attemptScan(scanLiveTab));
         remember(live.finalKey);
         recordPage(live.result, null);
       } catch (error) {
@@ -332,7 +374,7 @@ export async function crawlSite({
     for (let attempt = 0; attempt <= options.retries; attempt += 1) {
       item.attempts = attempt + 1;
       try {
-        const { result, finalKey } = await scanOne(item);
+        const { result, finalKey } = await withAuth(() => scanOne(item));
         recordPage(result, finalKey);
         return;
       } catch (error) {

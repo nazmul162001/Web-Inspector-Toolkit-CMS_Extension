@@ -18,7 +18,7 @@ const jobs = new Map();
 registerHandlers({
   [MSG.OFFSCREEN_PING]: () => ({ ready: true }),
 
-  [MSG.OFFSCREEN_SCAN_URL]: async ({ jobId, url, origin, target, options, timeoutMs }) => {
+  [MSG.OFFSCREEN_SCAN_URL]: async ({ jobId, url, origin, target, options, timeoutMs, authorization }) => {
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) throw createError(ERR.INVALID_REQUEST, 'Invalid URL.');
     if (!isScanTarget(target)) throw createError(ERR.INVALID_REQUEST, 'Invalid search target.');
     const controller = new AbortController();
@@ -28,6 +28,7 @@ registerHandlers({
         target,
         origin,
         options,
+        authorization,
         signal: controller.signal,
         timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 20000,
       });

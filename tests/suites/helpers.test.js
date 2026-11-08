@@ -1,5 +1,7 @@
 import { assert, describe, it } from '../test-runner.js';
-import { el, setChildren, truncate } from '../../shared/helpers.js';
+import { createError, el, setChildren, truncate } from '../../shared/helpers.js';
+import { ERR } from '../../shared/constants.js';
+import { basicAuthorization, isUnauthorized, parseAuthRealm } from '../../services/http-auth.js';
 
 describe('DOM helpers', () => {
   it('el() never interprets text as HTML', () => {
@@ -28,5 +30,21 @@ describe('DOM helpers', () => {
   it('truncate() shortens long strings with an ellipsis', () => {
     assert.equal(truncate('abcdef', 4).length, 4);
     assert.equal(truncate('abc', 10), 'abc');
+  });
+});
+
+describe('HTTP Basic Auth', () => {
+  it('reads the realm and builds an Authorization header', () => {
+    assert.equal(parseAuthRealm('Basic realm="CMS"'), 'CMS');
+    assert.equal(parseAuthRealm('Basic realm=staff'), 'staff');
+    assert.equal(parseAuthRealm(''), '');
+    assert.ok(basicAuthorization('user', 'secret').startsWith('Basic '));
+    assert.equal(basicAuthorization('user', 'secret'), basicAuthorization('user', 'secret'));
+  });
+
+  it('recognises 401 / AUTH_REQUIRED', () => {
+    assert.equal(isUnauthorized(createError(ERR.AUTH_REQUIRED, 'need login')), true);
+    assert.equal(isUnauthorized(createError(ERR.HTTP_ERROR, 'HTTP 401', { status: 401 })), true);
+    assert.equal(isUnauthorized(createError(ERR.TIMEOUT, 'slow')), false);
   });
 });

@@ -48,6 +48,8 @@ loadSettings()
 
 /** scanId -> { controller, sessionId } */
 const activeScans = new Map();
+/** scanId -> { resolve, reject } waiting for the password dialog */
+const authWaiters = new Map();
 
 function beginScan(scanId, sessionId) {
   const controller = new AbortController();
@@ -55,7 +57,15 @@ function beginScan(scanId, sessionId) {
   return controller;
 }
 
+function rejectAuthWaiter(scanId, error) {
+  const waiter = authWaiters.get(scanId);
+  if (!waiter) return;
+  authWaiters.delete(scanId);
+  waiter.reject(error);
+}
+
 function endScan(scanId) {
+  rejectAuthWaiter(scanId, createError(ERR.CANCELLED, 'Scan cancelled'));
   activeScans.delete(scanId);
 }
 
@@ -221,6 +231,27 @@ async function handleScanSite(payload) {
       onProgress: (progress) => broadcast(MSG.SCAN_PROGRESS, progress),
       // Stream every finished page so the panel can show results while the crawl continues.
       onPage: (page) => broadcast(MSG.SCAN_PAGE_RESULT, { scanId: request.scanId, page }),
+      requestAuth: (info) =>
+        new Promise((resolve, reject) => {
+          if (controller.signal.aborted) {
+            reject(createError(ERR.CANCELLED, 'Scan cancelled'));
+            return;
+          }
+          authWaiters.set(request.scanId, { resolve, reject });
+          let host = '';
+          try {
+            host = new URL(tab.url).host;
+          } catch {
+            /* keep empty */
+          }
+          broadcast(MSG.SCAN_AUTH_REQUIRED, {
+            scanId: request.scanId,
+            origin: info.origin,
+            host,
+            realm: info.realm || '',
+            invalid: !!info.invalid,
+          });
+        }),
       deps: { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete },
     });
     return { scanId: request.scanId, scope: 'site', target: request.target, tabId: request.tabId, ...result };
@@ -236,7 +267,17 @@ async function handleScanSite(payload) {
 function handleCancel({ scanId }) {
   const scan = activeScans.get(scanId);
   if (scan) scan.controller.abort();
+  rejectAuthWaiter(scanId, createError(ERR.CANCELLED, 'Scan cancelled'));
   return { cancelled: !!scan };
+}
+
+function handleScanAuthProvide({ scanId, username, password, cancelled } = {}) {
+  const waiter = authWaiters.get(scanId);
+  if (!waiter) return { ok: false };
+  authWaiters.delete(scanId);
+  if (cancelled) waiter.reject(createError(ERR.CANCELLED, 'Scan cancelled'));
+  else waiter.resolve({ username: String(username || ''), password: String(password || '') });
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------ Highlight */
@@ -468,6 +509,7 @@ registerHandlers({
   [MSG.SCAN_PAGE]: handleScanPage,
   [MSG.SCAN_SITE]: handleScanSite,
   [MSG.CANCEL_SCAN]: handleCancel,
+  [MSG.SCAN_AUTH_PROVIDE]: handleScanAuthProvide,
   [MSG.HIGHLIGHT]: handleHighlight,
   [MSG.CLEAR_MARKS]: handleClearMarks,
   [MSG.IMAGE_INSPECT]: handleImageInspect,

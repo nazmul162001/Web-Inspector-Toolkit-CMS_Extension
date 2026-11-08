@@ -7,6 +7,7 @@
 
 import { SCAN_LIMITS, SECTION } from '../shared/constants.js';
 import { truncate } from '../shared/helpers.js';
+import { popupRoot } from './popup-reveal.js';
 
 const esc = (value) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(value) : String(value));
 
@@ -187,11 +188,13 @@ function hintOf(element) {
 }
 
 /**
- * Header / Main Content / Footer / Other. Semantic landmarks win; the
+ * Header / Main Content / Footer / Popup / Other. Semantic landmarks win; the
  * outermost landmark decides (so an <article><header> inside <main> is Main).
+ * Scroll-triggered popup banners win over the page landmarks they sit on.
  * Class/id name hints are a fallback for sites without landmarks.
  */
 export function classifySection(element, doc = document) {
+  if (popupRoot(element)) return SECTION.POPUP;
   let semantic = null;
   let hinted = null;
   for (let node = element; node && node !== doc.documentElement; node = node.parentElement) {

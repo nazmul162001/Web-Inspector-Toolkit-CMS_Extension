@@ -22,6 +22,7 @@ import {
 } from './css-utils.js';
 import { substituteVariables } from './stylesheet-scanner.js';
 import { buildElementRecord, createPathBuilder } from './element-info.js';
+import { popupRoot } from './popup-reveal.js';
 
 const GROUP_OF = new Map(COLOR_PROPERTIES.map((d) => [d.property, d.group]));
 const SVG_ONLY = new Set(COLOR_PROPERTIES.filter((d) => d.svgOnly).map((d) => d.property));
@@ -177,14 +178,16 @@ export function scanColorMarkup(doc, sheets, target, options = {}) {
     domIndex += 1;
     const elementId = nextId;
     nextId += 1;
-    const hidden = element.hasAttribute('hidden')
-      || hiddenSelectors.some((sel) => {
-        try {
-          return element.matches(stripPseudoElement(sel));
-        } catch {
-          return false;
-        }
-      });
+    const hidden =
+      !popupRoot(element) &&
+      (element.hasAttribute('hidden') ||
+        hiddenSelectors.some((sel) => {
+          try {
+            return element.matches(stripPseudoElement(sel));
+          } catch {
+            return false;
+          }
+        }));
     rec = buildElementRecord(element, { buildPath, elementId, domIndex });
     rec.rendered = hidden ? false : true;
     byElement.set(element, rec);

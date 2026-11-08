@@ -129,5 +129,5 @@ export async function clearMarksInTab(tabId) {
 /** Highlight (or scroll to) an element in a tab. */
 export async function highlightInTab(tabId, locator, mode) {
   await ensureContentScript(tabId);
-  return sendToTab(tabId, MSG.CONTENT_HIGHLIGHT, { ...locator, mode }, { timeoutMs: 8000 });
+  return sendToTab(tabId, MSG.CONTENT_HIGHLIGHT, { ...locator, mode }, { timeoutMs: 20000 });
 }

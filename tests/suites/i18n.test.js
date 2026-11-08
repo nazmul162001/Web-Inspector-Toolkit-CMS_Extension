@@ -60,6 +60,13 @@ describe('Language: translate()', () => {
     assert.equal(ja('Download'), 'ダウンロード');
     assert.equal(ja('Official Icon'), '公式アイコン');
     assert.equal(ja('Contact'), 'コンタクト');
+    assert.equal(ja('Popup'), 'ポップアップ');
+    assert.equal(ja('This site is password protected'), 'このサイトはパスワードで保護されています');
+    assert.equal(ja('Continue search'), '検索を続ける');
+    assert.equal(
+      ja('Enter the username and password for example.jp to continue searching the site.'),
+      'サイトの検索を続けるには、example.jp のユーザー名とパスワードを入力してください。',
+    );
     assert.equal(ja('Inspect/Download image'), '画像の検査/ダウンロード');
     assert.equal(ja('Image Convert'), '画像変換');
     assert.equal(ja('Image Resize'), '画像リサイズ');

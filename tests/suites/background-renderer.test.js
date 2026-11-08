@@ -182,6 +182,28 @@ describe('Background renderer (no tabs)', () => {
     }
   });
 
+  it('treats HTTP 401 as AUTH_REQUIRED with the realm', async () => {
+    const holder = document.createElement('div');
+    document.body.append(holder);
+    const renderer = createBackgroundRenderer({
+      container: holder,
+      fetchImpl: async () =>
+        new Response('', {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Basic realm="CMS"', 'Content-Type': 'text/html' },
+        }),
+    });
+    try {
+      await renderer.scanUrl('https://protected.test/', { target: TARGET, timeoutMs: 4000 });
+      assert.ok(false, '401 should throw');
+    } catch (error) {
+      assert.equal(error.code, ERR.AUTH_REQUIRED);
+      assert.equal(error.details.realm, 'CMS');
+    } finally {
+      holder.remove();
+    }
+  });
+
   it('can be cancelled', async () => {
     const { renderer, holder, dispose } = makeRenderer();
     try {

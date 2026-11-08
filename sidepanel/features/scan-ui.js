@@ -19,6 +19,8 @@ export function describeError(error) {
       return { message: error.message };
     case ERR.TIMEOUT:
       return { message: 'The page took too long to scan. Try again, or reload the page first.' };
+    case ERR.AUTH_REQUIRED:
+      return { message: 'This site asks for a username and password.' };
     case ERR.NO_RECEIVER:
     case ERR.INJECTION_FAILED:
     case ERR.PORT_CLOSED:

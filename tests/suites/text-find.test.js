@@ -5,6 +5,8 @@ import { runScan } from '../../content/run-scan.js';
 import { createBackgroundRenderer } from '../../services/background-renderer.js';
 import { isScanTarget, parseScanRequest } from '../../shared/validators.js';
 import { buildTextSummary, contextText, flattenTextResult, groupTextItems, sortTextItems } from '../../sidepanel/features/text-find/text-find-utils.js';
+import { popupIsOpen, revealPopup } from '../../content/popup-reveal.js';
+import { clearHighlight, highlightElement } from '../../content/element-highlighter.js';
 
 const query = (text, extra = {}) => ({ kind: 'text', text, ...extra });
 
@@ -170,6 +172,20 @@ describe_('Text scanning (live DOM)', () => {
     assert.ok(byClass(visible, 'v'));
   });
 
+  it('finds text in a scroll-triggered popup and labels the section Popup', async () => {
+    const html =
+      '<header><a class="nav-cta" href="/contact/">お問い合わせはこちら</a></header>' +
+      '<main><p>article</p></main>' +
+      '<div class="-w-modal popup" data-scrolly="0.5" style="display:none;opacity:0">' +
+      '<a href="/contact/"><span class="cta">お問い合わせはこちら</span></a></div>';
+    const result = await scan(html, query('お問い合わせはこちら'));
+    assert.equal(result.matches.length, 2);
+    assert.equal(byClass(result, 'nav-cta').location.section, 'header');
+    assert.equal(byClass(result, 'cta').location.section, 'popup');
+    const visible = await scan(html, query('お問い合わせはこちら', { visibleOnly: true }));
+    assert.ok(byClass(visible, 'cta'), 'popup banners stay searchable when Visible text only is on');
+  });
+
   it('caps the number of matches and says so', async () => {
     const result = await scan(`<p>${'x '.repeat(6000)}</p>`, query('x'));
     assert.equal(result.truncated, true);
@@ -320,5 +336,47 @@ describe_('Text Find requests and results', () => {
   it('builds copyable context text', () => {
     const text = contextText({ before: 'a ', text: 'B', after: ' c', moreBefore: true, moreAfter: true });
     assert.equal(text, '…a B c…');
+  });
+});
+
+describe_('Popup highlight', () => {
+  it('scrolls until the banner is shown, then outlines the match without closing it', async () => {
+    const previous = window.scrollY;
+    const filler = document.createElement('div');
+    filler.style.height = '4000px';
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+    popup.setAttribute('data-scrolly', '0.5');
+    popup.style.cssText = 'position:fixed;inset:0;display:none;opacity:0;pointer-events:none;z-index:20';
+    const cta = document.createElement('span');
+    cta.textContent = 'お問い合わせはこちら';
+    popup.append(cta);
+    document.body.append(filler, popup);
+    created.push(filler, popup);
+
+    const onScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (window.scrollY >= max * 0.4) {
+        popup.style.display = 'block';
+        popup.style.opacity = '1';
+        popup.style.pointerEvents = 'auto';
+      }
+    };
+    window.addEventListener('scroll', onScroll);
+    try {
+      assert.equal(popupIsOpen(popup), false);
+      const root = await revealPopup(cta);
+      assert.equal(root, popup);
+      assert.equal(popupIsOpen(popup), true);
+      const y = window.scrollY;
+      const outcome = highlightElement(cta, { keepScroll: true, label: 'span' });
+      assert.equal(outcome.ok, true);
+      assert.equal(window.scrollY, y, 'highlight must not scroll the popup closed');
+      assert.equal(popupIsOpen(popup), true);
+    } finally {
+      window.removeEventListener('scroll', onScroll);
+      clearHighlight();
+      window.scrollTo(0, previous);
+    }
   });
 });

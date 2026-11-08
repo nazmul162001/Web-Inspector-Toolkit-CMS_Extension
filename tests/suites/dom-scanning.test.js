@@ -422,6 +422,15 @@ describe('DOM scanning: scan mechanics', () => {
     assert.equal(section('o'), 'other');
   });
 
+  it('classifies a scroll-triggered banner as popup, not other', async () => {
+    const result = await scan(
+      '<main><p class="m" style="color:#025743">x</p></main>' +
+        '<div class="popup" data-scrolly="0.5" style="opacity:0"><a class="cta" style="color:#025743">hit</a></div>',
+    );
+    assert.equal(byClass(result, 'm').location.section, 'main');
+    assert.equal(byClass(result, 'cta').location.section, 'popup');
+  });
+
   it('records the nearest meaningful parent and ancestor classes', async () => {
     const result = await scan('<section class="hero" id="intro"><div><p class="p" style="color:#025743">x</p></div></section>');
     const { location } = byClass(result, 'p');

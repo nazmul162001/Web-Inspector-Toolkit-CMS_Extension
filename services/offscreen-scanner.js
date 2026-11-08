@@ -56,7 +56,7 @@ export async function closeOffscreen() {
  * @param {string} url
  * @param {{ scanId?: string, origin: string, target: object, options?: object, signal?: AbortSignal, timeoutMs?: number }} params
  */
-export async function scanUrl(url, { origin, target, options = {}, signal, timeoutMs = 20000 }) {
+export async function scanUrl(url, { origin, target, options = {}, signal, timeoutMs = 20000, authorization } = {}) {
   if (signal?.aborted) throw createError(ERR.CANCELLED, 'Scan cancelled');
   await ensureOffscreen();
 
@@ -79,7 +79,7 @@ export async function scanUrl(url, { origin, target, options = {}, signal, timeo
   try {
     const job = sendToOffscreen(
       MSG.OFFSCREEN_SCAN_URL,
-      { jobId, url, origin, target, options, timeoutMs },
+      { jobId, url, origin, target, options, timeoutMs, authorization },
       { timeoutMs: timeoutMs + 3000 },
     );
     return await (aborted ? Promise.race([job, aborted]) : job);

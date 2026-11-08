@@ -2,6 +2,7 @@ import { assert, describe, it } from '../test-runner.js';
 import { crawlSite } from '../../services/site-crawler.js';
 import { DEFAULT_CRAWL_OPTIONS, ERR } from '../../shared/constants.js';
 import { createError, sleep } from '../../shared/helpers.js';
+import { basicAuthorization } from '../../services/http-auth.js';
 
 const ORIGIN = 'https://site.test';
 const TARGET = { r: 2, g: 87, b: 67, a: 255 };
@@ -356,7 +357,7 @@ function createInvisibleWorld(site) {
         links: page.links || [],
       };
     },
-    async scanUrl(url, { signal, timeoutMs, origin }) {
+    async scanUrl(url, { signal, timeoutMs, origin, authorization }) {
       world.scanned.push(url);
       world.active += 1;
       world.maxActive = Math.max(world.maxActive, world.active);
@@ -365,6 +366,9 @@ function createInvisibleWorld(site) {
         assert.ok(timeoutMs >= 5000);
         const page = site[pathOf(url)] || {};
         if (page.delay) await sleep(page.delay, signal);
+        if (page.auth && authorization !== page.auth) {
+          throw createError(ERR.AUTH_REQUIRED, 'HTTP 401', { status: 401, url, realm: 'test' });
+        }
         if (page.fail) throw createError(page.fail, `fake ${page.fail}`);
         return {
           url: page.redirectTo || url,
@@ -383,7 +387,7 @@ function createInvisibleWorld(site) {
   return world;
 }
 
-async function crawlInvisible(site, crawlOptions = {}, signal, start = '/') {
+async function crawlInvisible(site, crawlOptions = {}, signal, start = '/', extra = {}) {
   const world = createInvisibleWorld(site);
   world.startUrl = `${ORIGIN}${start}`;
   const result = await crawlSite({
@@ -393,6 +397,7 @@ async function crawlInvisible(site, crawlOptions = {}, signal, start = '/') {
     target: TARGET,
     crawl: { mode: 'background', retries: 0, ...crawlOptions },
     signal: signal || new AbortController().signal,
+    requestAuth: extra.requestAuth,
     deps: world.deps,
   });
   return { world, result };
@@ -486,6 +491,52 @@ describe('Site crawler: invisible mode (no tabs)', () => {
     assert.equal(streamed.length, 71, 'one onPage call per finished page');
     assert.equal(world.tabCalls, 0);
     assert.ok(DEFAULT_CRAWL_OPTIONS.concurrency >= 8, 'pages are fetched in parallel');
+  });
+
+  it('asks for a password once, then continues the site search', async () => {
+    const header = basicAuthorization('user', 'secret');
+    const asked = [];
+    const { result } = await crawlInvisible(
+      {
+        '/': { links: ['/a'] },
+        '/a': { auth: header },
+      },
+      {},
+      undefined,
+      '/',
+      {
+        requestAuth: async (info) => {
+          asked.push(info);
+          return { username: 'user', password: 'secret' };
+        },
+      },
+    );
+    assert.equal(asked.length, 1);
+    assert.equal(asked[0].invalid, false);
+    assert.deepEqual(urls(result), ['/', '/a']);
+    assert.equal(result.failures.length, 0);
+  });
+
+  it('re-asks when the password is wrong, then continues', async () => {
+    const header = basicAuthorization('user', 'secret');
+    const asked = [];
+    const { result } = await crawlInvisible(
+      { '/': { links: ['/a'] }, '/a': { auth: header } },
+      {},
+      undefined,
+      '/',
+      {
+        requestAuth: async (info) => {
+          asked.push(info);
+          if (asked.length === 1) return { username: 'no', password: 'no' };
+          return { username: 'user', password: 'secret' };
+        },
+      },
+    );
+    assert.equal(asked.length, 2);
+    assert.equal(asked[0].invalid, false);
+    assert.equal(asked[1].invalid, true);
+    assert.deepEqual(urls(result), ['/', '/a']);
   });
 
   it('uses tabs only when explicitly requested', async () => {

@@ -25,6 +25,7 @@
 
 import { ERR } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
+import { parseAuthRealm } from './http-auth.js';
 import { collectLinks } from '../content/dom-scanner.js';
 import { runScan } from '../content/run-scan.js';
 import { hiddenSelectorsFromSheets, scanColorMarkup } from '../content/color-markup-scanner.js';
@@ -169,11 +170,15 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
   /** Parsed CSS rules keyed by href or inline text, shared across pages of a crawl. */
   const parsedRules = new Map();
 
+  const authRef = { header: null };
+
   async function fetchSheetText(url) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
     try {
-      const response = await fetchImpl(url, { credentials: 'include', redirect: 'follow', signal: controller.signal });
+      const headers = {};
+      if (authRef.header) headers.Authorization = authRef.header;
+      const response = await fetchImpl(url, { credentials: 'include', redirect: 'follow', signal: controller.signal, headers });
       if (!response.ok) return null;
       const text = await response.text();
       if (text.length > MAX_SHEET_CHARS) return null;
@@ -405,11 +410,13 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
   async function download(url, { signal, origin }) {
     let response;
     try {
+      const headers = { Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5' };
+      if (authRef.header) headers.Authorization = authRef.header;
       response = await fetchImpl(url, {
         credentials: 'include',
         redirect: 'follow',
         signal,
-        headers: { Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5' },
+        headers,
       });
     } catch (error) {
       if (signal.aborted) throw error;
@@ -419,6 +426,13 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
     const finalUrl = response.url || url;
     if (origin && !isSameOrigin(finalUrl, origin)) {
       throw createError(ERR.REDIRECTED_OFFSITE, `Redirected away from the site to ${new URL(finalUrl).host}.`);
+    }
+    if (response.status === 401) {
+      throw createError(ERR.AUTH_REQUIRED, 'This site asks for a username and password.', {
+        status: 401,
+        url,
+        realm: parseAuthRealm(response.headers.get('www-authenticate')),
+      });
     }
     if (!response.ok) throw createError(ERR.HTTP_ERROR, `The server answered HTTP ${response.status}.`);
     const contentType = response.headers.get('content-type') || '';
@@ -477,8 +491,9 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
      * Scan one URL without any tab or window.
      * @returns {Promise<object>} same shape as a content-script page result
      */
-    async scanUrl(url, { target, options = {}, signal, timeoutMs = 8000, origin } = {}) {
+    async scanUrl(url, { target, options = {}, signal, timeoutMs = 8000, origin, authorization } = {}) {
       if (signal?.aborted) throw createError(ERR.CANCELLED, 'Scan cancelled');
+      if (authorization) authRef.header = authorization;
       const overall = linkSignals(signal, timeoutMs);
       let frame = null;
       try {

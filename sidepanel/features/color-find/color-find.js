@@ -12,6 +12,7 @@ import { listingArticlesLimited } from '../../components/tools-limit.js';
 import { ensureAccess, requestOrigin } from '../../permissions.js';
 import { createSpinner } from '../../components/loading.js';
 import { createStatus, createStreamer, describeError } from '../scan-ui.js';
+import { bindScanAuth } from '../scan-auth.js';
 import { createColorInput } from './color-input.js';
 import { createResults } from './color-results.js';
 
@@ -344,6 +345,15 @@ export function createFeature(ctx) {
 
       disposers.push(onEvent(MSG.SCAN_PROGRESS, handleProgress));
       disposers.push(onEvent(MSG.SCAN_PAGE_RESULT, handlePageResult));
+      disposers.push(
+        bindScanAuth({
+          getScanId: () => currentScanId,
+          isBusy: () => busy,
+          onEvent,
+          sendToBackground,
+          onPrompt: () => status.update({ title: 'This site asks for a password.' }),
+        }),
+      );
       applyScope();
     },
 
