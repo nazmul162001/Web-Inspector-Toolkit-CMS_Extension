@@ -15,6 +15,7 @@ import { broadcast, onEvent, registerHandlers, watchSessions } from '../services
 import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector, setOverflowFinder, setSnsChecker } from '../services/page-scan-service.js';
 import { captureForSender, markScreenshotTab } from '../services/capture-tab-service.js';
 import { crawlSite } from '../services/site-crawler.js';
+import { fetchCrawlText } from '../services/sitemap.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
 import { normalizeUrl } from '../services/url-normalizer.js';
 import { sanitizeWidthQuery } from '../services/width-matcher.js';
@@ -272,7 +273,7 @@ async function handleScanSite(payload) {
             invalid: !!info.invalid,
           });
         }),
-      deps: { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete },
+      deps: { scanTab, scanUrl, openTempTab, closeTempTab, waitForTabComplete, fetchText: fetchCrawlText },
     });
     return { scanId: request.scanId, scope: 'site', target: request.target, tabId: request.tabId, ...result };
   } finally {

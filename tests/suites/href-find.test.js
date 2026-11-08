@@ -1,6 +1,7 @@
 import { afterEach, assert, describe as baseDescribe, it } from '../test-runner.js';
 import { createHrefMatcher, isHrefQuery, parseHrefInput, sanitizeHrefQuery } from '../../services/href-matcher.js';
 import { addressesInCode, linkValues, scanHrefDocument } from '../../content/href-scanner.js';
+import { collectLinks, collectMarkupLinks, documentHttpBase } from '../../content/crawl-links.js';
 import { runScan } from '../../content/run-scan.js';
 import { createBackgroundRenderer } from '../../services/background-renderer.js';
 import { isScanTarget, parseScanRequest } from '../../shared/validators.js';
@@ -393,5 +394,41 @@ describe('Link search through requests and the invisible renderer', () => {
     const byAddress = await renderer.scanUrl(url, { target: href(new URL('../fixtures/site/contact.html', import.meta.url).href), options: {}, timeoutMs: 15000 });
     assert.equal(byAddress.matches.length, 2, 'both relative contact.html links resolve against the served page');
     assert.equal(byAddress.matches[0].text, 'contact.html');
+  });
+
+  it('resolves crawl links against the page URL, not the parser document baseURI', () => {
+    const html = `
+      <a href="/about">About</a>
+      <button data-href="/secret">Go</button>
+      <button onclick="location.href='/click'">Click</button>
+      <script type="application/ld+json">{"url":"/ld"}</script>`;
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const base = 'https://cms.test/shop/';
+    assert.equal(documentHttpBase(parsed, base), base);
+    const links = collectLinks(parsed, undefined, base);
+    for (const path of ['/about', '/secret', '/click', '/ld']) {
+      assert.ok(links.includes(`https://cms.test${path}`), `${path} in ${links.join(',')}`);
+    }
+    const fromMarkup = collectMarkupLinks(html, base);
+    for (const path of ['/about', '/secret', '/click', '/ld']) {
+      assert.ok(fromMarkup.includes(`https://cms.test${path}`), `${path} markup`);
+    }
+  });
+
+  it('discovers data-href, click-handler and JSON-LD pages so Entire Site can walk them', async () => {
+    const holder = document.createElement('div');
+    document.body.append(holder);
+    created.push(holder);
+    const renderer = createBackgroundRenderer({ container: holder, fetchImpl: fetch });
+    const index = new URL('../fixtures/site/index.html', import.meta.url).href;
+    const page = await renderer.scanUrl(index, {
+      target: href(new URL('../fixtures/site/contact.html', import.meta.url).href),
+      options: { collectLinks: true },
+      timeoutMs: 15000,
+    });
+    for (const wanted of ['about.html', 'contact.html', 'data-page.html', 'onclick-target.html', 'jsonld-page.html']) {
+      assert.ok(page.links.some((link) => link.endsWith(wanted)), wanted);
+    }
+    assert.ok(page.matches.length >= 1, 'the contact link on the home page is found');
   });
 });

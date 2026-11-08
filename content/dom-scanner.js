@@ -209,22 +209,4 @@ export function stylesheetSignature(doc) {
   return parts.join('\u0001');
 }
 
-/**
- * Collect hrefs of anchors in the rendered DOM (including JS-generated ones).
- * Returns absolute URLs; the service worker normalizes and filters them.
- */
-export function collectLinks(doc = document, limit = SCAN_LIMITS.MAX_LINKS_PER_PAGE) {
-  const hrefs = new Set();
-  for (const anchor of doc.querySelectorAll('a[href], area[href]')) {
-    if (anchor.hasAttribute('download')) continue;
-    const raw = anchor.getAttribute('href');
-    if (!raw) continue;
-    try {
-      hrefs.add(new URL(raw, doc.baseURI).href);
-    } catch {
-      /* ignore unparsable href */
-    }
-    if (hrefs.size >= limit) break;
-  }
-  return Array.from(hrefs);
-}
+export { collectLinks } from './crawl-links.js';

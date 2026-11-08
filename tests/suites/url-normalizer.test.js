@@ -120,23 +120,31 @@ describe('Site section paths', () => {
     assert.ok(isSectionIndex('https://example.com/'));
     assert.ok(isSectionIndex('https://example.com/blog'));
     assert.ok(isSectionIndex('https://example.com/blog/'));
-    assert.ok(isSectionIndex('https://example.com/news?page=2'));
+    assert.ok(!isSectionIndex('https://example.com/news?page=2'), 'query on the listing is another page');
+    assert.ok(!isSectionIndex('https://example.com/gallery?id=3'));
     assert.ok(!isSectionIndex('https://example.com/blog/post-1'));
     assert.ok(!isSectionIndex('https://example.com/column/42/'));
   });
 
-  it('treats /blog /column /news /gallery /feature /constructed posts as listing articles', () => {
-    const sections = ['/blog', '/column', '/news', '/gallery', '/feature', '/constructed'];
+  it('treats /blog /column /news /gallery /feature /constructed /voice posts as listing articles', () => {
+    const sections = ['/blog', '/column', '/news', '/gallery', '/feature', '/constructed', '/voice'];
     assert.ok(isListingArticle('https://example.com/blog/post-1', sections));
     assert.ok(isListingArticle('https://example.com/column/42/', sections));
     assert.ok(isListingArticle('https://example.com/news/2024/hello', sections));
     assert.ok(isListingArticle('https://example.com/gallery/album', sections));
+    assert.ok(isListingArticle('https://example.com/gallery?id=3', sections), 'CMS galleries often use ?id=');
+    assert.ok(isListingArticle('https://example.com/news?page=2', sections));
     assert.ok(isListingArticle('https://example.com/feature/hero', sections));
     assert.ok(isListingArticle('https://example.com/constructed/house', sections));
+    assert.ok(isListingArticle('https://example.com/voice/customer-1', sections));
+    assert.ok(isListingArticle('https://example.com/voice?id=3', sections));
     assert.ok(!isListingArticle('https://example.com/blog', sections));
     assert.ok(!isListingArticle('https://example.com/blog/', sections));
+    assert.ok(!isListingArticle('https://example.com/gallery', sections));
+    assert.ok(!isListingArticle('https://example.com/gallery/', sections));
     assert.ok(!isListingArticle('https://example.com/feature', sections));
     assert.ok(!isListingArticle('https://example.com/constructed', sections));
+    assert.ok(!isListingArticle('https://example.com/voice', sections));
     assert.ok(!isListingArticle('https://example.com/menu/item', sections));
   });
 });

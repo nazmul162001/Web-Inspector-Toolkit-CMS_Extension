@@ -26,6 +26,7 @@ import { basicAuthorization, isUnauthorized } from './http-auth.js';
 import { scanTab } from './page-scan-service.js';
 import { scanUrl } from './offscreen-scanner.js';
 import { closeTempTab, openTempTab, waitForTabComplete } from './temp-tab-manager.js';
+import { collectSitemapUrls } from './sitemap.js';
 
 const MAX_DISCOVERED_URLS = 5000;
 const RETRYABLE = new Set([ERR.TIMEOUT, ERR.LOAD_FAILED, ERR.NO_RECEIVER, ERR.PORT_CLOSED, ERR.INJECTION_FAILED]);
@@ -367,6 +368,30 @@ export async function crawlSite({
         wake();
       }
     })());
+  }
+  emit();
+
+  async function seedFromSitemap() {
+    if (typeof deps.fetchText !== 'function') return;
+    try {
+      const hrefs = await withAuth(() =>
+        collectSitemapUrls({
+          origin,
+          signal,
+          fetchText: (url) => deps.fetchText(url, { origin, authorization, signal }),
+        }),
+      );
+      enqueueLinks(hrefs, `${origin}/`);
+    } catch (error) {
+      if (isCancelled(error) || signal.aborted) throw error;
+    }
+  }
+
+  try {
+    await seedFromSitemap();
+  } catch (error) {
+    if (isCancelled(error)) return finish(true);
+    throw error;
   }
   emit();
 

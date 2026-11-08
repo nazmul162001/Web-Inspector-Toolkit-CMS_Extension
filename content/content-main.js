@@ -51,7 +51,7 @@ async function handleScan({ scanId, target, options = {} }) {
       scannedAt: Date.now(),
       ...navigationInfo(),
       ...result,
-      links: options.collectLinks ? collectLinks(document) : undefined,
+      links: options.collectLinks ? collectLinks(document, undefined, location.href) : undefined,
     };
   } finally {
     runningScans.delete(scanId);

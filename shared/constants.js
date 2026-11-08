@@ -178,7 +178,7 @@ export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
 });
 
 /** Sections whose article URLs (`/blog/id`) are capped when limitListingArticles is on. */
-export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery', '/feature', '/constructed']);
+export const LISTING_ARTICLE_SECTIONS = Object.freeze(['/blog', '/column', '/news', '/gallery', '/feature', '/constructed', '/voice']);
 export const LISTING_ARTICLE_LIMIT = 3;
 
 export const CRAWL_LIMITS = Object.freeze({

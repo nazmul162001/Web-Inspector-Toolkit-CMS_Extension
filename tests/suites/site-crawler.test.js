@@ -1,5 +1,6 @@
 import { assert, describe, it } from '../test-runner.js';
 import { crawlSite } from '../../services/site-crawler.js';
+import { collectSitemapUrls, parseRobotsSitemaps, parseSitemapLocs } from '../../services/sitemap.js';
 import { DEFAULT_CRAWL_OPTIONS, ERR } from '../../shared/constants.js';
 import { createError, sleep } from '../../shared/helpers.js';
 import { basicAuthorization } from '../../services/http-auth.js';
@@ -124,34 +125,44 @@ describe('Site crawler', () => {
     assert.equal(result.coverage.notScanned, 12 - 4);
   });
 
-  it('scans at most 3 articles per /blog /column /news /gallery /feature /constructed when the option is on', async () => {
+  it('scans at most 3 articles per /blog /column /news /gallery /feature /constructed /voice when the option is on', async () => {
     const posts = Array.from({ length: 15 }, (_, i) => `/blog/p${i}`);
     const columns = Array.from({ length: 12 }, (_, i) => `/column/c${i}`);
     const features = Array.from({ length: 9 }, (_, i) => `/feature/f${i}`);
     const constructed = Array.from({ length: 8 }, (_, i) => `/constructed/c${i}`);
+    const gallery = Array.from({ length: 12 }, (_, i) => `/gallery?id=${i}`);
+    const voices = Array.from({ length: 10 }, (_, i) => `/voice/v${i}`);
     const site = {
-      '/': { links: ['/blog', '/column', '/feature', '/constructed', '/menu', ...posts, ...columns, ...features, ...constructed] },
+      '/': { links: ['/blog', '/column', '/feature', '/constructed', '/gallery', '/voice', '/menu', ...posts, ...columns, ...features, ...constructed, ...gallery, ...voices] },
       '/blog': { links: posts },
       '/column': { links: columns },
       '/feature': { links: features },
       '/constructed': { links: constructed },
+      '/gallery': { links: gallery },
+      '/voice': { links: voices },
       '/menu': {},
     };
     for (const path of posts) site[path] = {};
     for (const path of columns) site[path] = {};
     for (const path of features) site[path] = {};
     for (const path of constructed) site[path] = {};
+    for (const path of gallery) site[path] = {};
+    for (const path of voices) site[path] = {};
     const { result } = await crawl(site, { crawl: { limitListingArticles: true } });
-    const paths = result.pages.map((p) => new URL(p.url).pathname);
-    assert.ok(paths.includes('/blog'));
-    assert.ok(paths.includes('/column'));
-    assert.ok(paths.includes('/feature'));
-    assert.ok(paths.includes('/constructed'));
-    assert.ok(paths.includes('/menu'));
-    assert.equal(paths.filter((p) => p.startsWith('/blog/')).length, 3);
-    assert.equal(paths.filter((p) => p.startsWith('/column/')).length, 3);
-    assert.equal(paths.filter((p) => p.startsWith('/feature/')).length, 3);
-    assert.equal(paths.filter((p) => p.startsWith('/constructed/')).length, 3);
+    const pages = result.pages.map((p) => new URL(p.url).pathname + new URL(p.url).search);
+    assert.ok(pages.includes('/blog'));
+    assert.ok(pages.includes('/column'));
+    assert.ok(pages.includes('/feature'));
+    assert.ok(pages.includes('/constructed'));
+    assert.ok(pages.includes('/gallery'));
+    assert.ok(pages.includes('/voice'));
+    assert.ok(pages.includes('/menu'));
+    assert.equal(pages.filter((p) => p.startsWith('/blog/')).length, 3);
+    assert.equal(pages.filter((p) => p.startsWith('/column/')).length, 3);
+    assert.equal(pages.filter((p) => p.startsWith('/feature/')).length, 3);
+    assert.equal(pages.filter((p) => p.startsWith('/constructed/')).length, 3);
+    assert.equal(pages.filter((p) => p.startsWith('/gallery?')).length, 3, 'gallery ?id= pages count as articles');
+    assert.equal(pages.filter((p) => p.startsWith('/voice/')).length, 3);
     assert.equal(result.coverage.limitReached, false);
   });
 
@@ -398,7 +409,7 @@ async function crawlInvisible(site, crawlOptions = {}, signal, start = '/', extr
     crawl: { mode: 'background', retries: 0, ...crawlOptions },
     signal: signal || new AbortController().signal,
     requestAuth: extra.requestAuth,
-    deps: world.deps,
+    deps: extra.fetchText ? { ...world.deps, fetchText: extra.fetchText } : world.deps,
   });
   return { world, result };
 }
@@ -554,5 +565,59 @@ describe('Site crawler: invisible mode (no tabs)', () => {
     assert.equal(scanUrlCalls, 0);
     assert.equal(world.opened.length, 1);
     assert.equal(result.coverage.mode, 'tabs');
+  });
+
+  it('seeds the queue from sitemap.xml and robots.txt so unlinked pages are still scanned', async () => {
+    const files = {};
+    files[`${ORIGIN}/robots.txt`] = 'Sitemap: /more.xml\n';
+    files[`${ORIGIN}/sitemap.xml`] = '<?xml version="1.0"?><urlset><loc>https://site.test/hidden</loc></urlset>';
+    files[`${ORIGIN}/more.xml`] = '<?xml version="1.0"?><urlset><loc>https://site.test/legal</loc></urlset>';
+    const { result } = await crawlInvisible(
+      {
+        '/': { links: ['/about'] },
+        '/about': {},
+        '/hidden': {},
+        '/legal': {},
+      },
+      {},
+      undefined,
+      '/',
+      {
+        fetchText: async (url) => files[url] || '',
+      },
+    );
+    const paths = urls(result);
+    assert.ok(paths.includes('/hidden'), paths.join(','));
+    assert.ok(paths.includes('/legal'), paths.join(','));
+    assert.ok(paths.includes('/about'));
+  });
+});
+
+describe('Sitemap parsing', () => {
+  it('reads loc entries and robots Sitemap lines', () => {
+    assert.deepEqual(parseSitemapLocs('<urlset><loc>https://a.test/x</loc><loc> https://a.test/y </loc></urlset>'), [
+      'https://a.test/x',
+      'https://a.test/y',
+    ]);
+    assert.deepEqual(parseSitemapLocs('<urlset><loc>https://a.test/a&amp;b</loc></urlset>'), ['https://a.test/a&b']);
+    assert.deepEqual(parseRobotsSitemaps('User-agent: *\nSitemap: https://a.test/sitemap.xml\nSitemap: /other.xml\n'), [
+      'https://a.test/sitemap.xml',
+      '/other.xml',
+    ]);
+  });
+
+  it('follows a sitemap index and skips other origins', async () => {
+    const files = {
+      'https://site.test/robots.txt': '',
+      'https://site.test/sitemap.xml':
+        '<?xml version="1.0"?><sitemapindex><sitemap><loc>https://site.test/pages.xml</loc></sitemap><sitemap><loc>https://other.test/x.xml</loc></sitemap></sitemapindex>',
+      'https://site.test/pages.xml': '<?xml version="1.0"?><urlset><loc>/only</loc><loc>https://other.test/nope</loc></urlset>',
+    };
+    const found = await collectSitemapUrls({
+      origin: ORIGIN,
+      fetchText: async (url) => files[url] || '',
+    });
+    assert.ok(found.includes(`${ORIGIN}/only`));
+    assert.equal(found.some((url) => url.includes('other.test')), false);
   });
 });

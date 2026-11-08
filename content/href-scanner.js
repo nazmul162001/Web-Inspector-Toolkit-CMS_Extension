@@ -94,10 +94,26 @@ function snippet(value, start, end) {
  * @param {(progress: {scanned:number,total:number,matches:number}) => void} [params.onProgress]
  * @param {number} [params.budgetMs]
  */
+function httpBase(doc, pageUrl) {
+  const tagged = doc?.querySelector?.('base[href]')?.getAttribute('href') || '';
+  const candidates = [tagged, pageUrl, doc?.baseURI, doc?.URL];
+  for (const value of candidates) {
+    if (typeof value !== 'string' || !value) continue;
+    try {
+      const absolute = new URL(value, pageUrl || doc?.baseURI || undefined).href;
+      if (/^https?:/i.test(absolute)) return absolute;
+    } catch {
+      if (/^https?:/i.test(value)) return value;
+    }
+  }
+  return pageUrl || doc?.baseURI || doc?.URL || '';
+}
+
 export async function scanHrefDocument({
   doc = document,
   root = doc.documentElement,
   target,
+  pageUrl = '',
   isCancelled = () => false,
   onProgress = () => {},
   budgetMs = SCAN_LIMITS.BATCH_BUDGET_MS,
@@ -108,7 +124,7 @@ export async function scanHrefDocument({
   };
 
   const matcher = createHrefMatcher(target);
-  const baseUrl = doc.baseURI || doc.URL;
+  const baseUrl = httpBase(doc, pageUrl);
   const buildPath = createPathBuilder(doc);
   const total = root.querySelectorAll('*').length + 1;
 

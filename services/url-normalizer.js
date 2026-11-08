@@ -153,18 +153,20 @@ export function sectionPath(url) {
   }
 }
 
-/** True for `/`, `/blog`, `/blog/` — the listing page, not `/blog/article`. */
+/** True for `/`, `/blog`, `/blog/` — the listing page, not `/blog/article` or `/gallery?id=1`. */
 export function isSectionIndex(url) {
   try {
-    return pathnameSegments(url).length <= 1;
+    if (pathnameSegments(url).length > 1) return false;
+    // Query variants (`/gallery?id=3`, `/news?page=2`) are extra pages, not the listing.
+    return !new URL(url).search;
   } catch {
     return false;
   }
 }
 
 /**
- * Article URL under /blog, /column, /news, /gallery, /feature or /constructed
- * (`/blog/post-id`), not the listing page itself.
+ * Extra URL under /blog, /column, /news, /gallery, /feature, /constructed or /voice:
+ * `/blog/post-id`, `/gallery/album`, `/gallery?id=1`, `/voice/id`. Not the listing page itself.
  */
 export function isListingArticle(url, sections) {
   try {

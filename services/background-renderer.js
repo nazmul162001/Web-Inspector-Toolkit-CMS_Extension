@@ -26,7 +26,7 @@
 import { ERR } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { parseAuthRealm } from './http-auth.js';
-import { collectLinks } from '../content/dom-scanner.js';
+import { collectLinks, collectMarkupLinks, mergeHrefLists } from '../content/crawl-links.js';
 import { runScan } from '../content/run-scan.js';
 import { hiddenSelectorsFromSheets, scanColorMarkup } from '../content/color-markup-scanner.js';
 import { scanFontMarkup } from '../content/font-markup-scanner.js';
@@ -541,6 +541,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
           result = await runScan({
             doc,
             target,
+            pageUrl: page.finalUrl,
             options: { ...options, hiddenSelectors: hiddenSelectorsFromSheets(collected.sheets, parsedRules) },
             shared,
             budgetMs: 1e9,
@@ -553,6 +554,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
           result = await runScan({
             doc,
             target,
+            pageUrl: page.finalUrl,
             options,
             shared,
             budgetMs: 1e9,
@@ -572,6 +574,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
             return runScan({
               doc,
               target,
+              pageUrl: page.finalUrl,
               options,
               shared,
               budgetMs: 40,
@@ -595,7 +598,9 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
           readyState: 'complete',
           renderMode: 'static',
           ...result,
-          links: options.collectLinks ? collectLinks(doc) : undefined,
+          links: options.collectLinks
+            ? mergeHrefLists(collectLinks(doc, undefined, page.finalUrl), collectMarkupLinks(page.html, page.finalUrl))
+            : undefined,
         };
       } catch (error) {
         if (overall.signal.aborted && error?.code !== ERR.CANCELLED && error?.code !== ERR.TIMEOUT) throw abortError(overall.state);
