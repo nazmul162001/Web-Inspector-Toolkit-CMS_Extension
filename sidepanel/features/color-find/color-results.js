@@ -294,7 +294,7 @@ export function createResults(root, { onAction, groupMode = 'section', onGroupMo
               { class: 'plain-list' },
               el('li', {}, 'Try Near match to allow tiny rounding differences.'),
               el('li', {}, 'Turn on "Include inherited values" to list every element that inherits it.'),
-              el('li', {}, 'Colors on ::before / ::after, images, canvas or shadow DOM are not inspected.'),
+              el('li', {}, 'Pixel colors inside images or canvas, and closed shadow trees, cannot be read.'),
             ),
           ),
         );

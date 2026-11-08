@@ -37,6 +37,7 @@ describe('Background renderer (no tabs)', () => {
       assert.equal(page.renderMode, 'static');
       assert.ok(page.title.startsWith('Fixture Home'));
       assert.ok(page.matches.length >= 15, `only ${page.matches.length} matches`);
+      assert.equal(page.stats.timings.frameMs, 0, 'color scans must not wait on an iframe');
       assert.equal(holder.querySelectorAll('iframe').length, 0, 'the iframe is removed afterwards');
 
       const button = forClass(page, 'primary-button');
@@ -125,6 +126,22 @@ describe('Background renderer (no tabs)', () => {
         page.stats.stylesheets.inaccessible.some((s) => s.href.endsWith('missing-sheet.css')),
         'a stylesheet that cannot be downloaded is reported, not hidden',
       );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('scans several colour pages in parallel without opening iframes', async () => {
+    const { renderer, holder, dispose } = makeRenderer();
+    try {
+      const pages = await Promise.all([
+        renderer.scanUrl(url('index.html'), { target: TARGET, timeoutMs: 8000 }),
+        renderer.scanUrl(url('about.html'), { target: TARGET, timeoutMs: 8000 }),
+        renderer.scanUrl(url('contact.html'), { target: TARGET, timeoutMs: 8000 }),
+      ]);
+      assert.ok(pages.every((page) => page.matches.length >= 1));
+      assert.ok(pages.every((page) => page.stats.timings.frameMs === 0));
+      assert.equal(holder.querySelectorAll('iframe').length, 0);
     } finally {
       dispose();
     }

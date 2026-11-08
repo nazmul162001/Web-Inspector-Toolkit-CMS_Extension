@@ -282,6 +282,43 @@ export function selectorBucketKey(selector) {
   return '*';
 }
 
+/**
+ * Trailing pseudo-element (`::before`, `:after`, …) of a selector, or `''`
+ * when the selector targets a real element. Pseudo-*classes* (`:hover`) are
+ * not returned.
+ */
+const TRAILING_PSEUDO_ELEMENT = /(::?(?:before|after|marker|placeholder|first-line|first-letter|file-selector-button|backdrop))\s*$/i;
+
+export function selectorPseudoElement(selector) {
+  const match = TRAILING_PSEUDO_ELEMENT.exec(String(selector || '').trimEnd());
+  if (!match) return '';
+  const name = match[1].replace(/^:+/, '').toLowerCase();
+  return `::${name}`;
+}
+
+/** Selector that `element.matches()` can test (pseudo-elements stripped). */
+export function stripPseudoElement(selector) {
+  const trimmed = String(selector || '').trim();
+  const stripped = trimmed.replace(TRAILING_PSEUDO_ELEMENT, '').trim();
+  return stripped || '*';
+}
+
+const PRINT_LIKE = new Set(['print', 'speech', 'aural', 'tty', 'braille']);
+
+/**
+ * Whether a `@media` prelude or `<link media>` should be read for a screen
+ * scan. Print-only sheets are skipped; `not print` and mixed `screen, print`
+ * still apply.
+ */
+export function mediaAppliesToScreen(prelude) {
+  const text = String(prelude || '').trim().toLowerCase();
+  if (!text || text === 'all' || text === 'screen') return true;
+  if (/\bnot\s+(?:only\s+)?(?:print|speech|aural|tty|braille)\b/.test(text)) return true;
+  const types = text.match(/\b(?:print|speech|aural|tty|braille|screen|all)\b/g);
+  if (types?.length && types.every((type) => PRINT_LIKE.has(type))) return false;
+  return true;
+}
+
 /* ------------------------------------------------------------ Line lookup */
 
 /** Replace comment text with spaces, keeping newlines so offsets and line numbers stay valid. */

@@ -117,6 +117,58 @@ describe('DOM scanning: color properties', () => {
   });
 });
 
+describe('DOM scanning: gradients, pseudos and extra color paths', () => {
+  it('finds a color stop inside background-image linear-gradient', async () => {
+    const css = '.g{background-image:linear-gradient(120deg, rgb(2, 87, 67) 30%, rgb(88, 43, 97) 90%)}';
+    const result = await scan('<div class="g"></div>', { css });
+    assert.deepEqual(props(result, byClass(result, 'g')), ['background-image']);
+    assert.ok(result.matches[0].matchedValues.some((v) => /2,\s*87,\s*67/.test(v)));
+    assert.equal(result.matches[0].pseudo, '');
+  });
+
+  it('finds a gradient on ::before (the CMS decorative-card case)', async () => {
+    const css = '.card::before{content:"";background-image:linear-gradient(120deg,#025743 30%,#582b61 90%)}';
+    const result = await scan('<div class="card"></div>', { css });
+    const el = byClass(result, 'card');
+    assert.ok(el, 'host element is reported');
+    const hit = matchesFor(result, el).find((m) => m.property === 'background-image');
+    assert.ok(hit, 'background-image on ::before matched');
+    assert.equal(hit.pseudo, '::before');
+    assert.equal(hit.source.selector, '.card::before');
+  });
+
+  it('finds background-color on ::after and ignores a ::before with no box', async () => {
+    const css = '.a::after{content:"";background-color:#025743}.a::before{background-color:#025743}';
+    const result = await scan('<div class="a"></div>', { css });
+    const hits = matchesFor(result, byClass(result, 'a'));
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].pseudo, '::after');
+    assert.equal(hits[0].property, 'background-color');
+  });
+
+  it('finds drop-shadow colors in filter', async () => {
+    const result = await scan('<div class="f"></div>', { css: '.f{filter:drop-shadow(0 4px 10px #025743)}' });
+    assert.deepEqual(props(result, byClass(result, 'f')), ['filter']);
+  });
+
+  it('finds colors inside an open shadow root', async () => {
+    const host = document.createElement('div');
+    host.id = `fx-shadow-${created.length}`;
+    document.body.append(host);
+    created.push(host);
+    const shadow = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = '.s{color:#025743}';
+    const p = document.createElement('p');
+    p.className = 's';
+    p.textContent = 'x';
+    shadow.append(style, p);
+    const result = await scanDocument({ root: host, target: parseColor('#025743') });
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.elements[0].tag, 'p');
+  });
+});
+
 describe('DOM scanning: shadows', () => {
   it('extracts individual colors from box-shadow and text-shadow', async () => {
     const css = '.s{box-shadow:0 4px 10px rgba(2,87,67,.5),0 0 0 1px #025743;text-shadow:1px 1px 2px #ff0000}';

@@ -4,10 +4,14 @@ import {
   coveredProperties,
   expandNestedSelectors,
   findDeclarationLine,
+  mediaAppliesToScreen,
   parseDeclarations,
   selectorBucketKey,
+  selectorPseudoElement,
   splitTopLevel,
+  stripPseudoElement,
 } from '../../content/css-utils.js';
+import { collectCssRules } from '../../content/color-markup-scanner.js';
 
 describe('CSS utils: declarations', () => {
   it('parses declarations, !important and custom properties', () => {
@@ -24,7 +28,8 @@ describe('CSS utils: declarations', () => {
   });
 
   it('maps shorthands to the color longhands they can set', () => {
-    assert.deepEqual(coveredProperties('background'), ['background-color']);
+    assert.deepEqual(coveredProperties('background'), ['background-color', 'background-image']);
+    assert.deepEqual(coveredProperties('border-image'), ['border-image-source']);
     assert.equal(coveredProperties('border').length, 4);
     assert.deepEqual(coveredProperties('outline'), ['outline-color']);
     assert.deepEqual(coveredProperties('margin'), []);
@@ -48,6 +53,15 @@ describe('CSS utils: selectors', () => {
     assert.equal(s('p::before'), s('p') + 1);
     assert.equal(s('[type="text"]'), s('.x'));
     assert.equal(s('*'), 0);
+  });
+
+  it('identifies and strips trailing pseudo-elements', () => {
+    assert.equal(selectorPseudoElement('.elu_inner-item::before'), '::before');
+    assert.equal(selectorPseudoElement('p:after'), '::after');
+    assert.equal(selectorPseudoElement('a:hover'), '');
+    assert.equal(stripPseudoElement('.elu_inner-item::before'), '.elu_inner-item');
+    assert.equal(stripPseudoElement('body > .box:before'), 'body > .box');
+    assert.equal(stripPseudoElement('::before'), '*');
   });
 
   it('buckets rules by their rightmost compound', () => {
@@ -112,5 +126,34 @@ describe('CSS utils: line lookup', () => {
   it('works on minified css only when unambiguous, and never invents a line', () => {
     const min = '.a{color:red}.b{color:#025743}';
     assert.equal(findDeclarationLine(min, '.b', 'color', '#025743'), 1);
+  });
+});
+
+describe('CSS utils: screen media', () => {
+  it('skips print-only queries and keeps screen / not-print', () => {
+    assert.equal(mediaAppliesToScreen('print'), false);
+    assert.equal(mediaAppliesToScreen('only print'), false);
+    assert.equal(mediaAppliesToScreen('not print'), true);
+    assert.equal(mediaAppliesToScreen('screen'), true);
+    assert.equal(mediaAppliesToScreen('screen, print'), true);
+    assert.equal(mediaAppliesToScreen('(min-width: 1px)'), true);
+  });
+});
+
+describe('collectCssRules', () => {
+  it('enters @media (except print) and @layer, and skips @keyframes', () => {
+    const rules = collectCssRules(`
+      .a { color: red; }
+      @media print { .print { color: red; } }
+      @media (min-width: 1px) { .wide { color: red; } }
+      @layer base { .layered { color: red; } }
+      @keyframes spin { from { color: red; } to { color: blue; } }
+    `);
+    const selectors = rules.map((rule) => rule.selectorText.trim());
+    assert.ok(selectors.includes('.a'));
+    assert.ok(selectors.includes('.wide'));
+    assert.ok(selectors.includes('.layered'));
+    assert.ok(!selectors.includes('.print'));
+    assert.ok(!selectors.some((sel) => /from|to/.test(sel)));
   });
 });

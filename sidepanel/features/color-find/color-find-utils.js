@@ -30,7 +30,7 @@ export function flattenScanResult(scan) {
         page,
         element,
         match,
-        order: [pageIndex, element.domIndex, PROPERTY_ORDER.get(match.property) ?? 99],
+        order: [pageIndex, element.domIndex, match.pseudo ? 1 : 0, PROPERTY_ORDER.get(match.property) ?? 99],
       });
     });
   });

@@ -4,7 +4,7 @@
  * and performs result actions (copy, highlight, scroll).
  */
 
-import { ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
+import { CRAWL_LIMITS, DEFAULT_CRAWL_OPTIONS, ERR, MATCH_MODE, MSG, NEAR_TOLERANCE, SCOPE } from '../../../shared/constants.js';
 import { copyToClipboard, el, pluralize, uid } from '../../../shared/helpers.js';
 import { onEvent, sendToBackground } from '../../../services/message-service.js';
 import { loadSettings, saveSettings } from '../../../services/settings-service.js';
@@ -169,7 +169,17 @@ export function createFeature(ctx) {
           tabId: tabContext.tab.id,
           target: validation.color,
           options,
-          crawl: scope === SCOPE.SITE ? { ...(await loadSettings()).crawl, limitListingArticles: listingArticlesLimited() } : undefined,
+          crawl: scope === SCOPE.SITE
+            ? {
+                ...(await loadSettings()).crawl,
+                limitListingArticles: listingArticlesLimited(),
+                concurrency: CRAWL_LIMITS.concurrency.max,
+                pageTimeoutMs: CRAWL_LIMITS.pageTimeoutMs.min,
+                retries: 0,
+                renderDelayMs: 0,
+                mode: DEFAULT_CRAWL_OPTIONS.mode,
+              }
+            : undefined,
         },
         { timeoutMs: 0 }, // long jobs are bounded by cancellation, not a message timeout
       );
@@ -230,7 +240,7 @@ export function createFeature(ctx) {
       contextId: item.page.contextId,
       path: item.element.path,
       tag: item.element.tag,
-      label: item.element.selector,
+      label: item.element.selector + (item.match.pseudo || ''),
       mode,
     };
     try {
@@ -249,7 +259,7 @@ export function createFeature(ctx) {
         case 'copy-hex':
           return await copy(item.match.color.hex, 'HEX');
         case 'copy-selector':
-          return await copy(item.element.selector, 'Selector');
+          return await copy(item.element.selector + (item.match.pseudo || ''), 'Selector');
         case 'copy-classes':
           return await copy(item.element.classes.join(' '), 'Class names');
         case 'copy-stylesheet':

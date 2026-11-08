@@ -158,10 +158,10 @@ export const DEFAULT_CRAWL_OPTIONS = Object.freeze({
   // Entire Site checks every page it can reach; this is only a runaway guard
   // (infinite calendars, faceted search ...) and is reported when hit.
   maxPages: 2000,
-  concurrency: 16,
-  pageTimeoutMs: 20000,
+  concurrency: 12,
+  pageTimeoutMs: 8000,
   retries: 1,
-  renderDelayMs: 150,
+  renderDelayMs: 0,
   // Listing sections with many articles: scan the index plus this many posts.
   limitListingArticles: true,
 });
@@ -244,8 +244,11 @@ export const COLOR_PROPERTIES = Object.freeze([
   },
   { property: 'caret-color', group: PROPERTY_GROUP.TEXT, inherited: true, gate: { type: 'caret' } },
 
-  // Background
+  // Background (solid, gradients, and other image layers that embed colors)
   { property: 'background-color', group: PROPERTY_GROUP.BACKGROUND },
+  { property: 'background-image', group: PROPERTY_GROUP.BACKGROUND },
+  { property: 'mask-image', group: PROPERTY_GROUP.BACKGROUND },
+  { property: 'border-image-source', group: PROPERTY_GROUP.BACKGROUND },
 
   // Borders & outlines
   border('top'),
@@ -265,6 +268,10 @@ export const COLOR_PROPERTIES = Object.freeze([
     currentColorDefault: true,
   },
 
+  // Form / chrome
+  { property: 'accent-color', group: PROPERTY_GROUP.TEXT, inherited: true },
+  { property: 'scrollbar-color', group: PROPERTY_GROUP.TEXT, inherited: true },
+
   // SVG
   { property: 'fill', group: PROPERTY_GROUP.SVG, inherited: true, svgOnly: true },
   { property: 'stroke', group: PROPERTY_GROUP.SVG, inherited: true, svgOnly: true },
@@ -276,9 +283,10 @@ export const COLOR_PROPERTIES = Object.freeze([
     svgTags: ['fediffuselighting', 'fespecularlighting'],
   },
 
-  // Shadows (values contain one or more colors among lengths / keywords)
+  // Shadows and filters (values contain one or more colors among lengths / keywords)
   { property: 'box-shadow', group: PROPERTY_GROUP.SHADOW },
   { property: 'text-shadow', group: PROPERTY_GROUP.SHADOW, inherited: true },
+  { property: 'filter', group: PROPERTY_GROUP.SHADOW },
 ]);
 
 /**
@@ -286,7 +294,9 @@ export const COLOR_PROPERTIES = Object.freeze([
  * Used when reading CSSOM source declarations (stylesheet-scanner.js).
  */
 export const SHORTHAND_TO_LONGHANDS = Object.freeze({
-  background: ['background-color'],
+  background: ['background-color', 'background-image'],
+  mask: ['mask-image'],
+  'border-image': ['border-image-source'],
   border: ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'],
   'border-color': ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'],
   'border-top': ['border-top-color'],

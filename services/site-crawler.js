@@ -63,12 +63,10 @@ export async function crawlSite({
   const home = siteHomeUrl(startUrl) || normalizeUrl(`${origin}/`);
   const homeUrl = home?.url || `${origin}/`;
   const homeKey = home?.key || '';
-  const currentKey = normalizeUrl(startUrl)?.key || '';
+  const current = normalizeUrl(startUrl);
+  const currentKey = current?.key || '';
   const currentIsHome = !!homeKey && currentKey === homeKey;
-  if (typeof globalThis !== 'undefined') {
-    globalThis.__CRAWL_HOME_DEBUG = globalThis.__CRAWL_HOME_DEBUG || [];
-    globalThis.__CRAWL_HOME_DEBUG.push({ startUrl, homeUrl, homeKey, currentKey, currentIsHome, origin });
-  }
+  const liveTimeoutMs = Math.max(options.pageTimeoutMs, 15000);
   const startedAt = Date.now();
 
   const pages = [];
@@ -181,12 +179,12 @@ export async function crawlSite({
 
   /* -------------------------------------------------------- page scanners */
 
-  async function scanInTempTab(item) {
+  async function scanInTempTab(item, timeoutMs = options.pageTimeoutMs) {
     let tabId = null;
     try {
       const tab = await deps.openTempTab(item.url, { windowId });
       tabId = tab.id;
-      const loaded = await deps.waitForTabComplete(tabId, { timeoutMs: options.pageTimeoutMs, signal });
+      const loaded = await deps.waitForTabComplete(tabId, { timeoutMs, signal });
 
       if (loaded.url.startsWith('chrome-error:')) {
         throw createError(ERR.LOAD_FAILED, 'The page could not be loaded (network or certificate error).');
@@ -202,7 +200,7 @@ export async function crawlSite({
         target,
         options: { ...scanOptions, collectLinks: true },
         signal,
-        timeoutMs: options.pageTimeoutMs,
+        timeoutMs,
       });
 
       if (result.httpStatus && result.httpStatus >= 400) {
@@ -218,14 +216,14 @@ export async function crawlSite({
   }
 
   /** Invisible mode: no tab, no window - the page is rendered in the hidden offscreen document. */
-  async function scanInBackground(item) {
+  async function scanInBackground(item, timeoutMs = options.pageTimeoutMs) {
     const result = await deps.scanUrl(item.url, {
       scanId,
       origin,
       target,
       options: { ...scanOptions, collectLinks: true },
       signal,
-      timeoutMs: options.pageTimeoutMs,
+      timeoutMs,
     });
 
     const final = normalizeUrl(result.url);
@@ -241,48 +239,92 @@ export async function crawlSite({
     return { result, finalKey: final.key };
   }
 
-  const scanOne = useBackground ? scanInBackground : scanInTempTab;
+  const scanOne = (item, timeoutMs) =>
+    (useBackground ? scanInBackground : scanInTempTab)(item, timeoutMs);
+
+  async function attemptScan(run) {
+    let lastError;
+    for (let attempt = 0; attempt <= options.retries; attempt += 1) {
+      try {
+        return await run();
+      } catch (error) {
+        lastError = error;
+        if (isCancelled(error) || signal.aborted) throw createError(ERR.CANCELLED, 'Scan cancelled');
+        if (!RETRYABLE.has(error?.code) || attempt >= options.retries) throw error;
+        await sleep(250 * (attempt + 1), signal);
+      }
+    }
+    throw lastError;
+  }
+
+  async function scanLiveTab() {
+    const result = await deps.scanTab(startTabId, {
+      scanId,
+      target,
+      options: { ...scanOptions, collectLinks: true },
+      signal,
+      timeoutMs: liveTimeoutMs,
+    });
+    return { result, finalKey: normalizeUrl(result.url)?.key || null };
+  }
+
+  function remember(finalKey) {
+    if (!finalKey) return;
+    seen.add(finalKey);
+    scannedKeys.add(finalKey);
+  }
 
   /* ---------------------------------------------------------- home page */
 
-  if (homeKey) {
-    seen.add(homeKey);
-    scannedKeys.add(homeKey);
-  }
+  if (homeKey) seen.add(homeKey);
   attempted += 1;
   inFlight.set(homeUrl, true);
+  let recordedLiveTab = currentIsHome;
   try {
-    let homeResult;
-    let homeFinalKey = null;
+    let scanned;
     if (currentIsHome) {
-      homeResult = await deps.scanTab(startTabId, {
-        scanId,
-        target,
-        options: { ...scanOptions, collectLinks: true },
-        signal,
-        timeoutMs: Math.max(options.pageTimeoutMs, 60000),
-      });
-      homeFinalKey = normalizeUrl(homeResult.url)?.key || null;
-      if (homeFinalKey) {
-        seen.add(homeFinalKey);
-        scannedKeys.add(homeFinalKey);
-      }
-      recordPage(homeResult, null);
+      scanned = await attemptScan(scanLiveTab);
     } else {
-      const scanned = await scanOne({ url: homeUrl, key: homeKey });
-      homeResult = scanned.result;
-      homeFinalKey = scanned.finalKey;
-      if (homeFinalKey) {
-        seen.add(homeFinalKey);
-        scannedKeys.add(homeFinalKey);
+      try {
+        scanned = await attemptScan(() => scanOne({ url: homeUrl, key: homeKey }, options.pageTimeoutMs));
+      } catch (error) {
+        if (isCancelled(error)) return finish(true);
+        // Home is required as the crawl root, but a timeout there must not
+        // kill Entire Site when the user started from /about or similar.
+        fail({ url: homeUrl, attempts: options.retries + 1 }, error);
+        scanned = await attemptScan(scanLiveTab);
+        recordedLiveTab = true;
       }
-      recordPage(homeResult, null);
     }
+    remember(scanned.finalKey);
+    // Keep the open tab out of the fetch queue; it is scanned in the live tab next.
+    if (!currentIsHome && !recordedLiveTab && currentKey) seen.add(currentKey);
+    recordPage(scanned.result, null);
   } catch (error) {
     if (isCancelled(error)) return finish(true);
     throw error;
   } finally {
     inFlight.delete(homeUrl);
+  }
+
+  const extra = [];
+  if (!currentIsHome && !recordedLiveTab && currentKey && !scannedKeys.has(currentKey)) {
+    extra.push((async () => {
+      attempted += 1;
+      inFlight.set(current.url, true);
+      emit();
+      try {
+        const live = await attemptScan(scanLiveTab);
+        remember(live.finalKey);
+        recordPage(live.result, null);
+      } catch (error) {
+        if (!isCancelled(error)) fail({ url: current.url, attempts: options.retries + 1 }, error);
+      } finally {
+        inFlight.delete(current.url);
+        emit();
+        wake();
+      }
+    })());
   }
   emit();
 
@@ -314,6 +356,7 @@ export async function crawlSite({
         await waitForWork();
         continue;
       }
+      if (scannedKeys.has(item.key)) continue;
       attempted += 1;
       inFlight.set(item.url, true);
       emit();
@@ -330,7 +373,7 @@ export async function crawlSite({
   }
 
   const workers = Array.from({ length: options.concurrency }, () => worker());
-  await Promise.all(workers);
+  await Promise.all([...extra, ...workers]);
   return finish(signal.aborted);
 
   /* --------------------------------------------------------------- result */

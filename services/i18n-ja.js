@@ -235,6 +235,8 @@ export const EXACT_JA = {
 
   /* ----------------------------------------------------------- Color Find */
   'Find every element, CSS rule and variable that renders a color.': '色を表示しているすべての要素・CSSルール・変数を検索します。',
+  'Find every element, CSS rule and variable that renders a color, including ::before / ::after, gradients and shadows.':
+    '色を表示しているすべての要素・CSSルール・変数を検索します（::before / ::after、グラデーション、シャドウを含む）。',
   Color: '色',
   'Accepts HEX (#fff, #ffffff80), rgb(), rgba(), hsl(), hsla(), hwb(), lab(), oklch() and color names such as red, green, blue, white, black.': 'HEX（#fff、#ffffff80）、rgb()、rgba()、hsl()、hsla()、hwb()、lab()、oklch()、および red・green・blue・white・black などの色名に対応しています。',
   'Enter a color value.': '色の値を入力してください。',
@@ -260,6 +262,8 @@ export const EXACT_JA = {
   'Try Near match to allow tiny rounding differences.': 'わずかな丸め誤差を許容するには「近似」をお試しください。',
   'Turn on "Include inherited values" to list every element that inherits it.': '「継承された値を含める」をオンにすると、その色を継承しているすべての要素を表示します。',
   'Colors on ::before / ::after, images, canvas or shadow DOM are not inspected.': '::before / ::after、画像、canvas、シャドウDOM上の色は検査されません。',
+  'Pixel colors inside images or canvas, and closed shadow trees, cannot be read.':
+    '画像や canvas のピクセル色、および閉じたシャドウツリーの色は読み取れません。',
   'None of the scanned pages renders this color.': 'スキャンしたどのページにもこの色は使われていません。',
   'Nothing on this page renders this color.': 'このページにこの色を使っている要素はありません。',
   'Matches that come only from these files show computed values, but no CSS source details.': 'これらのファイルだけに由来する一致は、計算値のみ表示され、CSSの定義元の詳細は表示されません。',
@@ -270,6 +274,7 @@ export const EXACT_JA = {
   Element: '要素',
   Classes: 'クラス',
   Selector: 'セレクタ',
+  'Pseudo-element': '疑似要素',
   'no id or class': 'idもクラスもなし',
   Path: 'パス',
   Description: '説明',

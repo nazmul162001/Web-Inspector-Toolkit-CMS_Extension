@@ -80,7 +80,7 @@ export async function scanUrl(url, { origin, target, options = {}, signal, timeo
     const job = sendToOffscreen(
       MSG.OFFSCREEN_SCAN_URL,
       { jobId, url, origin, target, options, timeoutMs },
-      { timeoutMs: timeoutMs + 20000 },
+      { timeoutMs: timeoutMs + 3000 },
     );
     return await (aborted ? Promise.race([job, aborted]) : job);
   } catch (error) {

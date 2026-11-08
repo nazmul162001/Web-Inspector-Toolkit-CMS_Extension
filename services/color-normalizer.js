@@ -401,17 +401,34 @@ export function splitValueTokens(value) {
   return tokens;
 }
 
+/** `url()` / `var()` never contain inspectable color tokens; skip their guts. */
+const SKIP_FUNCTION_INNER = new Set(['url', 'var', 'attr']);
+
+/**
+ * `linear-gradient(...)` as a whole is one token. Pull out `name` + inner
+ * arguments so colors nested in gradients, filters and image() can be found.
+ */
+function cssFunction(token) {
+  if (!token || token[token.length - 1] !== ')') return null;
+  const open = token.indexOf('(');
+  if (open < 1) return null;
+  const name = token.slice(0, open).trim().toLowerCase();
+  if (!name) return null;
+  return { name, inner: token.slice(open + 1, -1) };
+}
+
 /**
  * Extract every color from a (computed or authored) CSS value such as a
- * box-shadow list. Only tokens that are genuinely colors are returned, so
- * lengths and keywords (`0px`, `inset`) are never mistaken for colors.
+ * box-shadow list, `linear-gradient(...)`, or `filter: drop-shadow(...)`.
+ * Only tokens that are genuinely colors are returned, so lengths and
+ * keywords (`0px`, `inset`) are never mistaken for colors.
  *
  * @param {string} value
- * @param {{ currentColor?: object }} [options] color to substitute for `currentcolor`
+ * @param {{ currentColor?: object, depth?: number }} [options] color to substitute for `currentcolor`
  * @returns {{raw:string,color:object}[]}
  */
-export function extractColors(value, { currentColor } = {}) {
-  if (!value || value === 'none') return [];
+export function extractColors(value, { currentColor, depth = 0 } = {}) {
+  if (!value || value === 'none' || depth > 8) return [];
   const found = [];
   for (const token of splitValueTokens(value)) {
     if (currentColor && token.toLowerCase() === 'currentcolor') {
@@ -419,7 +436,13 @@ export function extractColors(value, { currentColor } = {}) {
       continue;
     }
     const color = parseColor(token);
-    if (color) found.push({ raw: token, color });
+    if (color) {
+      found.push({ raw: token, color });
+      continue;
+    }
+    const fn = cssFunction(token);
+    if (!fn || SKIP_FUNCTION_INNER.has(fn.name)) continue;
+    found.push(...extractColors(fn.inner, { currentColor, depth: depth + 1 }));
   }
   return found;
 }

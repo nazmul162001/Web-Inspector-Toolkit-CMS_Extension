@@ -54,7 +54,7 @@ export function createColorMatcher(target, { tolerance = 0 } = {}) {
     /** Does a single parsed color match the target? */
     matchesColor: (color) => colorsMatch(color, target, { tolerance }),
     /**
-     * Inspect a CSS value (single color or shadow list).
+     * Inspect a CSS value (single color, shadow list, gradient, filter, …).
      * @returns {{ parts: {raw:string,color:object}[], matches: {raw:string,color:object}[] }}
      */
     matchValue(value) {

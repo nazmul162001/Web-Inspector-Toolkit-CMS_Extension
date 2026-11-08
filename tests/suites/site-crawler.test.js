@@ -290,6 +290,24 @@ describe('Site crawler', () => {
     for (const path of ['/', '/about', '/concept', '/secret']) assert.ok(paths.includes(path), path);
     assert.equal(world.opened[0], `${ORIGIN}/`, 'home is fetched first, not the /about tab');
     assert.ok(!world.opened[0].includes('/about'));
+    assert.equal(world.scans.includes(1), true, 'the open /about tab is scanned in place, not re-opened');
+  });
+
+  it('keeps crawling from the open tab when home cannot be fetched', async () => {
+    const { result } = await crawl(
+      {
+        '/': { fail: ERR.TIMEOUT, links: ['/about'] },
+        '/about': { links: ['/concept'] },
+        '/concept': {},
+      },
+      { start: '/about' },
+    );
+    const paths = result.pages.map((page) => new URL(page.url).pathname);
+    assert.ok(paths.includes('/about'), paths.join(','));
+    assert.ok(paths.includes('/concept'), paths.join(','));
+    assert.ok(!paths.includes('/'), 'failed home is not recorded as a page');
+    assert.ok(result.failures.some((failure) => new URL(failure.url).pathname === '/'));
+    assert.equal(result.coverage.complete, false);
   });
 
   it('starts from a non-root URL and only follows same origin', async () => {
@@ -321,8 +339,17 @@ function createInvisibleWorld(site) {
     closeTempTab: forbidden,
     waitForTabComplete: forbidden,
     async scanTab() {
-      // the user's own tab (start page only)
-      return { url: `${ORIGIN}/`, title: 'start', httpStatus: 200, contentType: 'text/html', elements: [], matches: [{ elementId: 1 }], links: site['/'].links };
+      const url = world.startUrl || `${ORIGIN}/`;
+      const page = site[pathOf(url)] || site['/'] || {};
+      return {
+        url,
+        title: page.title || pathOf(url),
+        httpStatus: 200,
+        contentType: 'text/html',
+        elements: [],
+        matches: [{ elementId: 1 }],
+        links: page.links || [],
+      };
     },
     async scanUrl(url, { signal, timeoutMs, origin }) {
       world.scanned.push(url);
@@ -351,11 +378,12 @@ function createInvisibleWorld(site) {
   return world;
 }
 
-async function crawlInvisible(site, crawlOptions = {}, signal) {
+async function crawlInvisible(site, crawlOptions = {}, signal, start = '/') {
   const world = createInvisibleWorld(site);
+  world.startUrl = `${ORIGIN}${start}`;
   const result = await crawlSite({
     startTabId: 1,
-    startUrl: `${ORIGIN}/`,
+    startUrl: world.startUrl,
     scanId: 'inv',
     target: TARGET,
     crawl: { mode: 'background', retries: 0, ...crawlOptions },
@@ -366,6 +394,24 @@ async function crawlInvisible(site, crawlOptions = {}, signal) {
 }
 
 describe('Site crawler: invisible mode (no tabs)', () => {
+  it('starts from / in the background even when the tab is a subpage', async () => {
+    const { world, result } = await crawlInvisible(
+      {
+        '/': { links: ['/about', '/secret'] },
+        '/about': { links: ['/secret'] },
+        '/secret': {},
+      },
+      {},
+      undefined,
+      '/about',
+    );
+    assert.equal(new URL(result.pages[0].url).pathname, '/');
+    assert.equal(world.scanned[0], `${ORIGIN}/`);
+    const paths = result.pages.map((page) => new URL(page.url).pathname);
+    for (const path of ['/', '/about', '/secret']) assert.ok(paths.includes(path), path);
+    assert.equal(world.tabCalls, 0);
+  });
+
   it('is the default and never opens a tab or window', async () => {
     const { world, result } = await crawlInvisible({ '/': { links: ['/a', '/b'] }, '/a': { links: ['/c'] }, '/b': {}, '/c': {} });
     assert.deepEqual(urls(result), ['/', '/a', '/b', '/c']);
@@ -422,9 +468,10 @@ describe('Site crawler: invisible mode (no tabs)', () => {
     const links = Array.from({ length: 70 }, (_, i) => `/p${i}`);
     const site = { '/': { links } };
     const world = createInvisibleWorld(site);
+    world.startUrl = `${ORIGIN}/`;
     const streamed = [];
     const result = await crawlSite({
-      startTabId: 1, startUrl: `${ORIGIN}/`, scanId: 'all', target: TARGET,
+      startTabId: 1, startUrl: world.startUrl, scanId: 'all', target: TARGET,
       crawl: {}, signal: new AbortController().signal, deps: world.deps,
       onPage: (page) => streamed.push(page.url),
     });

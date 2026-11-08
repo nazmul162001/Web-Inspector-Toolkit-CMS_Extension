@@ -41,6 +41,7 @@ export function elementSection(item) {
         : '',
     ),
     kv('Selector', element.selector, { mono: true }),
+    item.match.pseudo ? kv('Pseudo-element', item.match.pseudo, { mono: true }) : null,
     kv('Path', element.path, { mono: true }),
     kv('Description', element.description, { mono: true }),
   );
@@ -230,6 +231,7 @@ export function createResultCard(item, { onAction, expanded = false, onToggle })
         'span',
         { class: 'rcard__meta' },
         el('span', { class: 'prop' }, match.property),
+        match.pseudo ? el('span', { class: 'pill', 'data-i18n-skip': true }, match.pseudo) : null,
         el('code', { class: 'hex' }, match.color.hex),
         match.source?.cssVariable ? el('span', { class: 'pill' }, match.source.cssVariable.name) : null,
         element.rendered === false ? el('span', { class: 'pill pill--muted' }, 'hidden') : null,

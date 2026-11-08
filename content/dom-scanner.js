@@ -9,8 +9,9 @@
  *  - Work is time-sliced: after BATCH_BUDGET_MS the scanner yields through a
  *    MessageChannel task (not throttled in background tabs) so the page stays
  *    responsive and cancellation can be observed.
- *  - One getComputedStyle() per element (cached in the style scanner), colors
- *    parsed once per distinct value (cached in the matcher).
+ *  - getComputedStyle() per element plus ::before / ::after when they generate
+ *    a box (cached in the style scanner); colors parsed once per distinct
+ *    value (cached in the matcher).
  *  - Element records are built once per matched element and shared by all of
  *    its matches; the result is {elements[], matches[]} instead of repeating
  *    element data per property.
@@ -114,7 +115,7 @@ export async function scanDocument({
         return;
       }
       const resolved = withSources
-        ? resolver.resolve(element, DESCRIPTORS.get(hit.property))
+        ? resolver.resolve(element, DESCRIPTORS.get(hit.property), hit.pseudo || '')
         : { source: null, status: 'not-found' };
       const first = hit.matches[0].color;
       matches.push({
@@ -124,33 +125,42 @@ export async function scanDocument({
         computed: hit.computed,
         color: { hex: toHex(first), alpha: alphaToNumber(first.a), rgba: first },
         matchedValues: hit.matches.map((m) => m.raw),
+        pseudo: hit.pseudo || '',
         source: resolved.source,
         sourceStatus: resolved.status,
       });
     }
   }
 
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
-    acceptNode(node) {
-      return SKIPPED_TAGS.has(node.localName) || node.id === HIGHLIGHT_HOST_ID
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT;
-    },
-  });
+  const acceptNode = (node) =>
+    SKIPPED_TAGS.has(node.localName) || node.id === HIGHLIGHT_HOST_ID
+      ? NodeFilter.FILTER_REJECT
+      : NodeFilter.FILTER_ACCEPT;
 
   let sliceStart = performance.now();
-  if (!SKIPPED_TAGS.has(root.localName)) handleElement(root);
-  let node = walker.nextNode();
-  while (node && !truncated) {
-    handleElement(node);
-    node = walker.nextNode();
-    if (performance.now() - sliceStart > budgetMs) {
-      reportProgress();
-      await yieldToMain();
-      checkCancelled();
-      sliceStart = performance.now();
+
+  async function walkTree(treeRoot) {
+    if (truncated) return;
+    const walker = doc.createTreeWalker(treeRoot, NodeFilter.SHOW_ELEMENT, { acceptNode });
+    if (treeRoot.nodeType === 1 && acceptNode(treeRoot) === NodeFilter.FILTER_ACCEPT) {
+      handleElement(treeRoot);
+      if (treeRoot.shadowRoot) await walkTree(treeRoot.shadowRoot);
+    }
+    let node = walker.nextNode();
+    while (node && !truncated) {
+      handleElement(node);
+      if (node.shadowRoot) await walkTree(node.shadowRoot);
+      node = walker.nextNode();
+      if (performance.now() - sliceStart > budgetMs) {
+        reportProgress();
+        await yieldToMain();
+        checkCancelled();
+        sliceStart = performance.now();
+      }
     }
   }
+
+  await walkTree(root);
   lap('walkMs');
 
   if (withSources && resolver.pendingLines.length) {

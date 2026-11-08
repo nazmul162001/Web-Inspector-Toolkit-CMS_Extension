@@ -27,18 +27,43 @@ import { ERR } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { collectLinks } from '../content/dom-scanner.js';
 import { runScan } from '../content/run-scan.js';
+import { scanColorMarkup } from '../content/color-markup-scanner.js';
+import { mediaAppliesToScreen } from '../content/css-utils.js';
 import { isHrefQuery } from './href-matcher.js';
 import { isPhoneQuery } from './phone-matcher.js';
 import { isWidthQuery } from './width-matcher.js';
 import { isTextQuery } from './text-matcher.js';
+import { isCanonicalColor } from '../shared/validators.js';
 import { isSameOrigin } from './url-normalizer.js';
 
 const MAX_HTML_CHARS = 6_000_000;
 const MAX_SHEET_CHARS = 2_500_000;
 const MAX_SHEETS_PER_PAGE = 60;
 const MAX_IMPORT_DEPTH = 4;
-const SHEET_TIMEOUT_MS = 15000;
+const SHEET_TIMEOUT_MS = 3500;
 const VIEWPORT = { width: 1280, height: 800 };
+
+function linkMediaApplies(media) {
+  return mediaAppliesToScreen(media);
+}
+
+/** getComputedStyle work is main-thread bound; overlapping iframes only cause timeouts. */
+function createGate(limit) {
+  let active = 0;
+  const waiting = [];
+  return {
+    async run(fn) {
+      if (active >= limit) await new Promise((resolve) => waiting.push(resolve));
+      active += 1;
+      try {
+        return await fn();
+      } finally {
+        active -= 1;
+        waiting.shift()?.();
+      }
+    },
+  };
+}
 
 /** Applied inside the sandboxed document: only styles may be processed. */
 const FRAME_CSP =
@@ -127,6 +152,7 @@ function wrapImported(css, conditions) {
  * @param {HTMLElement} [config.container] where the temporary iframes live
  */
 export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...args), container } = {}) {
+  const layoutGate = createGate(1);
   /** absolute stylesheet URL -> Promise<segments | null> (shared by every page of a crawl) */
   const sheetCache = new Map();
   /** absolute stylesheet URL -> original text */
@@ -138,6 +164,8 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
     lineResults: new Map(),
     fetchText: async (href) => rawTexts.get(href) ?? null,
   };
+  /** Parsed CSS rules keyed by href or inline text, shared across pages of a crawl. */
+  const parsedRules = new Map();
 
   async function fetchSheetText(url) {
     const controller = new AbortController();
@@ -228,7 +256,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
       links.map(async (link, position) => {
         const disabled = link.hasAttribute('disabled') || /alternate/i.test(link.getAttribute('rel') || '');
         const raw = link.getAttribute('href');
-        if (disabled || !raw || position >= MAX_SHEETS_PER_PAGE) {
+        if (disabled || !raw || position >= MAX_SHEETS_PER_PAGE || !linkMediaApplies(link.getAttribute('media'))) {
           link.remove();
           return;
         }
@@ -268,6 +296,85 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
     head.prepend(meta, base);
 
     return { html: `<!DOCTYPE html>\n${parsed.documentElement.outerHTML}`, unreadable };
+  }
+
+  function sheetLabel(href, pageUrl) {
+    if (!href) return '<style> block';
+    try {
+      const url = new URL(href);
+      const page = new URL(pageUrl);
+      if (url.origin === page.origin) return url.pathname.replace(/^\//, '') + url.search;
+      return `${url.host}${url.pathname}`;
+    } catch {
+      return href;
+    }
+  }
+
+  /** Parsed document plus every stylesheet as text (no iframe). */
+  async function collectStyles(html, pageUrl) {
+    const parsed = parsePageHtml(html);
+    parsed.querySelectorAll(REMOVE_SELECTOR).forEach((node) => node.remove());
+    let baseUrl = pageUrl;
+    const baseElement = parsed.querySelector('base[href]');
+    if (baseElement) {
+      try {
+        baseUrl = new URL(baseElement.getAttribute('href'), pageUrl).href;
+      } catch {
+        /* keep */
+      }
+    }
+    const unreadable = [];
+    const sheets = [];
+    const seen = new Set();
+    const add = (href, css, label) => {
+      const key = href || `inline:${css}`;
+      if (!css || seen.has(key)) return;
+      seen.add(key);
+      sheets.push({ href, css, label, sourceCss: (href && rawTexts.get(href)) || css });
+    };
+
+    const links = Array.from(parsed.querySelectorAll('link[rel~="stylesheet"]'));
+    await Promise.all(
+      links.map(async (link, position) => {
+        const disabled = link.hasAttribute('disabled') || /alternate/i.test(link.getAttribute('rel') || '');
+        const raw = link.getAttribute('href');
+        if (disabled || !raw || position >= MAX_SHEETS_PER_PAGE || !linkMediaApplies(link.getAttribute('media'))) return;
+        let href;
+        try {
+          href = new URL(raw, baseUrl).href;
+        } catch {
+          return;
+        }
+        const segments = await loadSheet(href, 0);
+        if (segments === null) {
+          unreadable.push({ href, label: href, reason: 'The stylesheet could not be downloaded' });
+          return;
+        }
+        for (const segment of segments) add(segment.href, segment.css, sheetLabel(segment.href, pageUrl));
+      }),
+    );
+
+    let styleIndex = 0;
+    const head = parsed.head || parsed.documentElement.insertBefore(parsed.createElement('head'), parsed.body);
+    const base = parsed.createElement('base');
+    base.setAttribute('href', baseUrl);
+    head.prepend(base);
+
+    for (const style of Array.from(parsed.querySelectorAll('style'))) {
+      styleIndex += 1;
+      const css = style.textContent || '';
+      if (!css.trim()) continue;
+      if (/@import/i.test(css)) {
+        const segments = await splitImports(css, baseUrl, 0, null);
+        for (const segment of segments) {
+          add(segment.href, segment.css, segment.href ? sheetLabel(segment.href, pageUrl) : `<style> block ${styleIndex}`);
+        }
+      } else {
+        add(null, css, `<style> block ${styleIndex}`);
+      }
+    }
+
+    return { doc: parsed, sheets, unreadable, baseUrl };
   }
 
   /**
@@ -358,6 +465,7 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
     clearCache() {
       sheetCache.clear();
       rawTexts.clear();
+      parsedRules.clear();
       shared.indexes.clear();
       shared.lineTexts.clear();
       shared.lineResults.clear();
@@ -367,47 +475,70 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
      * Scan one URL without any tab or window.
      * @returns {Promise<object>} same shape as a content-script page result
      */
-    async scanUrl(url, { target, options = {}, signal, timeoutMs = 20000, origin } = {}) {
+    async scanUrl(url, { target, options = {}, signal, timeoutMs = 8000, origin } = {}) {
       if (signal?.aborted) throw createError(ERR.CANCELLED, 'Scan cancelled');
-      const linked = linkSignals(signal, timeoutMs);
+      const overall = linkSignals(signal, timeoutMs);
       let frame = null;
       try {
         const t0 = performance.now();
-        const page = await download(url, { signal: linked.signal, origin });
+        const page = await download(url, { signal: overall.signal, origin });
         const t1 = performance.now();
         let doc;
         let unreadable = [];
         let t2;
         let t3;
-        if (isPhoneQuery(target) || isHrefQuery(target) || isWidthQuery(target) || (isTextQuery(target) && !target.visibleOnly)) {
-          // Searching text needs no layout: skip the stylesheets and the iframe entirely.
+        let result;
+        const skipLayout = isCanonicalColor(target)
+          || isPhoneQuery(target)
+          || isHrefQuery(target)
+          || isWidthQuery(target)
+          || (isTextQuery(target) && !target.visibleOnly);
+        if (isCanonicalColor(target)) {
+          const collected = await collectStyles(page.html, page.finalUrl);
+          if (overall.signal.aborted) throw abortError(overall.state);
+          unreadable = collected.unreadable;
+          doc = collected.doc;
+          t2 = performance.now();
+          t3 = t2;
+          result = scanColorMarkup(doc, collected.sheets, target, { ...options, ruleCache: parsedRules });
+        } else if (skipLayout) {
           doc = parseInert(page.html, page.finalUrl);
           t2 = performance.now();
           t3 = t2;
+          result = await runScan({
+            doc,
+            target,
+            options,
+            shared,
+            budgetMs: 40,
+            isCancelled: () => overall.signal.aborted,
+          });
         } else {
           const prepared = await prepareHtml(page.html, page.finalUrl);
           unreadable = prepared.unreadable;
-          if (linked.signal.aborted) throw abortError(linked.state);
+          if (overall.signal.aborted) throw abortError(overall.state);
           t2 = performance.now();
-          frame = await loadFrame(prepared.html, linked.signal);
-          doc = frame.contentDocument;
-          if (!doc?.documentElement) throw createError(ERR.LOAD_FAILED, 'The page could not be rendered.');
-          t3 = performance.now();
+          result = await layoutGate.run(async () => {
+            if (overall.signal.aborted) throw abortError(overall.state);
+            frame = await loadFrame(prepared.html, overall.signal);
+            doc = frame.contentDocument;
+            if (!doc?.documentElement) throw createError(ERR.LOAD_FAILED, 'The page could not be rendered.');
+            t3 = performance.now();
+            return runScan({
+              doc,
+              target,
+              options,
+              shared,
+              budgetMs: 40,
+              isCancelled: () => overall.signal.aborted,
+            });
+          });
         }
-
-        const result = await runScan({
-          doc,
-          target,
-          options,
-          shared,
-          budgetMs: 40, // nothing else to keep responsive in the hidden document
-          isCancelled: () => linked.signal.aborted,
-        });
         result.stats.stylesheets.inaccessible.push(...unreadable);
         Object.assign(result.stats.timings, {
           downloadMs: Math.round(t1 - t0),
           prepareMs: Math.round(t2 - t1),
-          frameMs: Math.round(t3 - t2),
+          frameMs: Math.round((t3 ?? t2) - t2),
         });
 
         return {
@@ -422,12 +553,12 @@ export function createBackgroundRenderer({ fetchImpl = (...args) => fetch(...arg
           links: options.collectLinks ? collectLinks(doc) : undefined,
         };
       } catch (error) {
-        if (linked.signal.aborted && error?.code !== ERR.CANCELLED && error?.code !== ERR.TIMEOUT) throw abortError(linked.state);
-        if (error?.name === 'AbortError') throw abortError(linked.state);
-        if (linked.signal.aborted && error?.code === ERR.CANCELLED && linked.state.timedOut) throw abortError(linked.state);
+        if (overall.signal.aborted && error?.code !== ERR.CANCELLED && error?.code !== ERR.TIMEOUT) throw abortError(overall.state);
+        if (error?.name === 'AbortError') throw abortError(overall.state);
+        if (overall.signal.aborted && error?.code === ERR.CANCELLED && overall.state.timedOut) throw abortError(overall.state);
         throw error;
       } finally {
-        linked.dispose();
+        overall.dispose();
         frame?.remove();
       }
     },

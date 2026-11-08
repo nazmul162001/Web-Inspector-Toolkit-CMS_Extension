@@ -141,6 +141,29 @@ describe('Colors inside CSS values', () => {
     const withCurrent = extractColors('0 0 4px currentcolor', { currentColor: rgba(1, 2, 3) });
     assert.deepEqual(withCurrent[0].color, rgba(1, 2, 3));
   });
+
+  it('pulls colors out of gradients, filters and nested image functions', () => {
+    const linear = extractColors('linear-gradient(120deg, rgb(233, 150, 50) 30%, rgb(88, 43, 97) 90%)');
+    assert.equal(linear.length, 2);
+    assert.deepEqual(linear[0].color, rgba(233, 150, 50));
+    assert.deepEqual(linear[1].color, rgba(88, 43, 97));
+
+    const named = extractColors('linear-gradient(red, blue)');
+    assert.equal(named.length, 2);
+
+    const drop = extractColors('drop-shadow(0px 4px 10px rgb(2, 87, 67))');
+    assert.equal(drop.length, 1);
+    assert.deepEqual(drop[0].color, rgba(2, 87, 67));
+
+    const filter = extractColors('blur(4px) drop-shadow(rgb(255, 0, 0) 0px 2px 4px)');
+    assert.equal(filter.length, 1);
+    assert.deepEqual(filter[0].color, rgba(255, 0, 0));
+  });
+
+  it('does not treat url() payloads as colors', () => {
+    assert.equal(extractColors('url("https://example.test/red.png")').length, 0);
+    assert.equal(extractColors('url(#025743)').length, 0);
+  });
 });
 
 describe('Parser parity with Chrome', () => {

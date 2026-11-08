@@ -31,7 +31,9 @@ import {
   findDeclarationLine,
   parseDeclarations,
   selectorBucketKey,
-  } from './css-utils.js';
+  selectorPseudoElement,
+  stripPseudoElement,
+} from './css-utils.js';
 
 const COLOR_DESCRIPTOR = COLOR_PROPERTIES.find((d) => d.property === 'color');
 const MAX_INHERIT_DEPTH = 60;
@@ -258,7 +260,7 @@ export async function buildStylesheetIndex(
 
 export function safeMatches(element, selector) {
   try {
-    return element.matches(selector);
+    return element.matches(stripPseudoElement(selector));
   } catch {
     return false;
   }
@@ -371,25 +373,29 @@ export function createSourceResolver({ index, styleOf, matcher }) {
   }
 
   /** Every declaration that targets `property` on `element` (inline + rules). */
-  function candidatesFor(element, property) {
+  function candidatesFor(element, property, pseudo = '') {
     const list = [];
-    for (const decl of inlineDeclarations(element)) {
-      const covers = decl.name.startsWith('--') ? decl.name === property : coveredProperties(decl.name).includes(property);
-      if (covers) {
-        list.push({
-          inline: true, declName: decl.name, value: decl.value, important: decl.important,
-          specificity: Infinity, order: Infinity, conditions: [], sheet: null,
-        });
+    const wantPseudo = pseudo || '';
+    if (!wantPseudo) {
+      for (const decl of inlineDeclarations(element)) {
+        const covers = decl.name.startsWith('--') ? decl.name === property : coveredProperties(decl.name).includes(property);
+        if (covers) {
+          list.push({
+            inline: true, declName: decl.name, value: decl.value, important: decl.important,
+            specificity: Infinity, order: Infinity, conditions: [], sheet: null,
+          });
+        }
       }
     }
     for (const entry of bucketEntries(index, property, element)) {
+      if (selectorPseudoElement(entry.selector) !== wantPseudo) continue;
       if (safeMatches(element, entry.selector)) list.push(entry);
     }
     return list;
   }
 
-  function resolveDeclared(value, node) {
-    const style = styleOf(node);
+  function resolveDeclared(value, node, pseudo = '') {
+    const style = styleOf(node, pseudo) || styleOf(node);
     const used = [];
     const text = substituteVariables(value, style, used);
     if (text === null) return { colors: [], vars: used };
@@ -398,10 +404,10 @@ export function createSourceResolver({ index, styleOf, matcher }) {
   }
 
   /** Best verified declaration for `property` declared directly on `node`. */
-  function lookupOn(node, property) {
+  function lookupOn(node, property, pseudo = '') {
     const verified = [];
-    for (const candidate of candidatesFor(node, property)) {
-      const resolution = resolveDeclared(candidate.value, node);
+    for (const candidate of candidatesFor(node, property, pseudo)) {
+      const resolution = resolveDeclared(candidate.value, node, pseudo);
       if (resolution.colors.some((part) => matcher.matchesColor(part.color))) {
         verified.push({ candidate, resolution });
       }
@@ -411,13 +417,17 @@ export function createSourceResolver({ index, styleOf, matcher }) {
     return { ...verified.find((v) => v.candidate === winner), node };
   }
 
-  function lookupWithInheritance(element, descriptor) {
-    const direct = lookupOn(element, descriptor.property);
+  function lookupWithInheritance(element, descriptor, pseudo = '') {
+    const direct = lookupOn(element, descriptor.property, pseudo);
     if (direct) return { ...direct, inheritedFrom: null };
+    if (pseudo) {
+      const fromHost = lookupOn(element, descriptor.property, '');
+      if (fromHost) return { ...fromHost, inheritedFrom: getReadableSelector(element) };
+    }
     if (!descriptor.inherited) return null;
     let node = element.parentElement;
     for (let depth = 0; node && depth < MAX_INHERIT_DEPTH; depth += 1, node = node.parentElement) {
-      const found = lookupOn(node, descriptor.property);
+      const found = lookupOn(node, descriptor.property, '');
       if (found) return { ...found, inheritedFrom: getReadableSelector(node) };
     }
     return null;
@@ -481,15 +491,15 @@ export function createSourceResolver({ index, styleOf, matcher }) {
     /**
      * @returns {{ source: object|null, status: 'found'|'unavailable'|'not-found' }}
      */
-    resolve(element, descriptor) {
-      let found = lookupWithInheritance(element, descriptor);
+    resolve(element, descriptor, pseudo = '') {
+      let found = lookupWithInheritance(element, descriptor, pseudo);
       let via = null;
 
       if (!found && descriptor.currentColorDefault) {
-        const style = styleOf(element);
+        const style = styleOf(element, pseudo) || styleOf(element);
         const value = style.getPropertyValue(descriptor.property).trim();
         if (value && value === style.getPropertyValue('color').trim()) {
-          found = lookupWithInheritance(element, COLOR_DESCRIPTOR);
+          found = lookupWithInheritance(element, COLOR_DESCRIPTOR, pseudo);
           via = 'currentColor';
         }
       }
