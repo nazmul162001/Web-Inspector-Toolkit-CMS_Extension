@@ -69,6 +69,11 @@ describe('Language: translate()', () => {
     );
     assert.equal(ja('Inspect/Download image'), '画像の検査/ダウンロード');
     assert.equal(ja('SNS Checker'), 'SNSチェック');
+    assert.equal(ja('Layout Overflow Finder'), 'レイアウトはみ出し検索');
+    assert.equal(ja('How to use Overflow Finder'), 'はみ出し検索の使い方');
+    assert.equal(ja('No overflow at 375 px'), '375 px ではみ出しはありません');
+    assert.equal(ja('Page is 86 px too wide'), 'ページが 86 px はみ出しています');
+    assert.equal(ja('3 overflowing elements'), '3 件のはみ出し要素');
     assert.equal(ja('How to use SNS Checker'), 'SNSチェックの使い方');
     assert.equal(ja('Perfect. Everything is okay.'), '問題ありません。すべてOKです。');
     assert.ok(ja('Small-screen rules apply at 768 px and below (now 727 px).').includes('768'));

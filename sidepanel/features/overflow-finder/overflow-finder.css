@@ -1,0 +1,276 @@
+/* Layout Overflow Finder — panel. Status chrome is shared with Image Resolution. */
+
+.of-head {
+  position: relative;
+}
+
+.of-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+}
+
+.of-title-row .cf-title {
+  flex: none;
+}
+
+.of-help {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.of-help[aria-expanded="true"] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.of-help-tip {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--text) 32%, var(--accent) 45%);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.45;
+}
+
+.of-help-tip__title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.of-help-tip__steps {
+  margin: 0;
+  padding-left: 0;
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  counter-reset: of-help;
+}
+
+.of-help-tip__steps li {
+  position: relative;
+  padding: 8px 10px 8px 28px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2, var(--surface)));
+  color: var(--text);
+  counter-increment: of-help;
+}
+
+.of-help-tip__steps li::before {
+  content: counter(of-help);
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.ir-state[data-tone="error"] {
+  border-color: color-mix(in srgb, var(--danger, #f2687a) 42%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger, #f2687a) 14%, transparent), var(--surface));
+}
+
+.ir-state[data-tone="error"] .ir-state__icon {
+  color: var(--danger, #f2687a);
+  background: color-mix(in srgb, var(--danger, #f2687a) 16%, transparent);
+}
+
+.of-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.of-metric {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.of-metric__label {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.of-metric__value {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.of-metric__value small {
+  margin-left: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.of-metric.is-bad {
+  border-color: color-mix(in srgb, var(--danger, #f2687a) 40%, var(--border));
+}
+
+.of-metric.is-bad .of-metric__value {
+  color: var(--danger, #f2687a);
+}
+
+.of-metric.is-ok .of-metric__value {
+  color: var(--success);
+}
+
+.of-empty {
+  margin-top: 16px;
+  padding: 16px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.of-empty.is-ok {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: linear-gradient(180deg, var(--success-soft), var(--surface));
+}
+
+.of-empty__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.of-empty__lead {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.of-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.of-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.of-card.is-focus {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.of-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.of-index {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger, #f2687a) 16%, transparent);
+  color: var(--danger, #f2687a);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-card__sel {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.of-amount {
+  flex: none;
+  color: var(--danger, #f2687a);
+  font-size: 13px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.of-causes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.of-cause {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.of-css {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.of-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.of-more {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}

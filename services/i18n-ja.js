@@ -25,6 +25,7 @@ export const EXACT_JA = {
   'Image Convert': '画像変換',
   'Image Resize': '画像リサイズ',
   'SNS Checker': 'SNSチェック',
+  'Layout Overflow Finder': 'レイアウトはみ出し検索',
   'Remove Background': '背景除去',
   'Thumbnails are 50×50. Download saves each file at its original size.':
     'サムネイルは 50×50 です。ダウンロードすると元のサイズで保存されます。',
@@ -641,6 +642,50 @@ export const EXACT_JA = {
     'PCの通常サイズは 30 × 30、32 × 32、または 40 × 40 px です。余白は幅の半分以上必要です。',
   '30 × 30, 32 × 32 or 40 × 40': '30 × 30、32 × 32、または 40 × 40',
 
+  /* ------------------------------------------- Layout Overflow Finder */
+  'How to use Overflow Finder': 'はみ出し検索の使い方',
+  'Find elements that make the page wider than the window. Resize to check a small screen.':
+    'ページがウィンドウより横に広がる要素を見つけます。小さい画面を確認するにはウィンドウをリサイズしてください。',
+  'Overflow Finder is on': 'はみ出し検索はオンです',
+  'Overflow Finder is off': 'はみ出し検索はオフです',
+  'Turn it on to outline elements that stick out of the page.': 'オンにすると、ページからはみ出す要素が枠で示されます。',
+  "Couldn't start Overflow Finder": 'はみ出し検索を開始できませんでした',
+  'Resize the window. Red frames mark elements that stick out. Press Esc on the page to stop.':
+    'ウィンドウをリサイズしてください。はみ出した要素は赤い枠で示されます。停止するにはページ上で Esc キーを押します。',
+  'Find layout overflow on the page': 'ページ上のレイアウトのはみ出しを探す',
+  'No horizontal overflow': '横方向のはみ出しはありません',
+  'Waiting for the page': 'ページを待っています',
+  'Turn it on. Overflow is outlined on the page and listed here.': 'オンにすると、はみ出しがページ上に枠で示され、ここに一覧されます。',
+  'No overflow': 'はみ出しなし',
+  'Only the strongest overflows are listed.': 'はみ出しが大きいものだけを表示しています。',
+  Viewport: '表示幅',
+  'Too wide by': 'はみ出し幅',
+  'PC width': 'PC幅',
+  'Turn it on. Anything that sticks out of the page gets a red frame and a number.':
+    'オンにすると、はみ出した要素に赤い枠と番号が付きます。',
+  'Resize the window, especially down to a small screen (max 768 px). The list updates live.':
+    'ウィンドウをリサイズしてください。とくに小さい画面（最大 768 px）まで狭めて確認します。一覧はリアルタイムで更新されます。',
+  'Each card shows why it overflows (min-width, nowrap, a wide image, a table) and the CSS to change.':
+    '各カードにはみ出した理由（min-width、nowrap、幅の広い画像、テーブル）と、直すCSSが表示されます。',
+  'Click Highlight to scroll to that element. Press Esc on the page to stop.':
+    '「ハイライト」でその要素までスクロールします。停止するにはページ上で Esc キーを押します。',
+  'Horizontal overflow only. A tall page is normal; a sideways scrollbar is not.':
+    '横方向のはみ出しだけを見ます。縦に長いページは普通です。横スクロールバーは問題です。',
+  'The numbered frames on the page match the cards below.': 'ページ上の番号付きの枠は、下のカードと対応しています。',
+  'Typical causes: min-width, nowrap text, a wide image, or a table that will not shrink.':
+    'よくある原因: min-width、nowrap のテキスト、幅の広い画像、縮まないテーブルです。',
+  'min-width is wider than the viewport': 'min-width が表示幅より広い',
+  'Fixed width is wider than the viewport': '固定の width が表示幅より広い',
+  'white-space: nowrap keeps content on one line': 'white-space: nowrap のため1行のままです',
+  'Image or media is wider than the viewport': '画像またはメディアが表示幅より広い',
+  'A table cell does not shrink': 'テーブルセルが縮みません',
+  'Absolutely positioned past the edge': '絶対配置が端からはみ出しています',
+  'Negative margin extends the box': '負のマージンでボックスが広がっています',
+  'Flex row does not wrap': 'Flex 行が折り返しません',
+  'Preformatted text does not wrap': '整形済みテキストが折り返しません',
+  'Box sticks out of the viewport': 'ボックスが表示幅からはみ出しています',
+  'Could not highlight that element.': 'その要素をハイライトできませんでした。',
+
   /* ------------------------------------------------ Screenshot Taker */
   'Screenshot Taker': 'スクリーンショット',
   'Capture a page, mark it up, then copy or save it.': 'ページをキャプチャし、書き込みを加えて、コピーまたは保存できます。',
@@ -894,6 +939,15 @@ export function makePatternsJa(tr) {
     rule(/^Increase the (left|right) spacing to at least (.+) px \(now (.+)\)\.$/, (side, need, now) => `${side === 'left' ? '左' : '右'}の余白を ${need} px 以上にしてください（現在 ${now}）。`),
     rule(/^Increase (.+) to at least (.+) px \(now (.+)\)\.$/, '$1 を $2 px 以上にしてください（現在 $3）。'),
     rule(/^Add at least (.+) px of (left|right) spacing with margin-(?:left|right), padding-(?:left|right) or gap \(now 0 px\)\.$/, (need, side) => `${side === 'left' ? '左' : '右'}に ${need} px 以上の余白を margin-${side}、padding-${side}、または gap で取ってください（現在 0 px）。`),
+
+    /* Layout Overflow Finder */
+    rule(/^No overflow at (.+) px$/, '$1 px ではみ出しはありません'),
+    rule(/^Page is (.+) px too wide$/, 'ページが $1 px はみ出しています'),
+    rule(/^Everything fits at (.+) px\. Resize to check a small screen\.$/, '$1 px ではすべて収まっています。小さい画面を確認するにはリサイズしてください。'),
+    rule(/^Nothing sticks out at (.+) px\. Narrow the window to catch mobile layout bugs\.$/, '$1 px でははみ出しはありません。モバイルの崩れを見つけるにはウィンドウを狭めてください。'),
+    rule(/^Viewport (.+) px\. Red frames on the page match the numbers below\.$/, '表示幅 $1 px。ページ上の赤い枠は下の番号と対応しています。'),
+    rule(new RegExp(`^${N} overflowing element$`), '$1 件のはみ出し要素'),
+    rule(new RegExp(`^${N} overflowing elements$`), '$1 件のはみ出し要素'),
 
     /* Screenshot Taker */
     rule(new RegExp(`^Capturing the page… ${N} of ${N}$`), 'ページをキャプチャ中… $2 枚中 $1 枚目'),

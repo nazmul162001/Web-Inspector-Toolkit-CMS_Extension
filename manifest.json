@@ -51,6 +51,7 @@
         "services/width-*.js",
         "services/image-*.js",
         "services/sns-*.js",
+        "services/overflow-*.js",
         "services/screenshot-*.js",
         "services/highlighter.js",
         "services/i18n*.js",

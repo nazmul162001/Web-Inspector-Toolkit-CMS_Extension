@@ -12,7 +12,7 @@ import { ERR, MSG } from '../shared/constants.js';
 import { createError } from '../shared/helpers.js';
 import { checkRestrictedUrl, originPattern, parseScanRequest } from '../shared/validators.js';
 import { broadcast, onEvent, registerHandlers, watchSessions } from '../services/message-service.js';
-import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector, setSnsChecker } from '../services/page-scan-service.js';
+import { clearMarksInTab, controlScreenshot, getInspectedImageSource, highlightInTab, probeAccess, scanTab, setImageInspector, setOverflowFinder, setSnsChecker } from '../services/page-scan-service.js';
 import { captureForSender, markScreenshotTab } from '../services/capture-tab-service.js';
 import { crawlSite } from '../services/site-crawler.js';
 import { closeOffscreen, scanUrl } from '../services/offscreen-scanner.js';
@@ -79,6 +79,7 @@ watchSessions({
     }
     stopInspectorOf(sessionId); // the panel closed: the hover inspector must not stay on in the page
     stopSnsCheckerOf(sessionId);
+    stopOverflowFinderOf(sessionId);
     stopScreenshotOf(sessionId); // stop a capture in progress; an open editor on the page is left
   },
 });
@@ -101,6 +102,15 @@ function stopSnsCheckerOf(sessionId) {
   const tabId = snsCheckers.get(sessionId);
   snsCheckers.delete(sessionId);
   if (tabId !== undefined) setSnsChecker(tabId, false).catch(() => {});
+}
+
+/** sessionId -> tabId where that side panel's Layout Overflow Finder runs. */
+const overflowFinders = new Map();
+
+function stopOverflowFinderOf(sessionId) {
+  const tabId = overflowFinders.get(sessionId);
+  overflowFinders.delete(sessionId);
+  if (tabId !== undefined) setOverflowFinder(tabId, false).catch(() => {});
 }
 
 // Per-page progress from content scripts is relayed under a single event type.
@@ -370,6 +380,26 @@ async function handleSnsCheck({ tabId, enabled, options, sessionId } = {}) {
   return result;
 }
 
+async function handleOverflowFind({ tabId, enabled, options, sessionId } = {}) {
+  if (!Number.isInteger(tabId)) throw createError(ERR.INVALID_REQUEST, 'Missing tab.');
+  const settings = { language: normalizeLanguage(options?.language), focusIndex: options?.focusIndex };
+  if (!enabled) {
+    if (overflowFinders.get(sessionId) === tabId) overflowFinders.delete(sessionId);
+    try {
+      return await setOverflowFinder(tabId, false);
+    } catch {
+      return { running: false };
+    }
+  }
+  const result = await setOverflowFinder(tabId, true, settings);
+  if (typeof sessionId === 'string') {
+    const previous = overflowFinders.get(sessionId);
+    if (previous !== undefined && previous !== tabId) setOverflowFinder(previous, false).catch(() => {});
+    overflowFinders.set(sessionId, tabId);
+  }
+  return result;
+}
+
 /* ------------------------------------------------------ Screenshot Taker */
 
 const SHOT_MODES = ['area', 'current', 'full'];
@@ -545,6 +575,7 @@ registerHandlers({
   [MSG.IMAGE_INSPECT]: handleImageInspect,
   [MSG.IMAGE_SOURCE]: handleImageSource,
   [MSG.SNS_CHECK]: handleSnsCheck,
+  [MSG.OVERFLOW_FIND]: handleOverflowFind,
   [MSG.SCREENSHOT_START]: handleScreenshotStart,
   [MSG.SCREENSHOT_CANCEL]: handleScreenshotCancel,
   [MSG.SCREENSHOT_EDITOR]: handleScreenshotEditor,
