@@ -532,6 +532,13 @@ describe('Screenshot: Select Area shortcut', () => {
     input.remove();
     box.remove();
   });
+
+  it('injects the page shortcut as a classic script, not an ES module import', async () => {
+    const src = await (await fetch(new URL('../../content/screenshot-hotkey.js', import.meta.url))).text();
+    assert.ok(!/^\s*import\s/m.test(src), 'no static import');
+    assert.ok(!/\bimport\s*\(/.test(src), 'no dynamic import that sites like YouTube block');
+    assert.ok(src.includes('wit/screenshot-hotkey'));
+  });
 });
 
 /* ================================================================ Editor */

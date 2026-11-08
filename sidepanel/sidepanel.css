@@ -468,15 +468,40 @@ code,
   width: min(280px, 72vw);
   margin: 0;
   padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--text) 32%, var(--accent) 45%);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow), 0 0 0 1px var(--border-strong);
+  box-shadow:
+    var(--shadow),
+    0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent);
   color: var(--text-dim);
   font-size: 12px;
   font-weight: 450;
   line-height: 1.45;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.tools-limit__paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 7px 0;
+}
+
+.tools-limit__path {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .section-label {

@@ -48,6 +48,10 @@ export const EXACT_JA = {
   'About Search first 3 articles': '「最初の3件の記事を検索」について',
   'When this is enabled, Entire Site searches only the first 3 article pages under /blog, /column, /news, /gallery, /feature and /constructed, plus each listing page. Disable it to search every article. Other pages are not limited.':
     '有効のとき、サイト全体の検索では /blog・/column・/news・/gallery・/feature・/constructed の一覧ページと、それぞれの最初の3件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
+  'When this is enabled, Entire Site searches only the first 3 article pages under':
+    '有効のとき、サイト全体の検索では',
+  'plus each listing page. Disable it to search every article. Other pages are not limited.':
+    'の一覧ページと、それぞれの最初の3件の記事だけを調べます。すべての記事を調べる場合は無効にしてください。ほかのページは制限されません。',
   Language: '言語',
   'Switch to English': '英語に切り替え',
   'Switch to light mode': 'ライトモードに切り替え',

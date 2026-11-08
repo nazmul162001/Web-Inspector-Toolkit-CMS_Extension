@@ -87,6 +87,8 @@ describe('Language: translate()', () => {
     assert.equal(ja('Image saved.'), '画像を保存しました。');
     assert.equal(ja('Copied'), 'コピーしました');
     assert.ok(ja('When this is enabled, Entire Site searches only the first 3 article pages under /blog, /column, /news, /gallery, /feature and /constructed, plus each listing page. Disable it to search every article. Other pages are not limited.').includes('最初の3件'));
+    assert.ok(ja('When this is enabled, Entire Site searches only the first 3 article pages under').includes('有効'));
+    assert.ok(ja('plus each listing page. Disable it to search every article. Other pages are not limited.').includes('最初の3件'));
     assert.equal(ja('Checking the site: 3 of 40 pages'), 'サイトを処理中: 40 ページ中 3 ページ');
     assert.equal(ja('Version 1.0.0'), 'バージョン 1.0.0');
   });
