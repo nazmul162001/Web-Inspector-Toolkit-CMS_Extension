@@ -2,10 +2,56 @@
    Official Image - panel styles (design tokens from sidepanel.css)
    ========================================================================== */
 
+.oi-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.oi-title-row .cf-title {
+  flex: none;
+  min-width: 0;
+}
+
+.oi-search {
+  position: relative;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 240px;
+  margin-left: auto;
+}
+
+.oi-search__icon {
+  position: absolute;
+  top: 50%;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.oi-search__input {
+  height: 32px;
+  padding: 0 10px 0 26px;
+  font-size: 12px;
+}
+
+.oi-search__input::-webkit-search-cancel-button {
+  margin-right: 0;
+}
+
 .oi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.oi-grid[hidden],
+.oi-card[hidden],
+.oi-empty[hidden] {
+  display: none;
 }
 
 .oi-card {

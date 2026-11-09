@@ -1,6 +1,6 @@
 import { assert, describe, it } from '../test-runner.js';
 import { FEATURES, FEATURE_STATUS } from '../../shared/constants.js';
-import { OFFICIAL_IMAGES, officialImageUrl } from '../../sidepanel/features/official-image/official-images.js';
+import { OFFICIAL_IMAGES, filterOfficialImages, officialImageUrl } from '../../sidepanel/features/official-image/official-images.js';
 
 describe('Official Image: library', () => {
   it('is an active tool before Screenshot Taker and needs no scope', () => {
@@ -49,6 +49,18 @@ describe('Official Image: library', () => {
     for (const id of ['tiktok', 'phone', 'calendar', 'google-maps', 'people', 'cart']) {
       assert.ok(ids.includes(id), id);
     }
+  });
+
+  it('filters the library by English or Japanese name', () => {
+    assert.equal(filterOfficialImages('').length, OFFICIAL_IMAGES.length);
+    assert.equal(filterOfficialImages('   ').length, OFFICIAL_IMAGES.length);
+    const instagram = filterOfficialImages('instagram').map((item) => item.id);
+    assert.ok(instagram.includes('instagram'));
+    assert.ok(instagram.includes('instagram-outline'));
+    assert.ok(!instagram.includes('line'));
+    assert.ok(filterOfficialImages('Phone 24').some((item) => item.id === 'phone-24h'));
+    assert.ok(filterOfficialImages('メール').some((item) => item.id === 'mail'));
+    assert.equal(filterOfficialImages('zzzz-not-an-icon').length, 0);
   });
 
   it('can fetch every bundled file so Download has the original bytes', async () => {

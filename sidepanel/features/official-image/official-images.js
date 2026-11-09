@@ -4,6 +4,28 @@
  * thumbnail and Download saves this file unchanged.
  */
 
+import { translate } from '../../../services/i18n.js';
+
+function fold(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Icons whose name (English or Japanese) contains the typed text. Empty query keeps the full list. */
+export function filterOfficialImages(query, items = OFFICIAL_IMAGES) {
+  const needle = fold(query);
+  if (!needle) return items.slice();
+  return items.filter((item) => {
+    const name = fold(item.name);
+    const id = fold(item.id);
+    const ja = fold(translate(item.name, 'ja'));
+    return name.includes(needle) || id.includes(needle) || ja.includes(needle);
+  });
+}
+
 export const OFFICIAL_IMAGES = Object.freeze([
   Object.freeze({ id: 'instagram', file: 'instagram.png', name: 'Instagram', brand: true }),
   Object.freeze({ id: 'line', file: 'line.png', name: 'LINE', brand: true }),
