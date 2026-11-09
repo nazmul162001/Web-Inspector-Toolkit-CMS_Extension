@@ -14,11 +14,11 @@ describe('Official Image: library', () => {
     assert.equal(ids[ids.length - 1], 'screenshot');
   });
 
-  it('lists thirteen original files, four across in the panel', () => {
-    assert.equal(OFFICIAL_IMAGES.length, 13);
+  it('lists unique original files, four across in the panel', () => {
+    assert.equal(OFFICIAL_IMAGES.length, 62);
     const files = OFFICIAL_IMAGES.map((item) => item.file);
-    assert.equal(new Set(files).size, 13);
-    assert.equal(new Set(OFFICIAL_IMAGES.map((item) => item.id)).size, 13);
+    assert.equal(new Set(files).size, OFFICIAL_IMAGES.length);
+    assert.equal(new Set(OFFICIAL_IMAGES.map((item) => item.id)).size, OFFICIAL_IMAGES.length);
     for (const item of OFFICIAL_IMAGES) {
       assert.ok(item.file);
       assert.ok(item.name);
@@ -26,9 +26,9 @@ describe('Official Image: library', () => {
     }
   });
 
-  it('shows social icons first, then coming soon, then the rest', () => {
+  it('keeps the original icons first, then the extra CMS set', () => {
     assert.deepEqual(
-      OFFICIAL_IMAGES.map((item) => item.id),
+      OFFICIAL_IMAGES.slice(0, 13).map((item) => item.id),
       [
         'instagram',
         'line',
@@ -45,6 +45,10 @@ describe('Official Image: library', () => {
         'sample-portrait',
       ],
     );
+    const ids = OFFICIAL_IMAGES.map((item) => item.id);
+    for (const id of ['tiktok', 'phone', 'calendar', 'google-maps', 'people', 'cart']) {
+      assert.ok(ids.includes(id), id);
+    }
   });
 
   it('can fetch every bundled file so Download has the original bytes', async () => {
